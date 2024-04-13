@@ -15,32 +15,20 @@ pub(crate) struct TodoArgs {
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
     /// Add tasks to the task list. Separate tasks with spaces.
-    Add(AddCommand),
+    Add(TasksCommand),
     /// Remove tasks from the task list. Separate tasks with spaces.
-    Remove(RemoveCommand),
+    Remove(TasksCommand),
     /// Mark tasks in the task list as done.
-    Done(DoneCommand),
+    Done(TasksCommand),
+    /// Mark tasks in the list as undone.
+    Undone(TasksCommand),
     /// List all tasks. Tasks marked done are shown with a strike-through.
     List
 }
 
 #[derive(Debug, Args)]
-pub(crate) struct AddCommand {
-    /// The tasks to add
-    #[arg(num_args = 0..)]
-    pub tasks: Option<Vec<String>>
-}
-
-#[derive(Debug, Args)]
-pub(crate) struct RemoveCommand {
-    /// The tasks to remove
-    #[arg(num_args = 0..)]
-    pub tasks: Option<Vec<String>>
-}
-
-#[derive(Debug, Args)]
-pub(crate) struct DoneCommand {
-    /// The tasks to mark done
-    #[arg(num_args = 0..)]
-    pub tasks: Option<Vec<String>>
+pub(crate) struct TasksCommand {
+    /// The tasks to add/remove/mark done
+    #[arg(num_args = 1..)]
+    pub tasks: Vec<String>
 }
