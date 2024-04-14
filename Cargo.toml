@@ -1,6 +1,6 @@
 [package]
 name = "todo"
-authors = ["yesseruser <yesseruseryt@gmail.com>"]
+authors = ["Yesser Studios <yesseruseryt@gmail.com>"]
 version = "1.0.0"
 edition = "2021"
 build = "build.rs"
