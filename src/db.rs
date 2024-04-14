@@ -73,4 +73,8 @@ impl SaveData {
         self.tasks[task_index].done = false;
         return was_undone
     }
+
+    pub fn clear_tasks(&mut self) {
+        self.tasks = Vec::new();
+    }
 }

@@ -62,6 +62,9 @@ fn main() {
                 }
             }
         }
+        Command::Clear => {
+            data.clear_tasks();
+        }
         Command::List => {} // List just shows the tasks, that is below:
     }
 
