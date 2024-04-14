@@ -12,6 +12,8 @@ fn main() {
     let mut data = SaveData::new();
     let done_style = Style::new().strikethrough().green();
 
+    let _ = data.load_tasks();
+
     match &args.command {
         Command::Add(command) => {
             if command.tasks.len() <= 0 {
@@ -44,7 +46,7 @@ fn main() {
                     let index = data.get_tasks()
                         .iter().position(|r| &r.name == task).unwrap();
 
-                    data.mark_task_done(index)
+                    data.mark_task_done(index);
                 }
             }
         }
@@ -56,12 +58,14 @@ fn main() {
                     let index = data.get_tasks()
                         .iter().position(|r| &r.name == task).unwrap();
 
-                    data.mark_task_undone(index)
+                    data.mark_task_undone(index);
                 }
             }
         }
         Command::List => {} // List just shows the tasks, that is below:
     }
+
+    data.save_tasks().unwrap();
 
     println!("\nCurrent tasks:");
     for task in data.get_tasks() {

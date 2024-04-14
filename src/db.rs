@@ -1,5 +1,10 @@
-use json::{stringify,parse};
+use std::fs::{self, File};
 
+use serde::{Deserialize, Serialize};
+use serde_json::{to_writer, from_reader};
+use platform_dirs::AppDirs;
+
+#[derive(Serialize, Deserialize)]
 pub struct Task {
     pub name: String,
     pub done: bool
@@ -14,8 +19,35 @@ impl SaveData {
         return SaveData {tasks: Vec::new()}
     }
 
-    pub fn load_tasks(&mut self) {
+    pub fn load_tasks(&mut self) -> Result<(), serde_json::Error> {
+        let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
+        let data_file_path = app_dirs.data_dir.join("todos.json");
 
+        println!("Data: {}", data_file_path.as_path().to_str().unwrap());
+
+        fs::create_dir_all(&app_dirs.data_dir).unwrap();
+
+        if !data_file_path.exists() {return Ok(())}
+
+        let file = File::open(data_file_path).unwrap();
+
+        let result: Vec<Task> = from_reader(file)?;
+        self.tasks = result;
+
+        return Ok(())
+    }
+
+    pub fn save_tasks(&self) -> Result<(), serde_json::Error> {
+        let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
+        let data_file_path = app_dirs.data_dir.join("todos.json");
+
+        fs::create_dir_all(&app_dirs.data_dir).unwrap();
+
+        let file = File::create(data_file_path).unwrap();
+
+        to_writer(file, &self.tasks)?;
+
+        return Ok(())
     }
 
     pub fn get_tasks(&self) -> &Vec<Task> {
@@ -23,7 +55,7 @@ impl SaveData {
     }
 
     pub fn add_task(&mut self, task: Task) {
-        self.tasks.insert(self.tasks.len(), task)
+        self.tasks.push(task)
     }
 
     pub fn remove_task(&mut self, task_index: usize) {
