@@ -14,12 +14,12 @@ pub(crate) struct SaveData {
     tasks: Vec<Task>
 }
 
-pub(crate) fn matches(task: &Task, query_string: &String) -> bool {
+pub(crate) fn exactly_matches(task: &Task, query_string: &String) -> bool {
     return task.name == *query_string;
 }
 
 pub(crate) fn get_index(tasks: &Vec<Task>, query_string: &String) -> Option<usize> {
-    return tasks.iter().position(|r| matches(r, query_string))
+    return tasks.iter().position(|r| exactly_matches(r, query_string))
 }
 
 impl SaveData {
