@@ -8,7 +8,7 @@ license = "MIT"
 description = "A to-do CLI written in Rust"
 readme = "README.md"
 categories = ["command-line-utilities"]
-keywords = ["todo", "tasks", "tasklist", "todolist", "todos"]
+keywords = ["todo", "tasks", "tasklist", "todolist", "cli"]
 exclude = ["/wix/"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
