@@ -19,11 +19,24 @@ fn main() {
             if command.tasks.len() <= 0 {
                 println!("No tasks specified!")
             } else {
+                let mut success = true;
                 for task in &command.tasks {
-                    let task_obj: Task = Task{name: task.deref().parse().unwrap(), done: false};
-                    data.add_task(task_obj);
+                    let option = get_index(data.get_tasks(), task);
+                    match option {
+                        Some(_) => {
+                            // Task already exists
+                            println!("Task already exists!");
+                            success = false;
+                        }
+                        None => {
+                            let task_obj: Task = Task{name: task.deref().parse().unwrap(), done: false};
+                            data.add_task(task_obj);
+                        }
+                    }
                 }
-                println!("Successfully added tasks.")
+                if success {
+                    println!("Successfully added tasks.")
+                }
             }
         }
         Command::Remove(command) => {
