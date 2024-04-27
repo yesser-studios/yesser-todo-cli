@@ -14,6 +14,10 @@ pub(crate) struct SaveData {
     tasks: Vec<Task>
 }
 
+pub(crate) fn matches(task: &Task, query_string: &String) -> bool {
+    return task.name == *query_string;
+}
+
 impl SaveData {
     pub fn new() -> SaveData {
         return SaveData {tasks: Vec::new()}

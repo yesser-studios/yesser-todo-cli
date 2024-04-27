@@ -4,7 +4,7 @@ mod db;
 use std::ops::Deref;
 use clap::{Parser};
 use args::{TodoArgs,Command};
-use db::{SaveData,Task};
+use db::{SaveData,Task,matches};
 use console::Style;
 
 fn main() {
@@ -32,7 +32,7 @@ fn main() {
             } else {
                 for task in &command.tasks {
                     let index = data.get_tasks()
-                        .iter().position(|r| &r.name == task).unwrap();
+                        .iter().position(|r| matches(r,  task)).unwrap();
 
                     data.remove_task(index);
                 }
@@ -44,7 +44,7 @@ fn main() {
             } else {
                 for task in &command.tasks {
                     let index = data.get_tasks()
-                        .iter().position(|r| &r.name == task).unwrap();
+                        .iter().position(|r| matches(r, task)).unwrap();
 
                     data.mark_task_done(index);
                 }
@@ -56,7 +56,7 @@ fn main() {
             } else {
                 for task in &command.tasks {
                     let index = data.get_tasks()
-                        .iter().position(|r| &r.name == task).unwrap();
+                        .iter().position(|r| matches(r, &task)).unwrap();
 
                     data.mark_task_undone(index);
                 }
