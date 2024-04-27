@@ -18,6 +18,10 @@ pub(crate) fn matches(task: &Task, query_string: &String) -> bool {
     return task.name == *query_string;
 }
 
+pub(crate) fn get_index(tasks: &Vec<Task>, query_string: &String) -> Option<usize> {
+    return tasks.iter().position(|r| matches(r, query_string))
+}
+
 impl SaveData {
     pub fn new() -> SaveData {
         return SaveData {tasks: Vec::new()}

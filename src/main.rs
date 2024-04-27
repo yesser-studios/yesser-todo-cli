@@ -2,9 +2,9 @@ mod args;
 mod db;
 
 use std::ops::Deref;
-use clap::{Parser};
+use clap::Parser;
 use args::{TodoArgs,Command};
-use db::{SaveData,Task,matches};
+use db::{SaveData,Task,get_index};
 use console::Style;
 
 fn main() {
@@ -31,10 +31,13 @@ fn main() {
                 println!("No tasks specified!")
             } else {
                 for task in &command.tasks {
-                    let index = data.get_tasks()
-                        .iter().position(|r| matches(r,  task)).unwrap();
-
-                    data.remove_task(index);
+                    let option = get_index(data.get_tasks(), task);
+                    match option {
+                        Some(index) => {
+                            data.remove_task(index);
+                        }
+                        None => println!("Unable to find specified task!"),
+                    }
                 }
             }
         }
@@ -43,10 +46,13 @@ fn main() {
                 println!("No tasks specified!")
             } else {
                 for task in &command.tasks {
-                    let index = data.get_tasks()
-                        .iter().position(|r| matches(r, task)).unwrap();
-
-                    data.mark_task_done(index);
+                    let option = get_index(data.get_tasks(), task);
+                    match option {
+                        Some(index) => {
+                            data.mark_task_done(index);
+                        }
+                        None => println!("Unable to find specified task!"),
+                    }
                 }
             }
         }
@@ -55,10 +61,13 @@ fn main() {
                 println!("No tasks specified!")
             } else {
                 for task in &command.tasks {
-                    let index = data.get_tasks()
-                        .iter().position(|r| matches(r, &task)).unwrap();
-
-                    data.mark_task_undone(index);
+                    let option = get_index(data.get_tasks(), task);
+                    match option {
+                        Some(index) => {
+                            data.mark_task_undone(index);
+                        }
+                        None => println!("Unable to find specified task!"),
+                    }
                 }
             }
         }
