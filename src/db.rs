@@ -1,4 +1,4 @@
-use std::fs::{self, File};
+use std::{fs::{self, File}, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{to_writer, from_reader};
@@ -27,11 +27,21 @@ impl SaveData {
         return SaveData {tasks: Vec::new()}
     }
 
-    pub fn load_tasks(&mut self) -> Result<(), serde_json::Error> {
+    pub(crate) fn get_data_paths() -> (AppDirs, PathBuf) {
         let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
         let data_file_path = app_dirs.data_dir.join("todos.json");
+        return (app_dirs, data_file_path);
+    }
 
-        println!("Data: {}", data_file_path.as_path().to_str().unwrap());
+    pub fn show_data_file_path(&self) {
+        let data_file_path = SaveData::get_data_paths().1;
+        println!("Data file: {}", data_file_path.as_path().to_str().unwrap());
+    }
+
+    pub fn load_tasks(&mut self) -> Result<(), serde_json::Error> {
+        let data_paths = SaveData::get_data_paths();
+        let app_dirs = data_paths.0;
+        let data_file_path = data_paths.1;
 
         fs::create_dir_all(&app_dirs.data_dir).unwrap();
 
