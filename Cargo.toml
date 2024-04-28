@@ -1,5 +1,5 @@
 [package]
-name = "todo"
+name = "rust_todo"
 authors = ["Yesser Studios <yesseruseryt@gmail.com>"]
 version = "1.0.1"
 edition = "2021"
@@ -23,3 +23,6 @@ serde = { version = "1.0.197", features = ["derive"] }
 [build-dependencies]
 winres = "0.1.12"
 copy_to_output = "2.2.0"
+
+[[bin]]
+name = "todo"
