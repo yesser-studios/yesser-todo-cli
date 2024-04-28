@@ -19,9 +19,5 @@ serde_json = "1.0.115"
 platform-dirs = "0.3.0"
 serde = { version = "1.0.197", features = ["derive"] }
 
-[build-dependencies]
-winres = "0.1.12"
-copy_to_output = "2.2.0"
-
 [[bin]]
 name = "todo"
