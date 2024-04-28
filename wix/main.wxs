@@ -125,21 +125,6 @@
                                 KeyPath='yes'/>
                         </Component>
                     </Directory>
-                    <Directory Id='Res' Name='res'>
-                        <Component Id='icons' Guid='8d652d86-a3a8-496c-836f-6d04cd94c834'>
-                            <File
-                                Id='ico'
-                                Name='icon.ico'
-                                DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\assets\icon.ico'
-                                KeyPath='yes'/>
-                            <File
-                                Id='png'
-                                Name='icon.png'
-                                DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\assets\icon.png'/>
-                        </Component>
-                    </Directory>
                 </Directory>
             </Directory>
         </Directory>
@@ -175,16 +160,6 @@
         </Feature>
 
         <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
-
-        
-        <!--
-          Uncomment the following `Icon` and `Property` tags to change the product icon.
-
-          The product icon is the graphic that appears in the Add/Remove
-          Programs control panel for the application.
-        -->
-        <Icon Id='ProductICO' SourceFile='assets/icon.ico'/>
-        <Property Id='ARPPRODUCTICON' Value='ProductICO' />
 
         
         <!--

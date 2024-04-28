@@ -3,7 +3,6 @@ name = "yesser-todo-cli"
 authors = ["Yesser Studios <yesseruseryt@gmail.com>"]
 version = "1.0.1"
 edition = "2021"
-build = "build.rs"
 license = "MIT"
 description = "A to-do CLI written in Rust"
 readme = "README.md"
