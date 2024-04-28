@@ -1,5 +1,5 @@
 [package]
-name = "rust_todo"
+name = "yesser-todo-cli"
 authors = ["Yesser Studios <yesseruseryt@gmail.com>"]
 version = "1.0.1"
 edition = "2021"

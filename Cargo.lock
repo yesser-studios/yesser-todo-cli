@@ -261,19 +261,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust_todo"
-version = "1.0.1"
-dependencies = [
- "clap",
- "console",
- "copy_to_output",
- "platform-dirs",
- "serde",
- "serde_json",
- "winres",
-]
-
-[[package]]
 name = "ryu"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -482,4 +469,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b68db261ef59e9e52806f688020631e987592bd83619edccda9c47d42cde4f6c"
 dependencies = [
  "toml",
+]
+
+[[package]]
+name = "yesser-todo-cli"
+version = "1.0.1"
+dependencies = [
+ "clap",
+ "console",
+ "copy_to_output",
+ "platform-dirs",
+ "serde",
+ "serde_json",
+ "winres",
 ]
