@@ -95,4 +95,8 @@ impl SaveData {
     pub fn clear_tasks(&mut self) {
         self.tasks = Vec::new();
     }
+
+    pub fn clear_done_tasks(&mut self) {
+        self.tasks.retain(|t| !t.done);
+    }
 }
