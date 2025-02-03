@@ -88,7 +88,7 @@ fn main() {
             data.clear_tasks();
         }
         Command::ClearDone => {
-            data.clear_tasks();
+            data.clear_done_tasks();
         }
         Command::List => {} // List just shows the tasks, that is below:
     }
