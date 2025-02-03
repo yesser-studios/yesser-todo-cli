@@ -24,6 +24,8 @@ pub(crate) enum Command {
     Undone(TasksCommand),
     /// Remove all tasks. Please note that this is irreversible.
     Clear,
+    /// Remove all done tasks. Please note that this is irreversible.
+    ClearDone,
     /// List all tasks. Tasks marked done are shown with a strike-through.
     List
 }
