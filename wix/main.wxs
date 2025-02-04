@@ -62,7 +62,7 @@
 
     <Product
         Id='*'
-        Name='todo'
+        Name='Yesser Todo CLI'
         UpgradeCode='BFE30DCE-1CFF-41CA-ADB2-B241DB9A1FD2'
         Manufacturer='Yesser Studios'
         Language='1033'
