@@ -445,11 +445,11 @@ version = "1.1.1"
 dependencies = [
  "clap",
  "console",
- "yesser-todo-lib",
+ "yesser-todo-db",
 ]
 
 [[package]]
-name = "yesser-todo-lib"
+name = "yesser-todo-db"
 version = "1.1.1"
 dependencies = [
  "platform-dirs",

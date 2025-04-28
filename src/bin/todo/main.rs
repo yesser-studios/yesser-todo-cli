@@ -3,7 +3,7 @@ mod args;
 use std::ops::Deref;
 use clap::Parser;
 use args::{TodoArgs,Command};
-use yesser_todo_lib::db::{SaveData, Task, get_index};
+use yesser_todo_db::{SaveData, Task, get_index};
 use console::Style;
 
 fn main() {

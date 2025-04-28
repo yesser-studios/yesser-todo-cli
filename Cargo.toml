@@ -17,7 +17,7 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 [dependencies]
 clap = { version = "4.5.28", features = ["derive"] }
 console = "0.15.10"
-yesser-todo-lib = { path = "lib" }
+yesser-todo-db = { path = "db" }
 
 [[bin]]
 name = "todo"
