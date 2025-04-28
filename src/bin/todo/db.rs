@@ -33,11 +33,6 @@ impl SaveData {
         return (app_dirs, data_file_path);
     }
 
-    pub fn show_data_file_path(&self) {
-        let data_file_path = SaveData::get_data_paths().1;
-        println!("Data file: {}", data_file_path.as_path().to_str().unwrap());
-    }
-
     pub fn load_tasks(&mut self) -> Result<(), serde_json::Error> {
         let data_paths = SaveData::get_data_paths();
         let app_dirs = data_paths.0;
