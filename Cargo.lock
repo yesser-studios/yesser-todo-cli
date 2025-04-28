@@ -445,9 +445,6 @@ version = "1.1.1"
 dependencies = [
  "clap",
  "console",
- "platform-dirs",
- "serde",
- "serde_json",
  "yesser-todo-lib",
 ]
 
