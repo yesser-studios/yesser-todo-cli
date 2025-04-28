@@ -20,6 +20,7 @@ console = "0.15.10"
 serde_json = "1.0.138"
 platform-dirs = "0.3.0"
 serde = { version = "1.0.217", features = ["derive"] }
+yesser-todo-lib = { path = "lib" }
 
 [[bin]]
 name = "todo"
