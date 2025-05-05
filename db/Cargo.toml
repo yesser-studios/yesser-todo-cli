@@ -1,27 +1,19 @@
 [package]
-name = "yesser-todo-cli"
+name = "yesser-todo-db"
 authors = ["Yesser Studios <yesseruseryt@gmail.com>"]
 version = "1.1.1"
 edition = "2024"
 license = "MIT"
-description = "A to-do CLI written in Rust"
+description = "A library for managing notes for yesser-todo-cli"
 readme = "README.md"
-categories = ["command-line-utilities"]
+categories = ["database"]
 keywords = ["todo", "tasks", "tasklist", "todolist", "cli"]
-exclude = ["/wix/"]
 homepage = "https://github.com/Yesser-Studios/yesser-todo-cli"
 repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.28", features = ["derive"] }
-console = "0.15.10"
-yesser-todo-db = "1"
-
-[patch.crates-io]
-# Temporary, remove on yesser-todo-db publish
-yesser-todo-db = { path = "db" }
-
-[[bin]]
-name = "todo"
+serde_json = "1.0.138"
+platform-dirs = "0.3.0"
+serde = { version = "1.0.217", features = ["derive"] }

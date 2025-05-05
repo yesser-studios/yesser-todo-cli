@@ -1,10 +1,9 @@
 mod args;
-mod db;
 
 use std::ops::Deref;
 use clap::Parser;
 use args::{TodoArgs,Command};
-use db::{SaveData,Task,get_index};
+use yesser_todo_db::{SaveData, Task, get_index};
 use console::Style;
 
 fn main() {
