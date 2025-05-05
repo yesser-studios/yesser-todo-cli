@@ -20,3 +20,7 @@ Make sure to change the `root_url` as well. Also, change the version in the test
 ## Windows build
 On a x64 Windows machine, install cargo-wix with `cargo install cargo-wix` and run `cargo wix`. 
 Next, upload the generated `.msi` file to the GitHub release.
+
+## Fedora COPR build
+1. On a Fedora machine with rpm build tools and rust2rpm installed, run the update.sh script located at https://github.com/yesser-studios/rpms/tree/main/yesser-todo-cli.  
+2. Commit and push the changes. COPR should build the new commit automatically.
