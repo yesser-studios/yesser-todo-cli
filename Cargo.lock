@@ -451,6 +451,8 @@ dependencies = [
 [[package]]
 name = "yesser-todo-db"
 version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f58c713a28c740b4c0a9b06e92b85251b056a0712b58255cb5250801d6d3c3a"
 dependencies = [
  "platform-dirs",
  "serde",
