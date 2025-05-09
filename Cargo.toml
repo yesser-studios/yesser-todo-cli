@@ -21,3 +21,9 @@ yesser-todo-db = "1"
 
 [[bin]]
 name = "todo"
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
