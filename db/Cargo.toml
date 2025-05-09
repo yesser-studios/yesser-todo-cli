@@ -17,3 +17,9 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 serde_json = "1.0.138"
 platform-dirs = "0.3.0"
 serde = { version = "1.0.217", features = ["derive"] }
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
