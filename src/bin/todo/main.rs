@@ -255,14 +255,41 @@ async fn main() {
         }
     }
 
-    data.save_tasks().unwrap();
+    match process_cloud_config() {
+        None => {
+            data.save_tasks().unwrap();
 
-    println!("\nCurrent tasks:");
-    for task in data.get_tasks() {
-        if task.done {
-            println!("{}", done_style.apply_to(&task.name))
-        } else {
-            println!("{}", task.name)
+            println!("\nCurrent tasks:");
+            for task in data.get_tasks() {
+                if task.done {
+                    println!("{}", done_style.apply_to(&task.name))
+                } else {
+                    println!("{}", task.name)
+                }
+            }
+        }
+        Some((host, port)) => {
+            let client = Client::new(host, Some(port));
+            let result = client.get().await;
+            match result {
+                Ok((status_code, tasks)) => {
+                    if status_code.is_success() {
+                        println!("\nCurrent tasks:");
+                        for task in tasks {
+                            if task.done {
+                                println!("{}", done_style.apply_to(&task.name))
+                            } else {
+                                println!("{}", task.name)
+                            }
+                        }
+                    } else if status_code.as_u16() == 404 {
+                        println!("Error while getting tasks: Not found")
+                    } else {
+                        println!("HTTP error while getting tasks: {}", status_code.as_u16());
+                    }
+                }
+                Err(err) => println!("Error while getting tasks: {err}"),
+            }
         }
     }
 }
