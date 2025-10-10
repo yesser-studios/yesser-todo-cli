@@ -6,3 +6,7 @@ edition = "2024"
 [dependencies]
 reqwest = { version = "0", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
+# yesser-todo-db = "1"
+
+[dependencies.yesser-todo-db]
+path = "../db"
