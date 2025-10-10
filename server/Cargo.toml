@@ -13,7 +13,4 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 [dependencies]
 axum = { version = "0.8.6", features = ["http2", "macros", "ws"] }
 tokio = { version = "1.47.1", features = ["full"] }
-# yesser-todo-db = "1"
-
-[dependencies.yesser-todo-db]
-path = "../db"
+yesser-todo-db = "1"
