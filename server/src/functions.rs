@@ -16,3 +16,11 @@ pub async fn add_task() {
     save_data.add_task(Task{name: String::from("Task"), done: false});
     save_data.save_tasks().unwrap();
 }
+
+#[debug_handler]
+pub async fn remove_task() {
+    let mut save_data = SaveData::new();
+    let _ = save_data.load_tasks();
+    save_data.remove_task(1);
+    save_data.save_tasks().unwrap();
+}
