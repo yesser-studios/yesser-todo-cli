@@ -1,4 +1,4 @@
-use reqwest::Error;
+use reqwest::{Error, StatusCode};
 use std::string::ToString;
 use yesser_todo_db::Task;
 
@@ -16,16 +16,17 @@ impl Client {
         }
     }
 
-    async fn get(&self) -> Result<Vec<Task>, Error> {
+    pub async fn get(&self) -> Result<(StatusCode, Vec<Task>), Error> {
         let result = self.client
             .get(format!("{}:{}/tasks", self.hostname, self.port).as_str())
             .send().await;
 
         match result {
             Ok(result) => {
+                let status_code = result.status();
                 let result = result.json::<Vec<Task>>().await;
                 match result {
-                    Ok(result) => {Ok(result)},
+                    Ok(result) => {Ok((status_code, result))},
                     Err(err) => {Err(err)}
                 }
             }
@@ -33,7 +34,7 @@ impl Client {
         }
     }
 
-    async fn add(&self, task: Task) -> Result<Task, Error> {
+    pub async fn add(&self, task: Task) -> Result<(StatusCode, Task), Error> {
         let result = self.client
             .post(format!("{}:{}/add", self.hostname, self.port).as_str())
             .json(&task)
@@ -41,9 +42,10 @@ impl Client {
 
         match result {
             Ok(result) => {
+                let status_code = result.status();
                 let result = result.json::<Task>().await;
                 match result {
-                    Ok(result) => {Ok(result)},
+                    Ok(result) => {Ok((status_code, result))},
                     Err(err) => {Err(err)}
                 }
             }
