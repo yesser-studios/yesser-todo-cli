@@ -18,6 +18,7 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 clap = { version = "4", features = ["derive"] }
 console = "0"
 yesser-todo-db = "1"
+yesser-todo-api = "1"
 
 [[bin]]
 name = "todo"
