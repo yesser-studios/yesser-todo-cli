@@ -1,4 +1,4 @@
-use reqwest::{Error, StatusCode};
+use reqwest::{Error, Response, StatusCode};
 use std::string::ToString;
 use yesser_todo_db::Task;
 
@@ -147,6 +147,26 @@ impl Client {
                     Err(err) => {Err(err)}
                 }
             }
+            Err(err) => {Err(err)}
+        }
+    }
+
+    pub async fn clear(&self) -> Result<StatusCode, Error> {
+        let result = self.client
+            .delete(format!("{}:{}/clear", self.hostname, self.port).as_str())
+            .send().await;
+        match result {
+            Ok(result) => Ok(result.status()),
+            Err(err) => {Err(err)}
+        }
+    }
+
+    pub async fn clear_done(&self) -> Result<StatusCode, Error> {
+        let result = self.client
+            .delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str())
+            .send().await;
+        match result {
+            Ok(result) => Ok(result.status()),
             Err(err) => {Err(err)}
         }
     }
