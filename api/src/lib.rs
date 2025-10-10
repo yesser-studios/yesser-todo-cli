@@ -1,4 +1,4 @@
-use reqwest::{Error, Response, StatusCode};
+use reqwest::{Error, StatusCode};
 use std::string::ToString;
 use yesser_todo_db::Task;
 
@@ -34,10 +34,10 @@ impl Client {
         }
     }
 
-    pub async fn add(&self, task: Task) -> Result<(StatusCode, Task), Error> {
+    pub async fn add(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
         let result = self.client
             .post(format!("{}:{}/add", self.hostname, self.port).as_str())
-            .json(&task.name)
+            .json(&task_name)
             .send().await;
 
         match result {
@@ -53,7 +53,7 @@ impl Client {
         }
     }
 
-    pub async fn get_index(&self, task_name: String) -> Result<(StatusCode, usize), Error> {
+    pub async fn get_index(&self, task_name: &String) -> Result<(StatusCode, usize), Error> {
         let result = self.client
             .get(format!("{}:{}/index", self.hostname, self.port).as_str())
             .json(&task_name)
@@ -71,8 +71,8 @@ impl Client {
         }
     }
 
-    pub async fn remove(&self, task_name: String) -> Result<StatusCode, Error> {
-        let index_result = self.get_index(task_name.clone()).await;
+    pub async fn remove(&self, task_name: &String) -> Result<StatusCode, Error> {
+        let index_result = self.get_index(task_name).await;
         let index: usize;
         match index_result {
             Ok((status_code, result)) => {
@@ -95,8 +95,8 @@ impl Client {
         }
     }
 
-    pub async fn done(&self, task_name: String) -> Result<(StatusCode, Task), Error> {
-        let index_result = self.get_index(task_name.clone()).await;
+    pub async fn done(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
+        let index_result = self.get_index(task_name).await;
         let index: usize;
         match index_result {
             Ok((status_code, result)) => {
@@ -123,8 +123,8 @@ impl Client {
         }
     }
 
-    pub async fn undone(&self, task_name: String) -> Result<(StatusCode, Task), Error> {
-        let index_result = self.get_index(task_name.clone()).await;
+    pub async fn undone(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
+        let index_result = self.get_index(task_name).await;
         let index: usize;
         match index_result {
             Ok((status_code, result)) => {
@@ -188,23 +188,23 @@ mod tests {
     async fn add_get_index_done_undone_remove() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         // add
-        let result = client.add(Task{name: "test".to_string(), done: false}).await;
+        let result = client.add(&"test".to_string()).await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
         // get_index
-        let result = client.get_index("test".to_string()).await;
+        let result = client.get_index(&"test".to_string()).await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
         // done
-        let result = client.done("test".to_string()).await;
+        let result = client.done(&"test".to_string()).await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
         // undone
-        let result = client.undone("test".to_string()).await;
+        let result = client.undone(&"test".to_string()).await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
         // remove
-        let result = client.remove("test".to_string()).await;
+        let result = client.remove(&"test".to_string()).await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap() == StatusCode::OK);
     }
