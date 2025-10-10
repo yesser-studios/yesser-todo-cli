@@ -37,7 +37,7 @@ impl Client {
     pub async fn add(&self, task: Task) -> Result<(StatusCode, Task), Error> {
         let result = self.client
             .post(format!("{}:{}/add", self.hostname, self.port).as_str())
-            .json(&task)
+            .json(&task.name)
             .send().await;
 
         match result {
