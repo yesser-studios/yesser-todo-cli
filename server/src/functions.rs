@@ -28,3 +28,23 @@ pub async fn remove_task(Json(index): Json<usize>) {
     save_data.remove_task(index);
     save_data.save_tasks().unwrap();
 }
+
+#[debug_handler]
+pub async fn done_task(Json(index): Json<usize>) -> Json<Task> {
+    let mut save_data = SaveData::new();
+    let _ = save_data.load_tasks();
+    println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
+    save_data.mark_task_done(index);
+    save_data.save_tasks().unwrap();
+    Json(save_data.get_tasks()[index].clone())
+}
+
+#[debug_handler]
+pub async fn undone_task(Json(index): Json<usize>) -> Json<Task> {
+    let mut save_data = SaveData::new();
+    let _ = save_data.load_tasks();
+    println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
+    save_data.mark_task_undone(index);
+    save_data.save_tasks().unwrap();
+    Json(save_data.get_tasks()[index].clone())
+}
