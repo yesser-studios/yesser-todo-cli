@@ -38,7 +38,7 @@ pub async fn remove_task(Json(index): Json<usize>) -> StatusCode {
 pub async fn done_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
-    if save_data.get_tasks().len() >= index {
+    if save_data.get_tasks().len() <= index {
         return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
     }
     println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
@@ -51,7 +51,7 @@ pub async fn done_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
 pub async fn undone_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
-    if save_data.get_tasks().len() >= index {
+    if save_data.get_tasks().len() <= index {
         return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
     }
     println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
