@@ -1120,7 +1120,6 @@ name = "yesser-todo-server"
 version = "1.0.0"
 dependencies = [
  "axum",
- "serde",
  "tokio",
  "yesser-todo-db",
 ]
