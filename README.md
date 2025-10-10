@@ -24,3 +24,24 @@ Next, upload the generated `.msi` file to the GitHub release.
 ## Fedora COPR build
 1. On a Fedora machine with rpm build tools and rust2rpm installed, run the update.sh script located at https://github.com/yesser-studios/rpms/tree/main/yesser-todo-cli.  
 2. Commit and push the changes. COPR should build the new commit automatically.
+
+# Server
+> [!CAUTION]
+> **Server functionality is not yet production-ready.**  
+> Accessing the server multiple times at the same time *will* cause race conditions and potentially edit incorrect tasks and/or crash the server.
+## Usage guide:
+Run the `yesser-todo-server` crate. This will open port 6982 and listen for HTTP traffic.
+## Endpoints
+- `GET /tasks` returns a JSON containing an array of `Task` objects, such as: `[{name: "example", done: true}]`
+- `POST /add` accepts a body JSON representation of a string, such as: `"example"`.
+This string will be used as the name for a new task. Returns a JSON of the generated `Task` object.
+- `DELETE /remove` accepts a body JSON representation of an integer, such as: `5`.
+The task with the index of the given integer will be deleted. The index can be queried with `GET /index` (see below)
+- `POST /done` accepts a body JSON representation of an integer, such as: `5`.
+The task with the given index will be marked as done. Returns a JSON of the modified `Task` object.
+- `POST /undone` accepts a body JSON representation of an integer, such as: `5`.
+The task with the given index will be marked as undone. Returns a JSON of the modified `Task` object.
+- `DELETE /clear` will delete all tasks.
+- `DELETE /cleardone` will delete all tasks marked as done.
+- `GET /index` accepts a body JSON representation of a string.
+It will return the index at which the given string first appears.
