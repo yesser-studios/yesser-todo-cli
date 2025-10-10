@@ -262,7 +262,10 @@ async fn main() {
         Command::List => {} // List just shows the tasks, that is below
         Command::Connect(command) => {
             let result = match &command.port {
-                None => SaveData::save_cloud_config(&command.host, &"6982".to_string()),
+                None => {
+                    let client = Client::new("".to_string(), None);
+                    SaveData::save_cloud_config(&command.host, &client.port)
+                },
                 Some(port) => SaveData::save_cloud_config(&command.host, port),
             };
             match result {
