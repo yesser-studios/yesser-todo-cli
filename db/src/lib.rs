@@ -77,6 +77,14 @@ impl SaveData {
 
         Ok(())
     }
+    
+    pub fn remove_cloud_config() -> Result<(), std::io::Error> {
+        let config_paths = SaveData::get_cloud_config_paths();
+        let config_file_path = config_paths.1;
+        
+        fs::remove_file(config_file_path)?;
+        Ok(())
+    }
 
     pub fn load_tasks(&mut self) -> Result<(), serde_json::Error> {
         let data_paths = SaveData::get_data_paths();
