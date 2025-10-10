@@ -77,3 +77,14 @@ pub async fn clear_done_tasks() {
     save_data.clear_done_tasks();
     save_data.save_tasks().unwrap();
 }
+
+#[debug_handler]
+pub async fn get_index(Json(name): Json<String>) -> (StatusCode, Json<usize>) {
+    let mut save_data = SaveData::new();
+    let _ = save_data.load_tasks();
+    let result = yesser_todo_db::get_index(save_data.get_tasks(), &name);
+    match result {
+        None => {(StatusCode::NOT_FOUND, Json(0))}
+        Some(result) => {(StatusCode::OK, Json(result))}
+    }
+}
