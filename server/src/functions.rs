@@ -142,7 +142,7 @@ pub async fn undone_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
     if save_data.get_tasks().len() <= index {
         return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
     }
-    println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
+    println!("Marking task with index {} as undone: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_undone(index);
     save_data.save_tasks().unwrap();
     (StatusCode::OK, Json(save_data.get_tasks()[index].clone()))
