@@ -1,12 +1,15 @@
 mod args;
 
+use std::io::{Error, ErrorKind};
 use std::ops::Deref;
 use clap::Parser;
 use args::{TodoArgs,Command};
 use yesser_todo_db::{SaveData, Task, get_index};
 use console::Style;
+use yesser_todo_api::Client;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = TodoArgs::parse();
     let mut data = SaveData::new();
     let done_style = Style::new().strikethrough().green();
@@ -19,20 +22,64 @@ fn main() {
                 println!("No tasks specified!")
             } else {
                 let mut success = true;
-                for task in &command.tasks {
-                    let option = get_index(data.get_tasks(), task);
-                    match option {
-                        Some(_) => {
-                            // Task already exists
-                            println!("Task already exists!");
-                            success = false;
-                        }
-                        None => {
-                            let task_obj: Task = Task{name: task.deref().parse().unwrap(), done: false};
-                            data.add_task(task_obj);
+                let cloud_config: Option<(String, String)>;
+                match SaveData::get_cloud_config() {
+                    Ok(option) => match option {
+                        None => cloud_config = None,
+                        Some((host, port)) => cloud_config = Some((host, port)),
+                    }
+                    Err(_) => cloud_config = None,
+                };
+                match cloud_config {
+                    None => {
+                        for task in &command.tasks {
+                            let option = get_index(data.get_tasks(), task);
+                            match option {
+                                Some(_) => {
+                                    // Task already exists
+                                    println!("Task already exists!");
+                                    success = false;
+                                }
+                                None => {
+                                    let task_obj: Task = Task { name: task.deref().parse().unwrap(), done: false };
+                                    data.add_task(task_obj);
+                                }
+                            }
                         }
                     }
-                }
+                    Some((host, port)) => {
+                        let client = Client::new(host, Some(port));
+                        for task in &command.tasks {
+                            let result = client.get_index(task).await;
+                            let mut exists: bool = false;
+                            match result {
+                                Ok((status_code, index)) => {
+                                    if status_code.is_success() {
+                                        exists = true
+                                    }
+                                }
+                                Err(_) => {}
+                            }
+                            match exists {
+                                true => {
+                                    // Task already exists
+                                    println!("Task already exists!");
+                                    success = false;
+                                }
+                                false => {
+                                    let result = client.add(task).await;
+                                    match result {
+                                        Ok(_) => {}
+                                        Err(_) => {
+                                            println!("Adding task failed on server!");
+                                            success = false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
                 if success {
                     println!("Successfully added tasks.")
                 }
@@ -90,6 +137,28 @@ fn main() {
             data.clear_done_tasks();
         }
         Command::List => {} // List just shows the tasks, that is below:
+        Command::Connect(command) => {
+            let result = match &command.port {
+                None => SaveData::save_cloud_config(&command.host, &"6982".to_string()),
+                Some(port) => SaveData::save_cloud_config(&command.host, port),
+            };
+            match result {
+                Ok(_) => println!("Successfully linked server."),
+                Err(_) => {println!("Unable to save server configuration.")}
+            }
+        }
+        Command::Disconnect => {
+            let result = SaveData::remove_cloud_config();
+            match result {
+                Ok(_) => {println!("Successfully unlinked server.")}
+                Err(err) => {
+                    match err.kind() {
+                        ErrorKind::NotFound => println!("You're already unlinked!"),
+                        _ => println!("Something went wrong")
+                    }
+                }
+            }
+        }
     }
 
     data.save_tasks().unwrap();
