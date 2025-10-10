@@ -1,4 +1,5 @@
 use axum::{debug_handler, Json};
+use axum::http::StatusCode;
 use yesser_todo_db::{SaveData, Task};
 
 #[debug_handler]
@@ -21,32 +22,42 @@ pub async fn add_task(Json(name): Json<String>) -> Json<Task> {
 }
 
 #[debug_handler]
-pub async fn remove_task(Json(index): Json<usize>) {
+pub async fn remove_task(Json(index): Json<usize>) -> StatusCode {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
+    if save_data.get_tasks().len() >= index {
+        return StatusCode::NOT_FOUND;
+    }
     println!("Removing task with index {}: {}", index, save_data.get_tasks()[index].name);
     save_data.remove_task(index);
     save_data.save_tasks().unwrap();
+    StatusCode::OK
 }
 
 #[debug_handler]
-pub async fn done_task(Json(index): Json<usize>) -> Json<Task> {
+pub async fn done_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
+    if save_data.get_tasks().len() >= index {
+        return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
+    }
     println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_done(index);
     save_data.save_tasks().unwrap();
-    Json(save_data.get_tasks()[index].clone())
+    (StatusCode::OK, Json(save_data.get_tasks()[index].clone()))
 }
 
 #[debug_handler]
-pub async fn undone_task(Json(index): Json<usize>) -> Json<Task> {
+pub async fn undone_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
+    if save_data.get_tasks().len() >= index {
+        return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
+    }
     println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_undone(index);
     save_data.save_tasks().unwrap();
-    Json(save_data.get_tasks()[index].clone())
+    (StatusCode::OK, Json(save_data.get_tasks()[index].clone()))
 }
 
 #[debug_handler]
