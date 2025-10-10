@@ -33,6 +33,12 @@ impl SaveData {
         return (app_dirs, data_file_path);
     }
 
+    pub fn get_cloud_config_paths() -> (AppDirs, PathBuf) {
+        let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
+        let config_file_path = app_dirs.config_dir.join("cloud.json");
+        return (app_dirs, config_file_path);
+    }
+
     pub fn load_tasks(&mut self) -> Result<(), serde_json::Error> {
         let data_paths = SaveData::get_data_paths();
         let app_dirs = data_paths.0;
