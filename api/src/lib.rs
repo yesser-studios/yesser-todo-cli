@@ -1,5 +1,5 @@
+use reqwest::Error;
 use std::string::ToString;
-use reqwest::{Error, Response};
 use yesser_todo_db::Task;
 
 pub struct Client {
