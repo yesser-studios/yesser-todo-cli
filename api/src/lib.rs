@@ -52,6 +52,48 @@ impl Client {
             Err(err) => {Err(err)}
         }
     }
+
+    pub async fn get_index(&self, task_name: String) -> Result<(StatusCode, usize), Error> {
+        let result = self.client
+            .get(format!("{}:{}/index", self.hostname, self.port).as_str())
+            .json(&task_name)
+            .send().await;
+        match result {
+            Ok(result) => {
+                let status_code = result.status();
+                let result = result.json::<usize>().await;
+                match result {
+                    Ok(result) => Ok((status_code, result)),
+                    Err(err) => {Err(err)}
+                }
+            }
+            Err(err) => {Err(err)}
+        }
+    }
+
+    pub async fn remove(&self, task_name: String) -> Result<StatusCode, Error> {
+        let index_result = self.get_index(task_name.clone()).await;
+        let index: usize;
+        match index_result {
+            Ok((status_code, result)) => {
+                if status_code != StatusCode::OK {
+                    return Ok(status_code);
+                }
+                index = result;
+            }
+            Err(err) => {return Err(err)}
+        }
+        let result = self.client
+            .delete(format!("{}:{}/remove", self.hostname, self.port).as_str())
+            .json(&index)
+            .send().await;
+        match result {
+            Ok(result) => {
+                Ok(result.status())
+            }
+            Err(err) => {Err(err)}
+        }
+    }
 }
 
 #[cfg(test)]
