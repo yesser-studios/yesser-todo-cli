@@ -110,9 +110,8 @@ async fn main() {
                             match result {
                                 Ok(status_code) => {
                                     if status_code.is_success() {
-                                        println!("Task removed!");
-                                    }
-                                    if status_code.as_u16() == 404 {
+                                        println!("Task {task} removed!");
+                                    } else if status_code.as_u16() == 404 {
                                         println!("Task {task} not found!");
                                     }
                                 }
@@ -127,13 +126,33 @@ async fn main() {
             if command.tasks.len() <= 0 {
                 println!("No tasks specified!")
             } else {
-                for task in &command.tasks {
-                    let option = get_index(data.get_tasks(), task);
-                    match option {
-                        Some(index) => {
-                            data.mark_task_done(index);
+                match process_cloud_config() {
+                    None => {
+                        for task in &command.tasks {
+                            let option = get_index(data.get_tasks(), task);
+                            match option {
+                                Some(index) => {
+                                    data.mark_task_done(index);
+                                }
+                                None => println!("Unable to find task {task}!"),
+                            }
                         }
-                        None => println!("Unable to find specified task!"),
+                    }
+                    Some((host, port)) => {
+                        let client = Client::new(host, Some(port));
+                        for task in &command.tasks {
+                            let result = client.done(task).await;
+                            match result {
+                                Ok((status_code, _)) => {
+                                    if status_code.is_success() {
+                                        println!("Task {task} done!");
+                                    } else if status_code.as_u16() == 404 {
+                                        println!("Task {task} not found!");
+                                    }
+                                }
+                                Err(_) => {println!("Marking task {task} as done failed.")}
+                            }
+                        }
                     }
                 }
             }
@@ -142,13 +161,33 @@ async fn main() {
             if command.tasks.len() <= 0 {
                 println!("No tasks specified!")
             } else {
-                for task in &command.tasks {
-                    let option = get_index(data.get_tasks(), task);
-                    match option {
-                        Some(index) => {
-                            data.mark_task_undone(index);
+                match process_cloud_config() {
+                    None => {
+                        for task in &command.tasks {
+                            let option = get_index(data.get_tasks(), task);
+                            match option {
+                                Some(index) => {
+                                    data.mark_task_undone(index);
+                                }
+                                None => println!("Unable to find task {task}!"),
+                            }
                         }
-                        None => println!("Unable to find specified task!"),
+                    }
+                    Some((host, port)) => {
+                        let client = Client::new(host, Some(port));
+                        for task in &command.tasks {
+                            let result = client.undone(task).await;
+                            match result {
+                                Ok((status_code, _)) => {
+                                    if status_code.is_success() {
+                                        println!("Task {task} done!");
+                                    } else if status_code.as_u16() == 404 {
+                                        println!("Task {task} not found!");
+                                    }
+                                }
+                                Err(_) => {println!("Marking task {task} as done failed.")}
+                            }
+                        }
                     }
                 }
             }
