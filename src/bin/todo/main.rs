@@ -193,12 +193,44 @@ async fn main() {
             }
         }
         Command::Clear => {
-            data.clear_tasks();
+            match process_cloud_config() {
+                None => data.clear_tasks(),
+                Some((host, port)) => {
+                    let client = Client::new(host, Some(port));
+                    let result = client.clear().await;
+                    match result {
+                        Ok(status_code) => {
+                            if status_code.is_success() {
+                                println!("Tasks cleared!");
+                            } else {
+                                println!("HTTP error while clearing: {}", status_code.as_u16());
+                            }
+                        }
+                        Err(err) => println!("Clearing tasks failed: {err}"),
+                    }
+                }
+            }
         }
         Command::ClearDone => {
-            data.clear_done_tasks();
+            match process_cloud_config() {
+                None => data.clear_done_tasks(),
+                Some((host, port)) => {
+                    let client = Client::new(host, Some(port));
+                    let result = client.clear_done().await;
+                    match result {
+                        Ok(status_code) => {
+                            if status_code.is_success() {
+                                println!("Tasks cleared!");
+                            } else {
+                                println!("HTTP error while clearing: {}", status_code.as_u16());
+                            }
+                        }
+                        Err(err) => println!("Clearing tasks failed: {err}"),
+                    }
+                }
+            }
         }
-        Command::List => {} // List just shows the tasks, that is below:
+        Command::List => {} // List just shows the tasks, that is below
         Command::Connect(command) => {
             let result = match &command.port {
                 None => SaveData::save_cloud_config(&command.host, &"6982".to_string()),
