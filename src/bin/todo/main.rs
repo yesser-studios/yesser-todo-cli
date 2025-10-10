@@ -8,6 +8,16 @@ use yesser_todo_db::{SaveData, Task, get_index};
 use console::Style;
 use yesser_todo_api::Client;
 
+fn process_cloud_config() -> Option<(String, String)> {
+    match SaveData::get_cloud_config() {
+        Ok(option) => match option {
+            None => None,
+            Some((host, port)) => Some((host, port)),
+        }
+        Err(_) => None,
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let args = TodoArgs::parse();
@@ -22,15 +32,7 @@ async fn main() {
                 println!("No tasks specified!")
             } else {
                 let mut success = true;
-                let cloud_config: Option<(String, String)>;
-                match SaveData::get_cloud_config() {
-                    Ok(option) => match option {
-                        None => cloud_config = None,
-                        Some((host, port)) => cloud_config = Some((host, port)),
-                    }
-                    Err(_) => cloud_config = None,
-                };
-                match cloud_config {
+                match process_cloud_config() {
                     None => {
                         for task in &command.tasks {
                             let option = get_index(data.get_tasks(), task);
