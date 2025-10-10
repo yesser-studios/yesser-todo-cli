@@ -11,6 +11,7 @@ pub async fn get_tasks() -> Json<Vec<Task>> {
 
 #[debug_handler]
 pub async fn add_task(Json(name): Json<String>) {
+    println!("Adding task {}", name);
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
     save_data.add_task(Task{name, done: false});
