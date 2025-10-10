@@ -28,6 +28,24 @@ impl Client {
             Err(err) => {Err(err)}
         }
     }
+
+    async fn add(&self, task: Task) -> Result<Task, Error> {
+        let result = self.client
+            .post(format!("https://{}:{}/add", self.hostname, self.port).as_str())
+            .json(&task)
+            .send().await;
+
+        match result {
+            Ok(result) => {
+                let result = result.json::<Task>().await;
+                match result {
+                    Ok(result) => {Ok(result)},
+                    Err(err) => {Err(err)}
+                }
+            }
+            Err(err) => {Err(err)}
+        }
+    }
 }
 
 #[cfg(test)]
