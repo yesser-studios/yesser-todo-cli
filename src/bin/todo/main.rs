@@ -314,8 +314,6 @@ async fn main() {
                                 println!("{}", task.name)
                             }
                         }
-                    } else if status_code.as_u16() == 404 {
-                        println!("Error while getting tasks: Not found")
                     } else {
                         println!("HTTP error while getting tasks: {}", status_code.as_u16());
                     }
