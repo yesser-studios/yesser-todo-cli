@@ -1,0 +1,7 @@
+[package]
+name = "yesser-todo-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+yesser-todo-db = "1"
