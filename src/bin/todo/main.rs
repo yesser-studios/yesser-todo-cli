@@ -190,7 +190,7 @@ async fn main() {
                                         println!("HTTP Error while marking task {task} as undone: {status_code}!");
                                     }
                                 }
-                                Err(err) => {println!("Marking task {task} as done failed: {err}")}
+                                Err(err) => {println!("Marking task {task} as undone failed: {err}")}
                             }
                         }
                     }
