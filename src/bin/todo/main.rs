@@ -72,8 +72,8 @@ async fn main() {
                                     let result = client.add(task).await;
                                     match result {
                                         Ok(_) => {}
-                                        Err(_) => {
-                                            println!("Adding task {task} failed!");
+                                        Err(err) => {
+                                            println!("Adding task {task} failed! {err}");
                                             success = false;
                                         }
                                     }
@@ -115,7 +115,7 @@ async fn main() {
                                         println!("Task {task} not found!");
                                     }
                                 }
-                                Err(_) => println!("Removing task {task} failed (task may still exist)."),
+                                Err(err) => println!("Removing task {task} failed (task may still exist): {err}"),
                             }
                         }
                     }
@@ -150,7 +150,7 @@ async fn main() {
                                         println!("Task {task} not found!");
                                     }
                                 }
-                                Err(_) => {println!("Marking task {task} as done failed.")}
+                                Err(err) => {println!("Marking task {task} as done failed: {err}")}
                             }
                         }
                     }
@@ -185,7 +185,7 @@ async fn main() {
                                         println!("Task {task} not found!");
                                     }
                                 }
-                                Err(_) => {println!("Marking task {task} as done failed.")}
+                                Err(err) => {println!("Marking task {task} as done failed: {err}")}
                             }
                         }
                     }
