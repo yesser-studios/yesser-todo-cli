@@ -27,7 +27,11 @@ pub(crate) enum Command {
     /// Remove all done tasks. Please note that this is irreversible.
     ClearDone,
     /// List all tasks. Tasks marked done are shown with a strike-through.
-    List
+    List,
+    /// Add connection configuration to a server.
+    Connect(CloudCommand),
+    /// Remove server configuration.
+    Disconnect,
 }
 
 #[derive(Debug, Args)]
@@ -35,4 +39,10 @@ pub(crate) struct TasksCommand {
     /// The tasks to add/remove/mark done
     #[arg(num_args = 1..)]
     pub tasks: Vec<String>
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct CloudCommand {
+    pub host: String,
+    pub port: Option<String>
 }
