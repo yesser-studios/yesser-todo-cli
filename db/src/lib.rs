@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{to_writer, from_reader};
 use platform_dirs::AppDirs;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Task {
     pub name: String,
     pub done: bool
