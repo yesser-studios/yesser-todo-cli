@@ -12,8 +12,10 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 
 [dependencies]
 reqwest = { version = "0", features = ["json"] }
-tokio = { version = "1", features = ["full"] }
 # yesser-todo-db = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
 
 [dependencies.yesser-todo-db]
 path = "../db"
