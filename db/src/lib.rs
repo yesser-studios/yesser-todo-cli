@@ -10,6 +10,18 @@ pub struct Task {
     pub done: bool
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CloudConfig {
+    pub host: String,
+    pub port: String
+}
+
+impl CloudConfig {
+    pub fn new(host: &String, port: &String) -> Self {
+        CloudConfig{host: host.clone(), port: port.clone()}
+    }
+}
+
 pub struct SaveData {
     tasks: Vec<Task>
 }
@@ -33,10 +45,37 @@ impl SaveData {
         return (app_dirs, data_file_path);
     }
 
-    pub fn get_cloud_config_paths() -> (AppDirs, PathBuf) {
+    pub(crate) fn get_cloud_config_paths() -> (AppDirs, PathBuf) {
         let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
         let config_file_path = app_dirs.config_dir.join("cloud.json");
         return (app_dirs, config_file_path);
+    }
+
+    pub fn get_cloud_config() -> Result<Option<(String, String)>, serde_json::Error> {
+        let config_paths = SaveData::get_cloud_config_paths();
+        let app_dirs = config_paths.0;
+        let config_file_path = config_paths.1;
+
+        fs::create_dir_all(&app_dirs.config_dir).unwrap();
+
+        if !config_file_path.exists() {return Ok(None)}
+
+        let file = File::open(config_file_path).unwrap();
+        let result: CloudConfig = from_reader(file)?;
+
+        Ok(Some((result.host.clone(), result.port.clone())))
+    }
+
+    pub fn save_cloud_config(host: &String, port: &String) -> Result<(), serde_json::Error> {
+        let config_paths = SaveData::get_cloud_config_paths();
+        let app_dirs = config_paths.0;
+        let config_file_path = config_paths.1;
+
+        fs::create_dir_all(&app_dirs.config_dir).unwrap();
+        let file = File::create(config_file_path).unwrap();
+        to_writer(file, &CloudConfig::new(host, port))?;
+
+        Ok(())
     }
 
     pub fn load_tasks(&mut self) -> Result<(), serde_json::Error> {
