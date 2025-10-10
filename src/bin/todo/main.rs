@@ -39,7 +39,7 @@ async fn main() {
                             match option {
                                 Some(_) => {
                                     // Task already exists
-                                    println!("Task already exists!");
+                                    println!("Task {task} already exists!");
                                     success = false;
                                 }
                                 None => {
@@ -65,7 +65,7 @@ async fn main() {
                             match exists {
                                 true => {
                                     // Task already exists
-                                    println!("Task already exists!");
+                                    println!("Task {task} already exists!");
                                     success = false;
                                 }
                                 false => {
@@ -73,7 +73,7 @@ async fn main() {
                                     match result {
                                         Ok(_) => {}
                                         Err(_) => {
-                                            println!("Adding task failed on server!");
+                                            println!("Adding task {task} failed!");
                                             success = false;
                                         }
                                     }
@@ -91,13 +91,34 @@ async fn main() {
             if command.tasks.len() <= 0 {
                 println!("No tasks specified!")
             } else {
-                for task in &command.tasks {
-                    let option = get_index(data.get_tasks(), task);
-                    match option {
-                        Some(index) => {
-                            data.remove_task(index);
+                match process_cloud_config() {
+                    None => {
+                        for task in &command.tasks {
+                            let option = get_index(data.get_tasks(), task);
+                            match option {
+                                Some(index) => {
+                                    data.remove_task(index);
+                                }
+                                None => println!("Unable to find task {task}!"),
+                            }
                         }
-                        None => println!("Unable to find specified task!"),
+                    }
+                    Some((host, port)) => {
+                        let client = Client::new(host, Some(port));
+                        for task in &command.tasks {
+                            let result = client.remove(task).await;
+                            match result {
+                                Ok(status_code) => {
+                                    if status_code.is_success() {
+                                        println!("Task removed!");
+                                    }
+                                    if status_code.as_u16() == 404 {
+                                        println!("Task {task} not found!");
+                                    }
+                                }
+                                Err(_) => println!("Removing task {task} failed (task may still exist)."),
+                            }
+                        }
                     }
                 }
             }
