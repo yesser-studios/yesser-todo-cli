@@ -1,4 +1,4 @@
-use axum::{routing::{get, post}, Json, Router};
+use axum::{debug_handler, routing::{get, post}, Json, Router};
 use yesser_todo_db::{SaveData, Task};
 
 #[tokio::main]
@@ -11,6 +11,7 @@ async fn main() {
     axum::serve(listener, router).await.unwrap();
 }
 
+#[debug_handler]
 async fn get_tasks() -> Json<Vec<Task>> {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
@@ -18,6 +19,7 @@ async fn get_tasks() -> Json<Vec<Task>> {
     Json(tasks)
 }
 
+#[debug_handler]
 async fn add_task() {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
