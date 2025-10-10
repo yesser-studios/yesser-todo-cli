@@ -105,6 +105,23 @@ mod tests {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         let result = client.get().await;
         println!("{:?}", result);
-        assert!(result.is_ok())
+        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn add_get_index_remove() {
+        let client = Client::new("http://127.0.0.1".to_string(), None);
+        // add
+        let result = client.add(Task{name: "test".to_string(), done: false}).await;
+        println!("{:?}", result);
+        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+        // get_index
+        let result = client.get_index("test".to_string()).await;
+        println!("{:?}", result);
+        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+        // remove
+        let result = client.remove("test".to_string()).await;
+        println!("{:?}", result);
+        assert!(result.is_ok() && result.unwrap() == StatusCode::OK);
     }
 }
