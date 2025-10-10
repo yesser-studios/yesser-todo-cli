@@ -94,6 +94,62 @@ impl Client {
             Err(err) => {Err(err)}
         }
     }
+
+    pub async fn done(&self, task_name: String) -> Result<(StatusCode, Task), Error> {
+        let index_result = self.get_index(task_name.clone()).await;
+        let index: usize;
+        match index_result {
+            Ok((status_code, result)) => {
+                if status_code != StatusCode::OK {
+                    return Ok((status_code, Task{name: "Something went wrong".to_string(), done: false}));
+                }
+                index = result;
+            }
+            Err(err) => {return Err(err)}
+        }
+        let result = self.client
+            .post(format!("{}:{}/done", self.hostname, self.port).as_str())
+            .json(&index)
+            .send().await;
+        match result {
+            Ok(result) => {
+                let status_code = result.status();
+                match result.json::<Task>().await {
+                    Ok(result) => Ok((status_code, result)),
+                    Err(err) => {Err(err)}
+                }
+            }
+            Err(err) => {Err(err)}
+        }
+    }
+
+    pub async fn undone(&self, task_name: String) -> Result<(StatusCode, Task), Error> {
+        let index_result = self.get_index(task_name.clone()).await;
+        let index: usize;
+        match index_result {
+            Ok((status_code, result)) => {
+                if status_code != StatusCode::OK {
+                    return Ok((status_code, Task{name: "Something went wrong".to_string(), done: false}));
+                }
+                index = result;
+            }
+            Err(err) => {return Err(err)}
+        }
+        let result = self.client
+            .post(format!("{}:{}/undone", self.hostname, self.port).as_str())
+            .json(&index)
+            .send().await;
+        match result {
+            Ok(result) => {
+                let status_code = result.status();
+                match result.json::<Task>().await {
+                    Ok(result) => Ok((status_code, result)),
+                    Err(err) => {Err(err)}
+                }
+            }
+            Err(err) => {Err(err)}
+        }
+    }
 }
 
 #[cfg(test)]
@@ -109,7 +165,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn add_get_index_remove() {
+    async fn add_get_index_done_undone_remove() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         // add
         let result = client.add(Task{name: "test".to_string(), done: false}).await;
@@ -117,6 +173,14 @@ mod tests {
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
         // get_index
         let result = client.get_index("test".to_string()).await;
+        println!("{:?}", result);
+        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+        // done
+        let result = client.done("test".to_string()).await;
+        println!("{:?}", result);
+        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+        // undone
+        let result = client.undone("test".to_string()).await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
         // remove
