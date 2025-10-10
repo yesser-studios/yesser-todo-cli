@@ -26,13 +26,7 @@ use yesser_todo_db::{get_index, SaveData, Task};
 /// }
 /// ```
 fn process_cloud_config() -> Option<(String, String)> {
-    match SaveData::get_cloud_config() {
-        Ok(option) => match option {
-            None => None,
-            Some((host, port)) => Some((host, port)),
-        }
-        Err(_) => None,
-    }
+    SaveData::get_cloud_config().unwrap_or_else(|_| None)
 }
 
 /// Application entry point for the Todo CLI.
