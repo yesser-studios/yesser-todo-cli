@@ -19,6 +19,7 @@ clap = { version = "4", features = ["derive"] }
 console = "0"
 yesser-todo-db = "1"
 yesser-todo-api = "1"
+tokio = { version = "1.47.1", features = ["full"] }
 
 [[bin]]
 name = "todo"
