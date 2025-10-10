@@ -11,6 +11,18 @@ pub struct Task {
 }
 
 impl Clone for Task {
+    /// Creates a copy of the task.
+    ///
+    /// The returned `Task` has the same `name` and `done` flag as `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let t = Task { name: String::from("buy milk"), done: false };
+    /// let c = t.clone();
+    /// assert_eq!(c.name, t.name);
+    /// assert_eq!(c.done, t.done);
+    /// ```
     fn clone(&self) -> Self {
         Task{name: self.name.clone(), done: self.done}
     }
