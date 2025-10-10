@@ -8,6 +8,23 @@ use std::ops::Deref;
 use yesser_todo_api::Client;
 use yesser_todo_db::{get_index, SaveData, Task};
 
+/// Retrieve the saved cloud server host and port if available.
+///
+/// # Returns
+///
+/// `Some((host, port))` when a cloud configuration is present and readable, `None` if no configuration exists or it cannot be read.
+///
+/// # Examples
+///
+/// ```
+/// // Suppose SaveData::get_cloud_config() returns Ok(Some(("example.com".into(), "6982".into())))
+/// if let Some((host, port)) = process_cloud_config() {
+///     assert_eq!(host, "example.com");
+///     assert_eq!(port, "6982");
+/// } else {
+///     panic!("expected cloud config");
+/// }
+/// ```
 fn process_cloud_config() -> Option<(String, String)> {
     match SaveData::get_cloud_config() {
         Ok(option) => match option {
@@ -18,6 +35,19 @@ fn process_cloud_config() -> Option<(String, String)> {
     }
 }
 
+/// Application entry point for the Todo CLI.
+///
+/// Parses command-line arguments, loads local task data, and executes the requested command.
+/// Commands operate either on local storage or a remote server depending on the saved cloud
+/// configuration. After executing a command the current task list is displayed with completed
+/// tasks rendered using the configured "done" style.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Run the CLI binary (example):
+/// // $ todo add "Buy milk"
+/// ```
 #[tokio::main]
 async fn main() {
     let args = TodoArgs::parse();
