@@ -9,6 +9,17 @@ pub struct Client {
 }
 
 impl Client {
+    /// Creates a new `Client` for the given hostname.
+    ///
+    /// If `port` is `None`, the client will use the default port `"6982"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let c = Client::new("http://127.0.0.1".to_string(), None);
+    /// assert_eq!(c.hostname, "http://127.0.0.1");
+    /// assert_eq!(c.port, "6982");
+    /// ```
     pub fn new(hostname: String, port: Option<String>) -> Client {
         match port {
             None => {Client{hostname, port: "6982".to_string(), client: reqwest::Client::new(), }}
@@ -16,6 +27,24 @@ impl Client {
         }
     }
 
+    /// Fetches all tasks from the configured server.
+    ///
+    /// # Returns
+    ///
+    /// `(StatusCode, Vec<Task>)` where the `StatusCode` is the HTTP response status and the `Vec<Task>` is the list of tasks parsed from the response body.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use api::Client;
+    /// use reqwest::StatusCode;
+    ///
+    /// let client = Client::new("http://127.0.0.1".into(), None);
+    /// let rt = tokio::runtime::Runtime::new().unwrap();
+    /// let (status, tasks) = rt.block_on(client.get()).unwrap();
+    /// assert!(status == StatusCode::OK || status.is_success());
+    /// // `tasks` is a Vec<yesser_todo_db::Task>
+    /// ```
     pub async fn get(&self) -> Result<(StatusCode, Vec<Task>), Error> {
         let result = self.client
             .get(format!("{}:{}/tasks", self.hostname, self.port).as_str())
@@ -34,6 +63,32 @@ impl Client {
         }
     }
 
+    /// Adds a new task with the given name to the to-do service.
+    ///
+    /// Sends the task name as JSON to the service's `/add` endpoint and returns the HTTP status
+    /// together with the created `Task` parsed from the response.
+    ///
+    /// # Parameters
+    ///
+    /// - `task_name`: The name of the task to create.
+    ///
+    /// # Returns
+    ///
+    /// A `(StatusCode, Task)` tuple containing the HTTP response status and the created `Task`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use yesser_todo_api::Client;
+    /// # use reqwest::StatusCode;
+    /// # #[tokio::test]
+    /// # async fn example_add() {
+    /// let client = Client::new("http://127.0.0.1".to_string(), None);
+    /// let (status, task) = client.add(&"example task".to_string()).await.unwrap();
+    /// assert_eq!(status, StatusCode::OK);
+    /// assert_eq!(task.name, "example task");
+    /// # }
+    /// ```
     pub async fn add(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
         let result = self.client
             .post(format!("{}:{}/add", self.hostname, self.port).as_str())
@@ -53,6 +108,30 @@ impl Client {
         }
     }
 
+    /// Retrieve the index of a task by name from the server.
+    ///
+    /// Sends the task name as JSON to the server's `/index` endpoint and returns the HTTP status together with the parsed index on success.
+    ///
+    /// # Parameters
+    ///
+    /// - `task_name`: the name of the task to locate.
+    ///
+    /// # Returns
+    ///
+    /// `(StatusCode, usize)` where `usize` is the index of the task returned by the server, and `StatusCode` is the HTTP response status.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use yesser_todo_api::Client;
+    /// use std::string::String;
+    ///
+    /// # async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = Client::new("http://127.0.0.1".into(), None);
+    /// let (status, index) = client.get_index(&"example-task".into()).await?;
+    /// println!("status: {}, index: {}", status, index);
+    /// # Ok(()) }
+    /// ```
     pub async fn get_index(&self, task_name: &String) -> Result<(StatusCode, usize), Error> {
         let result = self.client
             .get(format!("{}:{}/index", self.hostname, self.port).as_str())
@@ -71,6 +150,30 @@ impl Client {
         }
     }
 
+    /// Remove a task identified by name from the remote server.
+    ///
+    /// This resolves the task's index on the server and requests deletion of that index.
+    /// If the index lookup returns a non-OK HTTP status, that status is returned unchanged.
+    /// Network or request errors are propagated as `Err`.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(StatusCode)` containing the server's status for the delete request, or the non-OK
+    /// status returned by the index lookup; `Err(Error)` on request/transport failures.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use yesser_todo_api::Client;
+    /// # use tokio;
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client = Client::new("http://127.0.0.1".to_string(), None);
+    ///     let status = client.remove(&"example-task".to_string()).await;
+    ///     // handle result...
+    ///     let _ = status;
+    /// }
+    /// ```
     pub async fn remove(&self, task_name: &String) -> Result<StatusCode, Error> {
         let index_result = self.get_index(task_name).await;
         let index: usize;
@@ -95,6 +198,32 @@ impl Client {
         }
     }
 
+    /// Marks the task with the given name as done and returns the HTTP status and the updated task.
+    ///
+    /// If retrieving the task index returns a non-OK status, the function returns that status along with a `Task` whose `name` is `"Something went wrong"` and `done` is `false`.
+    ///
+    /// # Returns
+    ///
+    /// `(StatusCode, Task)` containing the response status and the task as returned by the server.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use yesser_todo_db::Task;
+    /// # use reqwest::StatusCode;
+    /// # async fn _example() {
+    /// let client = crate::Client::new("http://127.0.0.1".to_string(), None);
+    /// let res = client.done(&"test".to_string()).await;
+    /// match res {
+    ///     Ok((status, task)) => {
+    ///         assert!(status == StatusCode::OK || status.is_client_error() || status.is_server_error());
+    ///         // `task` is the updated task from the server
+    ///         let _ = task.name;
+    ///     }
+    ///     Err(e) => panic!("request failed: {:?}", e),
+    /// }
+    /// # }
+    /// ```
     pub async fn done(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
         let index_result = self.get_index(task_name).await;
         let index: usize;
@@ -123,6 +252,28 @@ impl Client {
         }
     }
 
+    /// Mark the task identified by `task_name` as not done and return the updated task with the response status.
+    ///
+    /// Attempts to resolve the task's index by name; if index resolution returns a non-OK status, returns that status
+    /// together with a placeholder `Task` having name `"Something went wrong"` and `done: false`.
+    ///
+    /// # Returns
+    ///
+    /// `(StatusCode, Task)` with the HTTP response status and the updated task on success; if index lookup returns a non-OK status,
+    /// returns that status paired with a placeholder `Task`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yesser_todo_api::Client;
+    /// use std::string::String;
+    /// use reqwest::StatusCode;
+    ///
+    /// let client = Client::new("http://127.0.0.1".to_string(), None);
+    /// let rt = tokio::runtime::Runtime::new().unwrap();
+    /// let res = rt.block_on(async { client.undone(&"example".to_string()).await }).unwrap();
+    /// assert!(matches!(res.0, StatusCode::OK) || res.0.is_client_error() || res.0.is_server_error());
+    /// ```
     pub async fn undone(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
         let index_result = self.get_index(task_name).await;
         let index: usize;
@@ -151,6 +302,19 @@ impl Client {
         }
     }
 
+    /// Clears all tasks on the remote to-do service.
+    ///
+    /// Sends a DELETE request to the configured `/clear` endpoint and returns the HTTP status code.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # async fn example() {
+    /// let client = Client::new("http://127.0.0.1".to_string(), None);
+    /// let status = client.clear().await.unwrap();
+    /// assert_eq!(status, reqwest::StatusCode::OK);
+    /// # }
+    /// ```
     pub async fn clear(&self) -> Result<StatusCode, Error> {
         let result = self.client
             .delete(format!("{}:{}/clear", self.hostname, self.port).as_str())
@@ -161,6 +325,22 @@ impl Client {
         }
     }
 
+    /// Deletes all tasks marked as done on the remote to-do service.
+    ///
+    /// On success returns the HTTP response status code from the server; on failure returns the underlying `reqwest::Error`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use api::Client;
+    ///
+    /// let client = Client::new("http://127.0.0.1".into(), None);
+    /// let status = tokio::runtime::Runtime::new()
+    ///     .unwrap()
+    ///     .block_on(client.clear_done())
+    ///     .unwrap();
+    /// assert!(status.is_success());
+    /// ```
     pub async fn clear_done(&self) -> Result<StatusCode, Error> {
         let result = self.client
             .delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str())
