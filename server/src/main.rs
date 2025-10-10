@@ -1,6 +1,6 @@
 mod functions;
 
-use crate::functions::{add_task, done_task, get_tasks, remove_task, undone_task};
+use crate::functions::{add_task, clear_done_tasks, clear_tasks, done_task, get_tasks, remove_task, undone_task};
 use axum::routing::delete;
 use axum::{routing::{get, post}, Router};
 
@@ -11,7 +11,9 @@ async fn main() {
         .route("/add", post(add_task))
         .route("/remove", delete(remove_task))
         .route("/done", post(done_task))
-        .route("/undone", post(undone_task));
+        .route("/undone", post(undone_task))
+        .route("/clear", delete(clear_tasks))
+        .route("/cleardone", delete(clear_done_tasks));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:6982").await.unwrap();
     axum::serve(listener, router).await.unwrap();

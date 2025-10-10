@@ -48,3 +48,21 @@ pub async fn undone_task(Json(index): Json<usize>) -> Json<Task> {
     save_data.save_tasks().unwrap();
     Json(save_data.get_tasks()[index].clone())
 }
+
+#[debug_handler]
+pub async fn clear_tasks() {
+    let mut save_data = SaveData::new();
+    let _ = save_data.load_tasks();
+    println!("Clearing tasks");
+    save_data.clear_tasks();
+    save_data.save_tasks().unwrap();
+}
+
+#[debug_handler]
+pub async fn clear_done_tasks() {
+    let mut save_data = SaveData::new();
+    let _ = save_data.load_tasks();
+    println!("Clearing done tasks");
+    save_data.clear_done_tasks();
+    save_data.save_tasks().unwrap();
+}
