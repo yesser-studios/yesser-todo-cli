@@ -1,0 +1,19 @@
+[package]
+name = "yesser-todo-server"
+version = "1.0.0"
+edition = "2024"
+license = "MIT"
+description = "A server for yesser-todo-cli written in Rust"
+readme = "../README.md"
+categories = ["web-programming::http-server"]
+keywords = ["todo", "tasks", "tasklist", "todolist", "server"]
+homepage = "https://github.com/Yesser-Studios/yesser-todo-cli"
+repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
+
+[dependencies]
+axum = { version = "0.8.6", features = ["http2", "macros", "ws"] }
+tokio = { version = "1.47.1", features = ["full"] }
+# yesser-todo-db = "1"
+
+[dependencies.yesser-todo-db]
+path = "../db"
