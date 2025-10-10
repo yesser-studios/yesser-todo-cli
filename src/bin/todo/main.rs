@@ -1,12 +1,12 @@
 mod args;
 
-use std::io::{Error, ErrorKind};
-use std::ops::Deref;
+use args::{Command, TodoArgs};
 use clap::Parser;
-use args::{TodoArgs,Command};
-use yesser_todo_db::{SaveData, Task, get_index};
 use console::Style;
+use std::io::ErrorKind;
+use std::ops::Deref;
 use yesser_todo_api::Client;
+use yesser_todo_db::{get_index, SaveData, Task};
 
 fn process_cloud_config() -> Option<(String, String)> {
     match SaveData::get_cloud_config() {
@@ -55,7 +55,7 @@ async fn main() {
                             let result = client.get_index(task).await;
                             let mut exists: bool = false;
                             match result {
-                                Ok((status_code, index)) => {
+                                Ok((status_code, _)) => {
                                     if status_code.is_success() {
                                         exists = true
                                     }
