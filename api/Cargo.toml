@@ -2,6 +2,13 @@
 name = "yesser-todo-api"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+description = "A wrapper for yesser-todo-server written in Rust"
+readme = "../README.md"
+categories = ["web-programming::http-client"]
+keywords = ["todo", "tasks", "tasklist", "todolist", "wrapper"]
+homepage = "https://github.com/Yesser-Studios/yesser-todo-cli"
+repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 
 [dependencies]
 reqwest = { version = "0", features = ["json"] }
