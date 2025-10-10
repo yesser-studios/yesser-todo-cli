@@ -208,4 +208,40 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap() == StatusCode::OK);
     }
+
+    #[tokio::test]
+    async fn clear() {
+        let client = Client::new("http://127.0.0.1".to_string(), None);
+        let _ = client.add(&"test".to_string()).await;
+        let _ = client.add(&"test".to_string()).await;
+        let _ = client.add(&"test".to_string()).await;
+        let result = client.clear().await;
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        let result = client.get().await;
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        let unwrapped = result.unwrap();
+        assert!(unwrapped.0 == StatusCode::OK && unwrapped.1.len() == 0);
+    }
+
+    #[tokio::test]
+    async fn clear_done() {
+        let client = Client::new("http://127.0.0.1".to_string(), None);
+        let _ = client.add(&"test1".to_string()).await;
+        let _ = client.add(&"test2".to_string()).await;
+        let _ = client.add(&"test3".to_string()).await;
+        let _ = client.done(&"test1".to_string()).await;
+        let _ = client.done(&"test3".to_string()).await;
+        let result = client.clear_done().await;
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        let result = client.get().await;
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        let unwrapped = result.unwrap();
+        assert!(unwrapped.0 == StatusCode::OK
+            && unwrapped.1.len() == 1
+            && unwrapped.1[0].name == "test2");
+    }
 }
