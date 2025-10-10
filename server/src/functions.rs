@@ -25,7 +25,7 @@ pub async fn add_task(Json(name): Json<String>) -> Json<Task> {
 pub async fn remove_task(Json(index): Json<usize>) -> StatusCode {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
-    if save_data.get_tasks().len() >= index {
+    if save_data.get_tasks().len() <= index {
         return StatusCode::NOT_FOUND;
     }
     println!("Removing task with index {}: {}", index, save_data.get_tasks()[index].name);
@@ -83,6 +83,7 @@ pub async fn get_index(Json(name): Json<String>) -> (StatusCode, Json<usize>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
     let result = yesser_todo_db::get_index(save_data.get_tasks(), &name);
+    save_data.save_tasks().unwrap();
     match result {
         None => {(StatusCode::NOT_FOUND, Json(0))}
         Some(result) => {(StatusCode::OK, Json(result))}
