@@ -10,6 +10,12 @@ pub struct Task {
     pub done: bool
 }
 
+impl Clone for Task {
+    fn clone(&self) -> Self {
+        Task{name: self.name.clone(), done: self.done}
+    }
+}
+
 pub struct SaveData {
     tasks: Vec<Task>
 }
