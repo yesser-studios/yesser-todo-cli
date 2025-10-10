@@ -19,9 +19,10 @@ pub async fn add_task(Json(name): Json<String>) {
 }
 
 #[debug_handler]
-pub async fn remove_task() {
+pub async fn remove_task(Json(index): Json<usize>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
-    save_data.remove_task(1);
+    println!("Removing task with index {}: {}", index, save_data.get_tasks()[index].name);
+    save_data.remove_task(index);
     save_data.save_tasks().unwrap();
 }
