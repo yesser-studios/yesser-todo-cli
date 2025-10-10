@@ -213,7 +213,7 @@ async fn main() {
                             match result {
                                 Ok((status_code, _)) => {
                                     if status_code.is_success() {
-                                        println!("Task {task} done!");
+                                        println!("Task {task} undone!");
                                     } else if status_code.as_u16() == 404 {
                                         println!("Task {task} not found!");
                                     } else {
