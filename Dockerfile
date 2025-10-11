@@ -11,4 +11,5 @@ FROM rust:1.90-alpine3.22
 COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /etc/group /etc/group
 COPY --from=build ./target/x86_64-unknown-linux-musl/release/yesser-todo-server /app/yesser-todo-server
+EXPOSE 6982
 ENTRYPOINT ["./app/yesser-todo-server"]
