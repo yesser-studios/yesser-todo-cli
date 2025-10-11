@@ -1,0 +1,10 @@
+services:
+  server:
+    image: "yesseruser/yesser-todo-server:latest"
+    ports:
+      - "6982:6982"
+    volumes:
+      - data:/root/.local/share/todo
+
+volumes:
+  data:
