@@ -252,6 +252,8 @@ async fn main() {
             }
         }
         Command::ClearDone => {
+            println!("clear-done is deprecated. Use clear -d instead.");
+
             match process_cloud_config() {
                 None => data.clear_done_tasks(),
                 Some((host, port)) => {
