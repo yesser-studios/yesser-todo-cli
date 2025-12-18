@@ -1,0 +1,48 @@
+name: Rust
+
+on:
+  release:
+    types: ["published"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-db:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Publish DB
+      run: |
+        cd db
+        cargo build --verbose
+        cargo publish --verbose
+  build-api:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Publish API
+      run: |
+        cd api
+        cargo build --verbose
+        cargo publish --verbose
+  build-cli:
+    runs-on: ubuntu-latest
+    needs: [build-db, build-api]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Publish CLI
+      run: |
+        cd cli
+        cargo build --verbose
+        cargo publish --verbose
+  build-server:
+    runs-on: ubuntu-latest
+    needs: build-db
+    steps:
+    - uses: actions/checkout@v4
+    - name: Publish Server
+      run: |
+        cd server
+        cargo build --verbose
+        cargo publish --verbose
