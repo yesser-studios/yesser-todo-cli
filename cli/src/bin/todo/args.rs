@@ -23,7 +23,7 @@ pub(crate) enum Command {
     /// Mark tasks in the list as undone.
     Undone(TasksCommand),
     /// Remove all tasks. Please note that this is irreversible.
-    Clear,
+    Clear(ClearCommand),
     /// Remove all done tasks. Please note that this is irreversible.
     ClearDone,
     /// List all tasks. Tasks marked done are shown with a strike-through.
@@ -39,6 +39,13 @@ pub(crate) struct TasksCommand {
     /// The tasks to add/remove/mark done
     #[arg(num_args = 1..)]
     pub tasks: Vec<String>
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct ClearCommand {
+    /// Only clear done tasks
+    #[arg(short, long)]
+    pub done: bool
 }
 
 #[derive(Debug, Args)]
