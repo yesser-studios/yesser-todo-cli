@@ -221,12 +221,23 @@ async fn main() {
                 }
             }
         }
-        Command::Clear => {
+        Command::Clear(command) => {
             match process_cloud_config() {
-                None => data.clear_tasks(),
+                None => {
+                    if command.done {
+                        data.clear_done_tasks();
+                    } else {
+                        data.clear_tasks()
+                    }
+                },
                 Some((host, port)) => {
                     let client = Client::new(host, Some(port));
-                    let result = client.clear().await;
+                    let result: Result<_, _>;
+                    if command.done {
+                        result = client.clear_done().await;
+                    } else {
+                        result = client.clear().await;
+                    }
                     match result {
                         Ok(status_code) => {
                             if status_code.is_success() {
@@ -241,6 +252,8 @@ async fn main() {
             }
         }
         Command::ClearDone => {
+            println!("clear-done is deprecated. Use clear -d instead.");
+
             match process_cloud_config() {
                 None => data.clear_done_tasks(),
                 Some((host, port)) => {
