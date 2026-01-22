@@ -1,0 +1,35 @@
+name: Rust
+
+on:
+  release:
+    types: published
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deploy:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up a Rust toolchain
+      uses: hecrj/setup-rust-action@v2.0.1
+          
+    - name: Build
+      run: |
+        cd cli
+        cargo build --verbose --release --config package.version="${{ github.event.release.tag_name }}"
+
+    - name: Zip up
+      run: 7z a windows-x64.zip .\cli\target\release\todo.exe
+
+    - name: Add to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        file: windows-x64.zip
