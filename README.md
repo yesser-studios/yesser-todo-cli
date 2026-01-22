@@ -1,7 +1,37 @@
 # yesser-todo-cli
 a CLI app for managing your tasks
 
-# Publishing (for developers)
+# Installation
+## Cargo
+If you have Cargo installed (on any platform), you can install with:
+```bash
+cargo install yesser-todo-cli
+```
+
+## Windows
+On Windows, you can use the MSI installer in the releases page.
+You can also use the Scoop from the yesser-studios bucket:
+```pwsh
+scoop bucket add yesser-studios https://github.com/yesser-studios/scoop-bucket
+scoop install yesser-todo-cli
+```
+
+## macOS
+You can use the yesser-studios Homebrew tap:
+```bash
+brew tap yesser-studios/tap
+brew install yesser-todo-cli
+```
+
+## Linux
+On Fedora 41-43 or Rawhide, you can use the yesser-studios COPR:
+```bash
+sudo dnf copr enable yesseruser/yesser-studios
+sudo dnf install yesser-todo-cli
+```
+On other distributions, you will need to use cargo or build the project from source.
+
+# Publishing (for maintainers)
 ## Crates.io
 *Note: Make sure you're logged in with `cargo login`*
 
