@@ -16,7 +16,7 @@ scoop bucket add yesser-studios https://github.com/yesser-studios/scoop-bucket
 scoop install yesser-todo-cli
 ```
 
-## MacOS
+## macOS
 You can use the yesser-studios Homebrew tap:
 ```bash
 brew tap yesser-studios/tap
