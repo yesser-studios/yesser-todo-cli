@@ -1,4 +1,4 @@
-name: Rust
+name: Publish Windows .zip builds
 
 on:
   release:
@@ -13,23 +13,32 @@ env:
 
 jobs:
   deploy:
-
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up a Rust toolchain
-      uses: hecrj/setup-rust-action@v2.0.1
-          
-    - name: Build
-      run: |
-        cd cli
-        cargo build --verbose --release --config package.version="${{ github.event.release.tag_name }}"
+      - uses: actions/checkout@v4
+      - name: Set up a Rust toolchain
+        uses: hecrj/setup-rust-action@v2.0.1
+        with:
+          targets: "x86_64-pc-windows-msvc,i686-pc-windows-msvc,aarch64-pc-windows-msvc"
 
-    - name: Zip up
-      run: 7z a windows-x64.zip .\cli\target\release\todo.exe
+      - name: Build
+        run: |
+          cd cli
+          cargo build --verbose --release --config package.version="${{ github.event.release.tag_name }}" --target x86_64-pc-windows-msvc
+          cargo build --verbose --release --config package.version="${{ github.event.release.tag_name }}" --target aarch64-pc-windows-msvc
 
-    - name: Add to release
-      uses: svenstaro/upload-release-action@v2
-      with:
-        file: windows-x64.zip
+      - name: Zip up
+        run: |
+          7z a windows-x64.zip .\cli\target\x86_64-pc-windows-msvc\release\todo.exe
+          7z a windows-aarch64.zip .\cli\target\aarch64-pc-windows-msvc\release\todo.exe
+
+      - name: Add x64 to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: windows-x64.zip
+
+      - name: Add aarch64 to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: windows-aarch64.zip
