@@ -3,3 +3,4 @@
 devcert.pfx
 dist/
 *.msix
+icon.png
