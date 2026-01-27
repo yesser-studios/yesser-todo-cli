@@ -2,3 +2,4 @@
 # Development certificate
 devcert.pfx
 dist/
+*.msix
