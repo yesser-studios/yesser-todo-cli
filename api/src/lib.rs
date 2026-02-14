@@ -22,8 +22,16 @@ impl Client {
     /// ```
     pub fn new(hostname: String, port: Option<String>) -> Client {
         match port {
-            None => {Client{hostname, port: "6982".to_string(), client: reqwest::Client::new(), }}
-            Some(port) => {Client{hostname, port, client: reqwest::Client::new(), }}
+            None => Client {
+                hostname,
+                port: "6982".to_string(),
+                client: reqwest::Client::new(),
+            },
+            Some(port) => Client {
+                hostname,
+                port,
+                client: reqwest::Client::new(),
+            },
         }
     }
 
@@ -46,20 +54,22 @@ impl Client {
     /// // `tasks` is a Vec<yesser_todo_db::Task>
     /// ```
     pub async fn get(&self) -> Result<(StatusCode, Vec<Task>), Error> {
-        let result = self.client
+        let result = self
+            .client
             .get(format!("{}:{}/tasks", self.hostname, self.port).as_str())
-            .send().await;
+            .send()
+            .await;
 
         match result {
             Ok(result) => {
                 let status_code = result.status();
                 let result = result.json::<Vec<Task>>().await;
                 match result {
-                    Ok(result) => {Ok((status_code, result))},
-                    Err(err) => {Err(err)}
+                    Ok(result) => Ok((status_code, result)),
+                    Err(err) => Err(err),
                 }
             }
-            Err(err) => {Err(err)}
+            Err(err) => Err(err),
         }
     }
 
@@ -90,21 +100,23 @@ impl Client {
     /// # }
     /// ```
     pub async fn add(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
-        let result = self.client
+        let result = self
+            .client
             .post(format!("{}:{}/add", self.hostname, self.port).as_str())
             .json(&task_name)
-            .send().await;
+            .send()
+            .await;
 
         match result {
             Ok(result) => {
                 let status_code = result.status();
                 let result = result.json::<Task>().await;
                 match result {
-                    Ok(result) => {Ok((status_code, result))},
-                    Err(err) => {Err(err)}
+                    Ok(result) => Ok((status_code, result)),
+                    Err(err) => Err(err),
                 }
             }
-            Err(err) => {Err(err)}
+            Err(err) => Err(err),
         }
     }
 
@@ -132,21 +144,23 @@ impl Client {
     /// println!("status: {}, index: {}", status, index);
     /// # Ok(()) }
     /// ```
-    pub async fn get_index(&self, task_name: &String) -> Result<(StatusCode, usize), Error> {
-        let result = self.client
+    pub async fn get_index(&self, task_name: &str) -> Result<(StatusCode, usize), Error> {
+        let result = self
+            .client
             .get(format!("{}:{}/index", self.hostname, self.port).as_str())
             .json(&task_name)
-            .send().await;
+            .send()
+            .await;
         match result {
             Ok(result) => {
                 let status_code = result.status();
                 let result = result.json::<usize>().await;
                 match result {
                     Ok(result) => Ok((status_code, result)),
-                    Err(err) => {Err(err)}
+                    Err(err) => Err(err),
                 }
             }
-            Err(err) => {Err(err)}
+            Err(err) => Err(err),
         }
     }
 
@@ -184,17 +198,17 @@ impl Client {
                 }
                 index = result;
             }
-            Err(err) => {return Err(err)}
+            Err(err) => return Err(err),
         }
-        let result = self.client
+        let result = self
+            .client
             .delete(format!("{}:{}/remove", self.hostname, self.port).as_str())
             .json(&index)
-            .send().await;
+            .send()
+            .await;
         match result {
-            Ok(result) => {
-                Ok(result.status())
-            }
-            Err(err) => {Err(err)}
+            Ok(result) => Ok(result.status()),
+            Err(err) => Err(err),
         }
     }
 
@@ -230,25 +244,33 @@ impl Client {
         match index_result {
             Ok((status_code, result)) => {
                 if status_code != StatusCode::OK {
-                    return Ok((status_code, Task{name: "Something went wrong".to_string(), done: false}));
+                    return Ok((
+                        status_code,
+                        Task {
+                            name: "Something went wrong".to_string(),
+                            done: false,
+                        },
+                    ));
                 }
                 index = result;
             }
-            Err(err) => {return Err(err)}
+            Err(err) => return Err(err),
         }
-        let result = self.client
+        let result = self
+            .client
             .post(format!("{}:{}/done", self.hostname, self.port).as_str())
             .json(&index)
-            .send().await;
+            .send()
+            .await;
         match result {
             Ok(result) => {
                 let status_code = result.status();
                 match result.json::<Task>().await {
                     Ok(result) => Ok((status_code, result)),
-                    Err(err) => {Err(err)}
+                    Err(err) => Err(err),
                 }
             }
-            Err(err) => {Err(err)}
+            Err(err) => Err(err),
         }
     }
 
@@ -280,25 +302,33 @@ impl Client {
         match index_result {
             Ok((status_code, result)) => {
                 if status_code != StatusCode::OK {
-                    return Ok((status_code, Task{name: "Something went wrong".to_string(), done: false}));
+                    return Ok((
+                        status_code,
+                        Task {
+                            name: "Something went wrong".to_string(),
+                            done: false,
+                        },
+                    ));
                 }
                 index = result;
             }
-            Err(err) => {return Err(err)}
+            Err(err) => return Err(err),
         }
-        let result = self.client
+        let result = self
+            .client
             .post(format!("{}:{}/undone", self.hostname, self.port).as_str())
             .json(&index)
-            .send().await;
+            .send()
+            .await;
         match result {
             Ok(result) => {
                 let status_code = result.status();
                 match result.json::<Task>().await {
                     Ok(result) => Ok((status_code, result)),
-                    Err(err) => {Err(err)}
+                    Err(err) => Err(err),
                 }
             }
-            Err(err) => {Err(err)}
+            Err(err) => Err(err),
         }
     }
 
@@ -316,12 +346,14 @@ impl Client {
     /// # }
     /// ```
     pub async fn clear(&self) -> Result<StatusCode, Error> {
-        let result = self.client
+        let result = self
+            .client
             .delete(format!("{}:{}/clear", self.hostname, self.port).as_str())
-            .send().await;
+            .send()
+            .await;
         match result {
             Ok(result) => Ok(result.status()),
-            Err(err) => {Err(err)}
+            Err(err) => Err(err),
         }
     }
 
@@ -342,12 +374,14 @@ impl Client {
     /// assert!(status.is_success());
     /// ```
     pub async fn clear_done(&self) -> Result<StatusCode, Error> {
-        let result = self.client
+        let result = self
+            .client
             .delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str())
-            .send().await;
+            .send()
+            .await;
         match result {
             Ok(result) => Ok(result.status()),
-            Err(err) => {Err(err)}
+            Err(err) => Err(err),
         }
     }
 }
@@ -420,8 +454,11 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
         let unwrapped = result.unwrap();
-        assert!(unwrapped.0 == StatusCode::OK
-            && unwrapped.1.len() == 1
-            && unwrapped.1[0].name == "test2");
+        assert!(
+            unwrapped.0 == StatusCode::OK
+                && unwrapped.1.len() == 1
+                && unwrapped.1[0].name == "test2"
+        );
     }
 }
+

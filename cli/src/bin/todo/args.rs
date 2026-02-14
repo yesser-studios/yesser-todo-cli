@@ -1,7 +1,8 @@
 use clap::{Args, Parser, Subcommand};
+use yesser_todo_api::Client;
 use yesser_todo_db::{SaveData, Task};
 
-use crate::command_impl::handle_add;
+use crate::{command_impl::handle_add, command_impl_cloud::handle_add_cloud};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -57,18 +58,31 @@ impl Command {
     pub(crate) async fn execute(
         &self,
         data: &mut Vec<Task>,
-        client: Option<Client>
+        client: Option<&mut Client>,
     ) -> Result<(), crate::command_error::CommandError> {
-        match self {
-            Command::Add(tasks_command) => handle_add(tasks_command, data),
-            Command::Remove(tasks_command) => todo!(),
-            Command::Done(tasks_command) => todo!(),
-            Command::Undone(tasks_command) => todo!(),
-            Command::Clear(clear_command) => todo!(),
-            Command::ClearDone => todo!(),
-            Command::List => todo!(),
-            Command::Connect(cloud_command) => todo!(),
-            Command::Disconnect => todo!(),
+        match client {
+            None => match self {
+                Command::Add(tasks_command) => handle_add(tasks_command, data),
+                Command::Remove(tasks_command) => todo!(),
+                Command::Done(tasks_command) => todo!(),
+                Command::Undone(tasks_command) => todo!(),
+                Command::Clear(clear_command) => todo!(),
+                Command::ClearDone => todo!(),
+                Command::List => todo!(),
+                Command::Connect(cloud_command) => todo!(),
+                Command::Disconnect => todo!(),
+            },
+            Some(client) => match self {
+                Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
+                Command::Remove(tasks_command) => todo!(),
+                Command::Done(tasks_command) => todo!(),
+                Command::Undone(tasks_command) => todo!(),
+                Command::Clear(clear_command) => todo!(),
+                Command::ClearDone => todo!(),
+                Command::List => todo!(),
+                Command::Connect(cloud_command) => todo!(),
+                Command::Disconnect => todo!(),
+            },
         }
     }
 }

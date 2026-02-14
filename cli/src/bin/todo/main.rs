@@ -1,12 +1,12 @@
 mod args;
 mod command_error;
 mod command_impl;
+mod command_impl_cloud;
 
 use args::{Command, TodoArgs};
 use clap::Parser;
 use console::Style;
 use std::io::ErrorKind;
-use std::ops::Deref;
 use yesser_todo_api::Client;
 use yesser_todo_db::{SaveData, Task, get_index};
 
@@ -83,7 +83,8 @@ async fn main() {
                                                 println!("Task {task} added successfully!");
                                             } else {
                                                 println!(
-                                                    "HTTP Error while adding task {task}: {status_code}!"
+                                                    "HTTP Error while adding task {task}: {}!",
+                                                    status_code.as_u16()
                                                 );
                                             }
                                         }
