@@ -1,15 +1,11 @@
-use clap:: {
-    Args,
-    Parser,
-    Subcommand
-};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub(crate) struct TodoArgs {
     /// The operation to do in the task list.
     #[clap(subcommand)]
-    pub(crate) command: Command
+    pub(crate) command: Command,
 }
 
 #[derive(Debug, Subcommand)]
@@ -38,18 +34,18 @@ pub(crate) enum Command {
 pub(crate) struct TasksCommand {
     /// The tasks to add/remove/mark done
     #[arg(num_args = 1..)]
-    pub tasks: Vec<String>
+    pub tasks: Vec<String>,
 }
 
 #[derive(Debug, Args)]
 pub(crate) struct ClearCommand {
     /// Only clear done tasks
     #[arg(short, long)]
-    pub done: bool
+    pub done: bool,
 }
 
 #[derive(Debug, Args)]
 pub(crate) struct CloudCommand {
     pub host: String,
-    pub port: Option<String>
+    pub port: Option<String>,
 }
