@@ -7,7 +7,7 @@ mod utils;
 use args::{Command, TodoArgs};
 use clap::Parser;
 use console::Style;
-use std::io::ErrorKind;
+use std::io::{ErrorKind, stderr};
 use yesser_todo_api::Client;
 use yesser_todo_db::{SaveData, Task, get_index};
 
@@ -36,8 +36,28 @@ async fn main() {
         None => {}
     }
 
-    args.command.execute(data.get_tasks(), &mut client);
-    todo!();
+    match args.command.execute(data.get_tasks(), &mut client).await {
+        Ok(()) => match args.command {
+            Command::List => {}
+            _ => {
+                Command::List.execute(data.get_tasks(), &mut client).await;
+            }
+        },
+        Err(err) => match err {
+            command_error::CommandError::TaskExists { name } => {
+                eprintln!("Task {name} already exists!")
+            }
+            command_error::CommandError::TaskNotFound { name } => {
+                eprintln!("Task {name} not found!")
+            }
+            command_error::CommandError::HTTPError { name, status_code } => {
+                eprintln!("HTTP error code {status_code} for task {name}!")
+            }
+            command_error::CommandError::ConnectionError { name } => {
+                eprintln!("Failed to connect to the server for task {name}!")
+            }
+        },
+    }
 }
 
 /// Application entry point for the Todo CLI.
