@@ -2,6 +2,7 @@ mod args;
 mod command_error;
 mod command_impl;
 mod command_impl_cloud;
+mod utils;
 
 use args::{Command, TodoArgs};
 use clap::Parser;
@@ -10,7 +11,34 @@ use std::io::ErrorKind;
 use yesser_todo_api::Client;
 use yesser_todo_db::{SaveData, Task, get_index};
 
-use crate::command_impl::process_cloud_config;
+use crate::utils::process_cloud_config;
+
+#[tokio::main]
+async fn main() {
+    let args = TodoArgs::parse();
+    let mut data = SaveData::new();
+    // let done_style = Style::new().strikethrough().green();
+
+    match data.load_tasks() {
+        Ok(_) => {}
+        Err(err) => {
+            println!("Error while getting saved data: {err}");
+            return;
+        }
+    }
+
+    let mut client: Option<Client> = None;
+
+    match process_cloud_config() {
+        Some((hostname, port)) => {
+            client = Some(Client::new(hostname, Some(port)));
+        }
+        None => {}
+    }
+
+    args.command.execute(data.get_tasks(), &mut client);
+    todo!();
+}
 
 /// Application entry point for the Todo CLI.
 ///
@@ -25,8 +53,7 @@ use crate::command_impl::process_cloud_config;
 /// // Run the CLI binary (example):
 /// // $ todo add "Buy milk"
 /// ```
-#[tokio::main]
-async fn main() {
+async fn old_main() {
     let args = TodoArgs::parse();
     let mut data = SaveData::new();
     let done_style = Style::new().strikethrough().green();

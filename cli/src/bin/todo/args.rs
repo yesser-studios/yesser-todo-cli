@@ -58,7 +58,7 @@ impl Command {
     pub(crate) async fn execute(
         &self,
         data: &mut Vec<Task>,
-        client: Option<&mut Client>,
+        client: &mut Option<Client>,
     ) -> Result<(), crate::command_error::CommandError> {
         match client {
             None => match self {

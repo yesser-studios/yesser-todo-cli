@@ -1,19 +1,22 @@
-use std::{fs::{self, File}, path::PathBuf};
+use std::{
+    fs::{self, File},
+    path::PathBuf,
+};
 
-use serde::{Deserialize, Serialize};
-use serde_json::{to_writer, from_reader};
 use platform_dirs::AppDirs;
+use serde::{Deserialize, Serialize};
+use serde_json::{from_reader, to_writer};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
     pub name: String,
-    pub done: bool
+    pub done: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CloudConfig {
     pub host: String,
-    pub port: String
+    pub port: String,
 }
 
 impl CloudConfig {
@@ -31,12 +34,15 @@ impl CloudConfig {
     /// assert_eq!(cfg.port, "8080");
     /// ```
     pub fn new(host: &String, port: &String) -> Self {
-        CloudConfig{host: host.clone(), port: port.clone()}
+        CloudConfig {
+            host: host.clone(),
+            port: port.clone(),
+        }
     }
 }
 
 pub struct SaveData {
-    tasks: Vec<Task>
+    tasks: Vec<Task>,
 }
 
 pub fn exactly_matches(task: &Task, query_string: &String) -> bool {
@@ -44,12 +50,12 @@ pub fn exactly_matches(task: &Task, query_string: &String) -> bool {
 }
 
 pub fn get_index(tasks: &Vec<Task>, query_string: &String) -> Option<usize> {
-    return tasks.iter().position(|r| exactly_matches(r, query_string))
+    return tasks.iter().position(|r| exactly_matches(r, query_string));
 }
 
 impl SaveData {
     pub fn new() -> SaveData {
-        return SaveData {tasks: Vec::new()}
+        return SaveData { tasks: Vec::new() };
     }
 
     /// Builds the application's platform-specific directories and the full path to the todos.json data file.
@@ -109,7 +115,9 @@ impl SaveData {
 
         fs::create_dir_all(&app_dirs.config_dir).unwrap();
 
-        if !config_file_path.exists() {return Ok(None)}
+        if !config_file_path.exists() {
+            return Ok(None);
+        }
 
         let file = File::open(config_file_path).unwrap();
         let result: CloudConfig = from_reader(file)?;
@@ -148,7 +156,7 @@ impl SaveData {
 
         Ok(())
     }
-    
+
     /// Removes the cloud configuration file (`cloud.json`) from the application's config directory.
     ///
     /// The file path is obtained from `SaveData::get_cloud_config_paths()`. If removal fails, the underlying I/O error is returned.
@@ -169,7 +177,7 @@ impl SaveData {
     pub fn remove_cloud_config() -> Result<(), std::io::Error> {
         let config_paths = SaveData::get_cloud_config_paths();
         let config_file_path = config_paths.1;
-        
+
         fs::remove_file(config_file_path)?;
         Ok(())
     }
@@ -198,14 +206,16 @@ impl SaveData {
 
         fs::create_dir_all(&app_dirs.data_dir).unwrap();
 
-        if !data_file_path.exists() {return Ok(())}
+        if !data_file_path.exists() {
+            return Ok(());
+        }
 
         let file = File::open(data_file_path).unwrap();
 
         let result: Vec<Task> = from_reader(file)?;
         self.tasks = result;
 
-        return Ok(())
+        return Ok(());
     }
 
     pub fn save_tasks(&self) -> Result<(), serde_json::Error> {
@@ -218,11 +228,11 @@ impl SaveData {
 
         to_writer(file, &self.tasks)?;
 
-        return Ok(())
+        return Ok(());
     }
 
-    pub fn get_tasks(&self) -> &Vec<Task> {
-        return &self.tasks;
+    pub fn get_tasks(&mut self) -> &mut Vec<Task> {
+        return &mut self.tasks;
     }
 
     pub fn add_task(&mut self, task: Task) {
@@ -236,13 +246,13 @@ impl SaveData {
     pub fn mark_task_done(&mut self, task_index: usize) -> bool {
         let was_done = self.tasks[task_index].done;
         self.tasks[task_index].done = true;
-        return was_done
+        return was_done;
     }
 
     pub fn mark_task_undone(&mut self, task_index: usize) -> bool {
         let was_undone = !self.tasks[task_index].done;
         self.tasks[task_index].done = false;
-        return was_undone
+        return was_undone;
     }
 
     pub fn clear_tasks(&mut self) {
@@ -253,3 +263,4 @@ impl SaveData {
         self.tasks.retain(|t| !t.done);
     }
 }
+
