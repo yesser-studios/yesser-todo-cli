@@ -1,6 +1,8 @@
 use console::Style;
 use yesser_todo_db::SaveData;
 
+pub(crate) const DONE_STYLE: Style = Style::new().strikethrough().green();
+
 /// Retrieve the saved cloud server host and port if available.
 ///
 /// # Returns
@@ -21,5 +23,3 @@ use yesser_todo_db::SaveData;
 pub(crate) fn process_cloud_config() -> Option<(String, String)> {
     SaveData::get_cloud_config().unwrap_or_else(|_| None)
 }
-
-pub(crate) const DONE_STYLE: Style = Style::new().strikethrough().green();
