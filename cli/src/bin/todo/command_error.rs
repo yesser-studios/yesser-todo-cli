@@ -18,12 +18,14 @@ impl CommandError {
             CommandError::TaskNotFound { name } => {
                 println!("Task {name} not found!")
             }
-            CommandError::HTTPError { name, status_code } => {
-                println!("HTTP error code {status_code} for task {name}!")
-            }
-            CommandError::ConnectionError { name } => {
-                println!("Failed to connect to the server for task {name}!")
-            }
+            CommandError::HTTPError { name, status_code } => match name.as_str() {
+                "" => println!("HTTP error code {status_code}!"),
+                _ => println!("HTTP error code {status_code} for task {name}!"),
+            },
+            CommandError::ConnectionError { name } => match name.as_str() {
+                "" => println!("Failed to connect to the server!"),
+                _ => println!("Failed to connect to the server for task {name}!"),
+            },
         }
     }
 }

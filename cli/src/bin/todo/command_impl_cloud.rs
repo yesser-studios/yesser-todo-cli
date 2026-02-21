@@ -1,6 +1,6 @@
 use yesser_todo_api::Client;
 
-use crate::{args::TasksCommand, command_error::CommandError};
+use crate::{args::TasksCommand, command_error::CommandError, utils::DONE_STYLE};
 
 pub(crate) async fn check_exists_cloud(task: &str, client: &Client) -> Result<bool, CommandError> {
     let result = client.get_index(task).await;
@@ -70,6 +70,36 @@ pub(crate) async fn handle_remove_cloud(
                     });
                 }
             }
+        }
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandError> {
+    let result = client.get().await;
+    match result {
+        Ok((status_code, tasks)) => {
+            if status_code.is_success() {
+                println!("\nCurrent tasks:");
+                for task in tasks {
+                    if task.done {
+                        println!("{}", DONE_STYLE.apply_to(&task.name))
+                    } else {
+                        println!("{}", task.name)
+                    }
+                }
+            } else {
+                return Err(CommandError::HTTPError {
+                    name: "".to_string(),
+                    status_code: status_code.as_u16(),
+                });
+            }
+        }
+        Err(_) => {
+            return Err(CommandError::ConnectionError {
+                name: "".to_string(),
+            });
         }
     }
 

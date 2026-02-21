@@ -1,3 +1,4 @@
+use crate::utils::DONE_STYLE;
 use yesser_todo_db::{Task, get_index};
 
 use crate::{args::TasksCommand, command_error::CommandError};
@@ -35,5 +36,17 @@ pub(crate) fn handle_remove(
             None => return Err(CommandError::TaskNotFound { name: task.clone() }),
         }
     }
+    Ok(())
+}
+
+pub(crate) fn handle_list(data: &Vec<Task>) -> Result<(), CommandError> {
+    println!("\nCurrent tasks:");
+    for task in data {
+        match task.done {
+            true => println!("{}", DONE_STYLE.apply_to(task.name.as_str())),
+            false => println!("{}", task.name),
+        }
+    }
+
     Ok(())
 }
