@@ -42,9 +42,10 @@ pub(crate) fn handle_remove(
 pub(crate) fn handle_list(data: &Vec<Task>) -> Result<(), CommandError> {
     println!("\nCurrent tasks:");
     for task in data {
-        match task.done {
-            true => println!("{}", DONE_STYLE.apply_to(task.name.as_str())),
-            false => println!("{}", task.name),
+        if task.done {
+            println!("{}", DONE_STYLE.apply_to(task.name.as_str()));
+        } else {
+            println!("{}",task.name);
         }
     }
 
