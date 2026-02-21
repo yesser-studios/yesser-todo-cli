@@ -1,32 +1,51 @@
 mod args;
+mod command_error;
+mod command_impl;
+mod command_impl_cloud;
+mod utils;
 
 use args::{Command, TodoArgs};
 use clap::Parser;
 use console::Style;
 use std::io::ErrorKind;
-use std::ops::Deref;
 use yesser_todo_api::Client;
-use yesser_todo_db::{get_index, SaveData, Task};
+use yesser_todo_db::{SaveData, Task, get_index};
 
-/// Retrieve the saved cloud server host and port if available.
-///
-/// # Returns
-///
-/// `Some((host, port))` when a cloud configuration is present and readable, `None` if no configuration exists or it cannot be read.
-///
-/// # Examples
-///
-/// ```
-/// // Suppose SaveData::get_cloud_config() returns Ok(Some(("example.com".into(), "6982".into())))
-/// if let Some((host, port)) = process_cloud_config() {
-///     assert_eq!(host, "example.com");
-///     assert_eq!(port, "6982");
-/// } else {
-///     panic!("expected cloud config");
-/// }
-/// ```
-fn process_cloud_config() -> Option<(String, String)> {
-    SaveData::get_cloud_config().unwrap_or_else(|_| None)
+use crate::utils::process_cloud_config;
+
+#[tokio::main]
+async fn main() {
+    let args = TodoArgs::parse();
+    let mut data = SaveData::new();
+    // let done_style = Style::new().strikethrough().green();
+
+    match data.load_tasks() {
+        Ok(_) => {}
+        Err(err) => {
+            println!("Error while getting saved data: {err}");
+            return;
+        }
+    }
+
+    let mut client: Option<Client> = None;
+
+    match process_cloud_config() {
+        Some((hostname, port)) => {
+            client = Some(Client::new(hostname, Some(port)));
+        }
+        None => {}
+    }
+
+    match args.command.execute(data.get_tasks(), &mut client).await {
+        Ok(()) => match args.command {
+            Command::List => {}
+            _ => match Command::List.execute(data.get_tasks(), &mut client).await {
+                Ok(()) => {}
+                Err(err) => err.handle(),
+            },
+        },
+        Err(err) => err.handle(),
+    }
 }
 
 /// Application entry point for the Todo CLI.
@@ -42,8 +61,7 @@ fn process_cloud_config() -> Option<(String, String)> {
 /// // Run the CLI binary (example):
 /// // $ todo add "Buy milk"
 /// ```
-#[tokio::main]
-async fn main() {
+async fn old_main() {
     let args = TodoArgs::parse();
     let mut data = SaveData::new();
     let done_style = Style::new().strikethrough().green();
@@ -65,7 +83,10 @@ async fn main() {
                                     println!("Task {task} already exists!");
                                 }
                                 None => {
-                                    let task_obj: Task = Task { name: task.deref().parse().unwrap(), done: false };
+                                    let task_obj: Task = Task {
+                                        name: task.clone(),
+                                        done: false,
+                                    };
                                     data.add_task(task_obj);
                                 }
                             }
@@ -96,7 +117,10 @@ async fn main() {
                                             if status_code.is_success() {
                                                 println!("Task {task} added successfully!");
                                             } else {
-                                                println!("HTTP Error while adding task {task}: {status_code}!");
+                                                println!(
+                                                    "HTTP Error while adding task {task}: {}!",
+                                                    status_code.as_u16()
+                                                );
                                             }
                                         }
                                         Err(err) => {
@@ -137,10 +161,14 @@ async fn main() {
                                     } else if status_code.as_u16() == 404 {
                                         println!("Task {task} not found!");
                                     } else {
-                                        println!("Error while removing task {task}: {status_code}!");
+                                        println!(
+                                            "Error while removing task {task}: {status_code}!"
+                                        );
                                     }
                                 }
-                                Err(err) => println!("Removing task {task} failed (task may still exist): {err}"),
+                                Err(err) => println!(
+                                    "Removing task {task} failed (task may still exist): {err}"
+                                ),
                             }
                         }
                     }
@@ -174,10 +202,14 @@ async fn main() {
                                     } else if status_code.as_u16() == 404 {
                                         println!("Task {task} not found!");
                                     } else {
-                                        println!("HTTP Error while marking task {task} as done: {status_code}!");
+                                        println!(
+                                            "HTTP Error while marking task {task} as done: {status_code}!"
+                                        );
                                     }
                                 }
-                                Err(err) => {println!("Marking task {task} as done failed: {err}")}
+                                Err(err) => {
+                                    println!("Marking task {task} as done failed: {err}")
+                                }
                             }
                         }
                     }
@@ -211,46 +243,48 @@ async fn main() {
                                     } else if status_code.as_u16() == 404 {
                                         println!("Task {task} not found!");
                                     } else {
-                                        println!("HTTP Error while marking task {task} as undone: {status_code}!");
+                                        println!(
+                                            "HTTP Error while marking task {task} as undone: {status_code}!"
+                                        );
                                     }
                                 }
-                                Err(err) => {println!("Marking task {task} as undone failed: {err}")}
+                                Err(err) => {
+                                    println!("Marking task {task} as undone failed: {err}")
+                                }
                             }
                         }
                     }
                 }
             }
         }
-        Command::Clear(command) => {
-            match process_cloud_config() {
-                None => {
-                    if command.done {
-                        data.clear_done_tasks();
-                    } else {
-                        data.clear_tasks()
-                    }
-                },
-                Some((host, port)) => {
-                    let client = Client::new(host, Some(port));
-                    let result: Result<_, _>;
-                    if command.done {
-                        result = client.clear_done().await;
-                    } else {
-                        result = client.clear().await;
-                    }
-                    match result {
-                        Ok(status_code) => {
-                            if status_code.is_success() {
-                                println!("Tasks cleared!");
-                            } else {
-                                println!("HTTP error while clearing: {}", status_code.as_u16());
-                            }
-                        }
-                        Err(err) => println!("Clearing tasks failed: {err}"),
-                    }
+        Command::Clear(command) => match process_cloud_config() {
+            None => {
+                if command.done {
+                    data.clear_done_tasks();
+                } else {
+                    data.clear_tasks()
                 }
             }
-        }
+            Some((host, port)) => {
+                let client = Client::new(host, Some(port));
+                let result: Result<_, _>;
+                if command.done {
+                    result = client.clear_done().await;
+                } else {
+                    result = client.clear().await;
+                }
+                match result {
+                    Ok(status_code) => {
+                        if status_code.is_success() {
+                            println!("Tasks cleared!");
+                        } else {
+                            println!("HTTP error while clearing: {}", status_code.as_u16());
+                        }
+                    }
+                    Err(err) => println!("Clearing tasks failed: {err}"),
+                }
+            }
+        },
         Command::ClearDone => {
             println!("clear-done is deprecated. Use clear -d instead.");
 
@@ -278,24 +312,26 @@ async fn main() {
                 None => {
                     let client = Client::new("".to_string(), None);
                     SaveData::save_cloud_config(&command.host, &client.port)
-                },
+                }
                 Some(port) => SaveData::save_cloud_config(&command.host, port),
             };
             match result {
                 Ok(_) => println!("Successfully linked server."),
-                Err(_) => {println!("Unable to save server configuration.")}
+                Err(_) => {
+                    println!("Unable to save server configuration.")
+                }
             }
         }
         Command::Disconnect => {
             let result = SaveData::remove_cloud_config();
             match result {
-                Ok(_) => {println!("Successfully unlinked server.")}
-                Err(err) => {
-                    match err.kind() {
-                        ErrorKind::NotFound => println!("You're already unlinked!"),
-                        _ => println!("Something went wrong")
-                    }
+                Ok(_) => {
+                    println!("Successfully unlinked server.")
                 }
+                Err(err) => match err.kind() {
+                    ErrorKind::NotFound => println!("You're already unlinked!"),
+                    _ => println!("Something went wrong"),
+                },
             }
         }
     }

@@ -1,15 +1,16 @@
-use clap:: {
-    Args,
-    Parser,
-    Subcommand
-};
+use clap::{Args, Parser, Subcommand};
+use yesser_todo_api::Client;
+use yesser_todo_db::{SaveData, Task};
+
+use crate::command_impl::*;
+use crate::command_impl_cloud::*;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub(crate) struct TodoArgs {
     /// The operation to do in the task list.
     #[clap(subcommand)]
-    pub(crate) command: Command
+    pub(crate) command: Command,
 }
 
 #[derive(Debug, Subcommand)]
@@ -38,18 +39,51 @@ pub(crate) enum Command {
 pub(crate) struct TasksCommand {
     /// The tasks to add/remove/mark done
     #[arg(num_args = 1..)]
-    pub tasks: Vec<String>
+    pub tasks: Vec<String>,
 }
 
 #[derive(Debug, Args)]
 pub(crate) struct ClearCommand {
     /// Only clear done tasks
     #[arg(short, long)]
-    pub done: bool
+    pub done: bool,
 }
 
 #[derive(Debug, Args)]
 pub(crate) struct CloudCommand {
     pub host: String,
-    pub port: Option<String>
+    pub port: Option<String>,
+}
+
+impl Command {
+    pub(crate) async fn execute(
+        &self,
+        data: &mut Vec<Task>,
+        client: &mut Option<Client>,
+    ) -> Result<(), crate::command_error::CommandError> {
+        match client {
+            None => match self {
+                Command::Add(tasks_command) => handle_add(tasks_command, data),
+                Command::Remove(tasks_command) => handle_remove(tasks_command, data),
+                Command::Done(tasks_command) => todo!(),
+                Command::Undone(tasks_command) => todo!(),
+                Command::Clear(clear_command) => todo!(),
+                Command::ClearDone => todo!(),
+                Command::List => handle_list(data),
+                Command::Connect(cloud_command) => todo!(),
+                Command::Disconnect => todo!(),
+            },
+            Some(client) => match self {
+                Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
+                Command::Remove(tasks_command) => handle_remove_cloud(tasks_command, client).await,
+                Command::Done(tasks_command) => todo!(),
+                Command::Undone(tasks_command) => todo!(),
+                Command::Clear(clear_command) => todo!(),
+                Command::ClearDone => todo!(),
+                Command::List => handle_list_cloud(client).await,
+                Command::Connect(cloud_command) => todo!(),
+                Command::Disconnect => todo!(),
+            },
+        }
+    }
 }
