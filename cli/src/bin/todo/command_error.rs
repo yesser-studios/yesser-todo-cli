@@ -1,4 +1,5 @@
 pub(crate) enum CommandError {
+    NoTasksSpecified,
     TaskExists { name: String },
     TaskNotFound { name: String },
     HTTPError { name: String, status_code: u16 },
@@ -8,6 +9,9 @@ pub(crate) enum CommandError {
 impl CommandError {
     pub(crate) fn handle(&self) {
         match self {
+            CommandError::NoTasksSpecified => {
+                println!("No tasks specified!") // TODO: Change to eprintln! in next major version
+            }
             CommandError::TaskExists { name } => {
                 eprintln!("Task {name} already exists!")
             }

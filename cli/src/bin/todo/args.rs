@@ -2,7 +2,8 @@ use clap::{Args, Parser, Subcommand};
 use yesser_todo_api::Client;
 use yesser_todo_db::{SaveData, Task};
 
-use crate::{command_impl::handle_add, command_impl_cloud::handle_add_cloud};
+use crate::command_impl::*;
+use crate::command_impl_cloud::*;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -63,7 +64,7 @@ impl Command {
         match client {
             None => match self {
                 Command::Add(tasks_command) => handle_add(tasks_command, data),
-                Command::Remove(tasks_command) => todo!(),
+                Command::Remove(tasks_command) => handle_remove(tasks_command, data),
                 Command::Done(tasks_command) => todo!(),
                 Command::Undone(tasks_command) => todo!(),
                 Command::Clear(clear_command) => todo!(),
