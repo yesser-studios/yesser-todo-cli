@@ -13,16 +13,16 @@ impl CommandError {
                 println!("No tasks specified!") // TODO: Change to eprintln! in next major version
             }
             CommandError::TaskExists { name } => {
-                eprintln!("Task {name} already exists!")
+                println!("Task {name} already exists!")
             }
             CommandError::TaskNotFound { name } => {
-                eprintln!("Task {name} not found!")
+                println!("Task {name} not found!")
             }
             CommandError::HTTPError { name, status_code } => {
-                eprintln!("HTTP error code {status_code} for task {name}!")
+                println!("HTTP error code {status_code} for task {name}!")
             }
             CommandError::ConnectionError { name } => {
-                eprintln!("Failed to connect to the server for task {name}!")
+                println!("Failed to connect to the server for task {name}!")
             }
         }
     }
