@@ -75,7 +75,7 @@ impl Command {
             },
             Some(client) => match self {
                 Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
-                Command::Remove(tasks_command) => todo!(),
+                Command::Remove(tasks_command) => handle_remove_cloud(tasks_command, client).await,
                 Command::Done(tasks_command) => todo!(),
                 Command::Undone(tasks_command) => todo!(),
                 Command::Clear(clear_command) => todo!(),
