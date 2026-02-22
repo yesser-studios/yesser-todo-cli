@@ -51,11 +51,13 @@ async fn main() {
         Ok(()) => match args.command {
             Command::List => {}
             _ => {
-                match data.save_tasks() {
-                    Ok(()) => {}
-                    Err(err) => {
-                        println!("Failed to save tasks: {}", err);
-                        return;
+                if client.is_none() {
+                    match data.save_tasks() {
+                        Ok(()) => {}
+                        Err(err) => {
+                            println!("Failed to save tasks: {}", err);
+                            return;
+                        }
                     }
                 }
 
