@@ -105,3 +105,32 @@ pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandErro
 
     Ok(())
 }
+
+pub(crate) async fn handle_done_undone_cloud(
+    command: &TasksCommand,
+    client: &mut Client,
+    done: bool,
+) -> Result<(), CommandError> {
+    for task in &command.tasks {
+        let result = if done {
+            client.done(task).await
+        } else {
+            client.undone(task).await
+        };
+        match result {
+            Ok((status_code, _)) => {
+                if status_code.is_success() {
+                } else if status_code.as_u16() == 404 {
+                    return Err(CommandError::TaskNotFound { name: task.clone() });
+                } else {
+                    return Err(CommandError::HTTPError {
+                        name: task.clone(),
+                        status_code: status_code.as_u16(),
+                    });
+                }
+            }
+            Err(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
+        }
+    }
+    Ok(())
+}

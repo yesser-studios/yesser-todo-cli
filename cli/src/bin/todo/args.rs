@@ -56,17 +56,13 @@ pub(crate) struct CloudCommand {
 }
 
 impl Command {
-    pub(crate) async fn execute(
-        &self,
-        data: &mut Vec<Task>,
-        client: &mut Option<Client>,
-    ) -> Result<(), crate::command_error::CommandError> {
+    pub(crate) async fn execute(&self, data: &mut Vec<Task>, client: &mut Option<Client>) -> Result<(), crate::command_error::CommandError> {
         match client {
             None => match self {
                 Command::Add(tasks_command) => handle_add(tasks_command, data),
                 Command::Remove(tasks_command) => handle_remove(tasks_command, data),
-                Command::Done(tasks_command) => todo!(),
-                Command::Undone(tasks_command) => todo!(),
+                Command::Done(tasks_command) => handle_done_undone(tasks_command, data, true),
+                Command::Undone(tasks_command) => handle_done_undone(tasks_command, data, false),
                 Command::Clear(clear_command) => todo!(),
                 Command::ClearDone => todo!(),
                 Command::List => handle_list(data),
@@ -76,8 +72,8 @@ impl Command {
             Some(client) => match self {
                 Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
                 Command::Remove(tasks_command) => handle_remove_cloud(tasks_command, client).await,
-                Command::Done(tasks_command) => todo!(),
-                Command::Undone(tasks_command) => todo!(),
+                Command::Done(tasks_command) => handle_done_undone_cloud(tasks_command, client, true).await,
+                Command::Undone(tasks_command) => handle_done_undone_cloud(tasks_command, client, false).await,
                 Command::Clear(clear_command) => todo!(),
                 Command::ClearDone => todo!(),
                 Command::List => handle_list_cloud(client).await,

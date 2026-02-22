@@ -28,6 +28,7 @@ pub(crate) fn handle_remove(
     if command.tasks.len() <= 0 {
         return Err(CommandError::NoTasksSpecified);
     }
+
     for task in &command.tasks {
         match get_index(data, task) {
             Some(index) => {
@@ -45,7 +46,26 @@ pub(crate) fn handle_list(data: &Vec<Task>) -> Result<(), CommandError> {
         if task.done {
             println!("{}", DONE_STYLE.apply_to(task.name.as_str()));
         } else {
-            println!("{}",task.name);
+            println!("{}", task.name);
+        }
+    }
+
+    Ok(())
+}
+
+pub(crate) fn handle_done_undone(
+    command: &TasksCommand,
+    data: &mut Vec<Task>,
+    done: bool,
+) -> Result<(), CommandError> {
+    if command.tasks.len() <= 0 {
+        return Err(CommandError::NoTasksSpecified);
+    }
+
+    for task in &command.tasks {
+        match get_index(data, task) {
+            Some(index) => data[index].done = done,
+            None => return Err(CommandError::TaskNotFound { name: task.clone() }),
         }
     }
 
