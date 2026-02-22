@@ -6,10 +6,8 @@ mod utils;
 
 use args::{Command, TodoArgs};
 use clap::Parser;
-use console::Style;
-use std::io::ErrorKind;
 use yesser_todo_api::Client;
-use yesser_todo_db::{SaveData, Task, get_index};
+use yesser_todo_db::SaveData;
 
 use crate::utils::process_cloud_config;
 
