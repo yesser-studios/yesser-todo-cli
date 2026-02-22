@@ -28,7 +28,6 @@ use crate::utils::process_cloud_config;
 async fn main() {
     let args = TodoArgs::parse();
     let mut data = SaveData::new();
-    // let done_style = Style::new().strikethrough().green();
 
     match data.load_tasks() {
         Ok(_) => {}
@@ -40,11 +39,8 @@ async fn main() {
 
     let mut client: Option<Client> = None;
 
-    match process_cloud_config() {
-        Some((hostname, port)) => {
-            client = Some(Client::new(hostname, Some(port)));
-        }
-        None => {}
+    if let Some((hostname, port)) = process_cloud_config() {
+        client = Some(Client::new(hostname, Some(port)));
     }
 
     match args.command.execute(data.get_tasks(), &mut client).await {
