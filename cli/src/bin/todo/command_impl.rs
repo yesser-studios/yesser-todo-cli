@@ -1,4 +1,4 @@
-use crate::utils::DONE_STYLE;
+use crate::{args::ClearCommand, utils::DONE_STYLE};
 use yesser_todo_db::{Task, get_index};
 
 use crate::{args::TasksCommand, command_error::CommandError};
@@ -21,10 +21,7 @@ pub(crate) fn handle_add(command: &TasksCommand, data: &mut Vec<Task>) -> Result
     Ok(())
 }
 
-pub(crate) fn handle_remove(
-    command: &TasksCommand,
-    data: &mut Vec<Task>,
-) -> Result<(), CommandError> {
+pub(crate) fn handle_remove(command: &TasksCommand, data: &mut Vec<Task>) -> Result<(), CommandError> {
     if command.tasks.len() <= 0 {
         return Err(CommandError::NoTasksSpecified);
     }
@@ -53,11 +50,7 @@ pub(crate) fn handle_list(data: &Vec<Task>) -> Result<(), CommandError> {
     Ok(())
 }
 
-pub(crate) fn handle_done_undone(
-    command: &TasksCommand,
-    data: &mut Vec<Task>,
-    done: bool,
-) -> Result<(), CommandError> {
+pub(crate) fn handle_done_undone(command: &TasksCommand, data: &mut Vec<Task>, done: bool) -> Result<(), CommandError> {
     if command.tasks.len() <= 0 {
         return Err(CommandError::NoTasksSpecified);
     }
@@ -70,4 +63,19 @@ pub(crate) fn handle_done_undone(
     }
 
     Ok(())
+}
+
+pub(crate) fn handle_clear(command: &ClearCommand, data: &mut Vec<Task>) -> Result<(), CommandError> {
+    if command.done {
+        data.retain(|t| !t.done);
+    } else {
+        data.clear();
+    }
+    Ok(())
+}
+
+#[deprecated]
+pub(crate) fn handle_clear_done(data: &mut Vec<Task>) -> Result<(), CommandError> {
+    println!("clear-done is deprecated. Use clear -d instead.");
+    handle_clear(&ClearCommand { done: true }, data)
 }

@@ -117,10 +117,7 @@ async fn old_main() {
                                             if status_code.is_success() {
                                                 println!("Task {task} added successfully!");
                                             } else {
-                                                println!(
-                                                    "HTTP Error while adding task {task}: {}!",
-                                                    status_code.as_u16()
-                                                );
+                                                println!("HTTP Error while adding task {task}: {}!", status_code.as_u16());
                                             }
                                         }
                                         Err(err) => {
@@ -161,14 +158,10 @@ async fn old_main() {
                                     } else if status_code.as_u16() == 404 {
                                         println!("Task {task} not found!");
                                     } else {
-                                        println!(
-                                            "Error while removing task {task}: {status_code}!"
-                                        );
+                                        println!("Error while removing task {task}: {status_code}!");
                                     }
                                 }
-                                Err(err) => println!(
-                                    "Removing task {task} failed (task may still exist): {err}"
-                                ),
+                                Err(err) => println!("Removing task {task} failed (task may still exist): {err}"),
                             }
                         }
                     }
@@ -202,9 +195,7 @@ async fn old_main() {
                                     } else if status_code.as_u16() == 404 {
                                         println!("Task {task} not found!");
                                     } else {
-                                        println!(
-                                            "HTTP Error while marking task {task} as done: {status_code}!"
-                                        );
+                                        println!("HTTP Error while marking task {task} as done: {status_code}!");
                                     }
                                 }
                                 Err(err) => {
@@ -243,9 +234,7 @@ async fn old_main() {
                                     } else if status_code.as_u16() == 404 {
                                         println!("Task {task} not found!");
                                     } else {
-                                        println!(
-                                            "HTTP Error while marking task {task} as undone: {status_code}!"
-                                        );
+                                        println!("HTTP Error while marking task {task} as undone: {status_code}!");
                                     }
                                 }
                                 Err(err) => {
