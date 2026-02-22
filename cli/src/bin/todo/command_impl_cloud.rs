@@ -1,7 +1,10 @@
+use std::io::ErrorKind;
+
 use yesser_todo_api::Client;
+use yesser_todo_db::SaveData;
 
 use crate::{
-    args::{ClearCommand, TasksCommand},
+    args::{ClearCommand, CloudCommand, TasksCommand},
     command_error::CommandError,
     utils::DONE_STYLE,
 };
@@ -147,4 +150,39 @@ pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Clie
 pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), CommandError> {
     println!("clear-done is deprecated. Use clear -d instead.");
     handle_clear_cloud(&ClearCommand { done: true }, client).await
+}
+
+pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError> {
+    let result = match &command.port {
+        None => {
+            let client = Client::new("".to_string(), None);
+            SaveData::save_cloud_config(&command.host, &client.port)
+        }
+        Some(port) => SaveData::save_cloud_config(&command.host, port),
+    };
+
+    match result {
+        Ok(()) => {
+            println!("Successfully linked server.");
+            Ok(())
+        }
+        Err(_) => Err(CommandError::DataError {
+            what: "server configuration".to_string(),
+        }),
+    }
+}
+
+pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
+    match SaveData::remove_cloud_config() {
+        Ok(_) => {
+            println!("Successfully unlinked server.");
+            Ok(())
+        }
+        Err(err) => match err.kind() {
+            ErrorKind::NotFound => Err(CommandError::UnlinkedError),
+            _ => Err(CommandError::DataError {
+                what: format!("configuration: {err}"),
+            }),
+        },
+    }
 }

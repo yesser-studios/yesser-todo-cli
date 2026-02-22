@@ -1,7 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use yesser_todo_api::Client;
-use yesser_todo_db::{SaveData, Task};
+use yesser_todo_db::Task;
 
+use crate::command_error::CommandError::UnlinkedError;
 use crate::command_impl::*;
 use crate::command_impl_cloud::*;
 
@@ -66,8 +67,8 @@ impl Command {
                 Command::Clear(clear_command) => handle_clear(clear_command, data),
                 Command::ClearDone => handle_clear_done(data),
                 Command::List => handle_list(data),
-                Command::Connect(cloud_command) => todo!(),
-                Command::Disconnect => todo!(),
+                Command::Connect(cloud_command) => handle_connect(cloud_command),
+                Command::Disconnect => Err(UnlinkedError),
             },
             Some(client) => match self {
                 Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
@@ -77,8 +78,8 @@ impl Command {
                 Command::Clear(clear_command) => handle_clear_cloud(clear_command, client).await,
                 Command::ClearDone => handle_clear_done_cloud(client).await,
                 Command::List => handle_list_cloud(client).await,
-                Command::Connect(cloud_command) => todo!(),
-                Command::Disconnect => todo!(),
+                Command::Connect(cloud_command) => handle_connect(cloud_command),
+                Command::Disconnect => handle_disconnect(),
             },
         }
     }

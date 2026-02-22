@@ -2,8 +2,10 @@ pub(crate) enum CommandError {
     NoTasksSpecified,
     TaskExists { name: String },
     TaskNotFound { name: String },
+    DataError { what: String },
     HTTPError { name: String, status_code: u16 },
     ConnectionError { name: String },
+    UnlinkedError,
 }
 
 impl CommandError {
@@ -18,6 +20,9 @@ impl CommandError {
             CommandError::TaskNotFound { name } => {
                 println!("Task {name} not found!")
             }
+            CommandError::DataError { what } => {
+                println!("Unable to save {what}.")
+            }
             CommandError::HTTPError { name, status_code } => match name.as_str() {
                 "" => println!("HTTP error code {status_code}!"),
                 _ => println!("HTTP error code {status_code} for task {name}!"),
@@ -26,6 +31,9 @@ impl CommandError {
                 "" => println!("Failed to connect to the server!"),
                 _ => println!("Failed to connect to the server for task {name}!"),
             },
+            CommandError::UnlinkedError => {
+                println!("You're already unlinked!");
+            }
         }
     }
 }
