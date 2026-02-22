@@ -39,10 +39,20 @@ async fn main() {
     match args.command.execute(data.get_tasks(), &mut client).await {
         Ok(()) => match args.command {
             Command::List => {}
-            _ => match Command::List.execute(data.get_tasks(), &mut client).await {
-                Ok(()) => {}
-                Err(err) => err.handle(),
-            },
+            _ => {
+                match data.save_tasks() {
+                    Ok(()) => {}
+                    Err(err) => {
+                        println!("Failed to save tasks: {}", err);
+                        return;
+                    }
+                }
+
+                match Command::List.execute(data.get_tasks(), &mut client).await {
+                    Ok(()) => {}
+                    Err(err) => err.handle(),
+                }
+            }
         },
         Err(err) => err.handle(),
     }
