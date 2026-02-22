@@ -29,6 +29,10 @@ pub(crate) async fn check_exists_cloud(task: &str, client: &Client) -> Result<bo
 }
 
 pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
+    if command.tasks.len() <= 0 {
+        return Err(CommandError::NoTasksSpecified);
+    }
+
     let results = command.tasks.iter().map(|task| (client.add(task), task));
     for (result, task) in results {
         match check_exists_cloud(task, client).await {
@@ -52,6 +56,10 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
 }
 
 pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
+    if command.tasks.len() <= 0 {
+        return Err(CommandError::NoTasksSpecified);
+    }
+
     let results = command.tasks.iter().map(|task| (client.remove(task), task));
     for (result, task) in results {
         match check_exists_cloud(task, client).await {
@@ -104,6 +112,10 @@ pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandErro
 }
 
 pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mut Client, done: bool) -> Result<(), CommandError> {
+    if command.tasks.len() <= 0 {
+        return Err(CommandError::NoTasksSpecified);
+    }
+
     for task in &command.tasks {
         let result = if done { client.done(task).await } else { client.undone(task).await };
         match result {
