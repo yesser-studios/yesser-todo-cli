@@ -20,15 +20,15 @@ impl Client {
     /// assert_eq!(c.hostname, "http://127.0.0.1");
     /// assert_eq!(c.port, "6982");
     /// ```
-    pub fn new(hostname: String, port: Option<String>) -> Client {
+    pub fn new(hostname: &str, port: Option<String>) -> Client {
         match port {
             None => Client {
-                hostname,
+                hostname: hostname.to_string(),
                 port: "6982".to_string(),
                 client: reqwest::Client::new(),
             },
             Some(port) => Client {
-                hostname,
+                hostname: hostname.to_string(),
                 port,
                 client: reqwest::Client::new(),
             },
@@ -54,11 +54,7 @@ impl Client {
     /// // `tasks` is a Vec<yesser_todo_db::Task>
     /// ```
     pub async fn get(&self) -> Result<(StatusCode, Vec<Task>), Error> {
-        let result = self
-            .client
-            .get(format!("{}:{}/tasks", self.hostname, self.port).as_str())
-            .send()
-            .await;
+        let result = self.client.get(format!("{}:{}/tasks", self.hostname, self.port).as_str()).send().await;
 
         match result {
             Ok(result) => {
@@ -99,7 +95,7 @@ impl Client {
     /// assert_eq!(task.name, "example task");
     /// # }
     /// ```
-    pub async fn add(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
+    pub async fn add(&self, task_name: &str) -> Result<(StatusCode, Task), Error> {
         let result = self
             .client
             .post(format!("{}:{}/add", self.hostname, self.port).as_str())
@@ -188,7 +184,7 @@ impl Client {
     ///     let _ = status;
     /// }
     /// ```
-    pub async fn remove(&self, task_name: &String) -> Result<StatusCode, Error> {
+    pub async fn remove(&self, task_name: &str) -> Result<StatusCode, Error> {
         let index_result = self.get_index(task_name).await;
         let index: usize;
         match index_result {
@@ -238,12 +234,13 @@ impl Client {
     /// }
     /// # }
     /// ```
-    pub async fn done(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
+    pub async fn done(&self, task_name: &str) -> Result<(StatusCode, Task), Error> {
         let index_result = self.get_index(task_name).await;
         let index: usize;
         match index_result {
             Ok((status_code, result)) => {
                 if status_code != StatusCode::OK {
+                    // TODO: Replace with error
                     return Ok((
                         status_code,
                         Task {
@@ -291,12 +288,12 @@ impl Client {
     /// use std::string::String;
     /// use reqwest::StatusCode;
     ///
-    /// let client = Client::new("http://127.0.0.1".to_string(), None);
+    /// let client = Client::new("http://127.0.0.1", None);
     /// let rt = tokio::runtime::Runtime::new().unwrap();
     /// let res = rt.block_on(async { client.undone(&"example".to_string()).await }).unwrap();
     /// assert!(matches!(res.0, StatusCode::OK) || res.0.is_client_error() || res.0.is_server_error());
     /// ```
-    pub async fn undone(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
+    pub async fn undone(&self, task_name: &str) -> Result<(StatusCode, Task), Error> {
         let index_result = self.get_index(task_name).await;
         let index: usize;
         match index_result {
@@ -346,11 +343,7 @@ impl Client {
     /// # }
     /// ```
     pub async fn clear(&self) -> Result<StatusCode, Error> {
-        let result = self
-            .client
-            .delete(format!("{}:{}/clear", self.hostname, self.port).as_str())
-            .send()
-            .await;
+        let result = self.client.delete(format!("{}:{}/clear", self.hostname, self.port).as_str()).send().await;
         match result {
             Ok(result) => Ok(result.status()),
             Err(err) => Err(err),
@@ -374,11 +367,7 @@ impl Client {
     /// assert!(status.is_success());
     /// ```
     pub async fn clear_done(&self) -> Result<StatusCode, Error> {
-        let result = self
-            .client
-            .delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str())
-            .send()
-            .await;
+        let result = self.client.delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str()).send().await;
         match result {
             Ok(result) => Ok(result.status()),
             Err(err) => Err(err),
@@ -392,7 +381,7 @@ mod tests {
 
     #[tokio::test]
     async fn get() {
-        let client = Client::new("http://127.0.0.1".to_string(), None);
+        let client = Client::new("http://127.0.0.1", None);
         let result = client.get().await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
@@ -400,7 +389,7 @@ mod tests {
 
     #[tokio::test]
     async fn add_get_index_done_undone_remove() {
-        let client = Client::new("http://127.0.0.1".to_string(), None);
+        let client = Client::new("http://127.0.0.1", None);
         // add
         let result = client.add(&"test".to_string()).await;
         println!("{:?}", result);
@@ -425,10 +414,10 @@ mod tests {
 
     #[tokio::test]
     async fn clear() {
-        let client = Client::new("http://127.0.0.1".to_string(), None);
-        let _ = client.add(&"test".to_string()).await;
-        let _ = client.add(&"test".to_string()).await;
-        let _ = client.add(&"test".to_string()).await;
+        let client = Client::new("http://127.0.0.1", None);
+        let _ = client.add("test").await;
+        let _ = client.add("test").await;
+        let _ = client.add("test").await;
         let result = client.clear().await;
         println!("{:?}", result);
         assert!(result.is_ok());
@@ -441,7 +430,7 @@ mod tests {
 
     #[tokio::test]
     async fn clear_done() {
-        let client = Client::new("http://127.0.0.1".to_string(), None);
+        let client = Client::new("http://127.0.0.1", None);
         let _ = client.add(&"test1".to_string()).await;
         let _ = client.add(&"test2".to_string()).await;
         let _ = client.add(&"test3".to_string()).await;
@@ -454,11 +443,6 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
         let unwrapped = result.unwrap();
-        assert!(
-            unwrapped.0 == StatusCode::OK
-                && unwrapped.1.len() == 1
-                && unwrapped.1[0].name == "test2"
-        );
+        assert!(unwrapped.0 == StatusCode::OK && unwrapped.1.len() == 1 && unwrapped.1[0].name == "test2");
     }
 }
-
