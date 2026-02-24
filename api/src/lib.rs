@@ -16,6 +16,8 @@ impl Client {
     /// # Examples
     ///
     /// ```
+    /// # use yesser_todo_api::Client;
+    ///
     /// let c = Client::new("http://127.0.0.1".to_string(), None);
     /// assert_eq!(c.hostname, "http://127.0.0.1");
     /// assert_eq!(c.port, "6982");
@@ -44,7 +46,7 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
-    /// use api::Client;
+    /// use yesser_todo_api::Client;
     /// use reqwest::StatusCode;
     ///
     /// let client = Client::new("http://127.0.0.1".into(), None);
@@ -54,11 +56,7 @@ impl Client {
     /// // `tasks` is a Vec<yesser_todo_db::Task>
     /// ```
     pub async fn get(&self) -> Result<(StatusCode, Vec<Task>), Error> {
-        let result = self
-            .client
-            .get(format!("{}:{}/tasks", self.hostname, self.port).as_str())
-            .send()
-            .await;
+        let result = self.client.get(format!("{}:{}/tasks", self.hostname, self.port).as_str()).send().await;
 
         match result {
             Ok(result) => {
@@ -140,7 +138,7 @@ impl Client {
     ///
     /// # async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Client::new("http://127.0.0.1".into(), None);
-    /// let (status, index) = client.get_index(&"example-task".into()).await?;
+    /// let (status, index) = client.get_index("example-task").await?;
     /// println!("status: {}, index: {}", status, index);
     /// # Ok(()) }
     /// ```
@@ -223,10 +221,11 @@ impl Client {
     /// # Examples
     ///
     /// ```
+    /// # use yesser_todo_api::Client;
     /// # use yesser_todo_db::Task;
     /// # use reqwest::StatusCode;
     /// # async fn _example() {
-    /// let client = crate::Client::new("http://127.0.0.1".to_string(), None);
+    /// let client = Client::new("http://127.0.0.1".to_string(), None);
     /// let res = client.done(&"test".to_string()).await;
     /// match res {
     ///     Ok((status, task)) => {
@@ -339,6 +338,7 @@ impl Client {
     /// # Examples
     ///
     /// ```
+    /// # use yesser_todo_api::Client;
     /// # async fn example() {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
     /// let status = client.clear().await.unwrap();
@@ -346,11 +346,7 @@ impl Client {
     /// # }
     /// ```
     pub async fn clear(&self) -> Result<StatusCode, Error> {
-        let result = self
-            .client
-            .delete(format!("{}:{}/clear", self.hostname, self.port).as_str())
-            .send()
-            .await;
+        let result = self.client.delete(format!("{}:{}/clear", self.hostname, self.port).as_str()).send().await;
         match result {
             Ok(result) => Ok(result.status()),
             Err(err) => Err(err),
@@ -364,8 +360,8 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
-    /// use api::Client;
     ///
+    /// # use yesser_todo_api::Client;
     /// let client = Client::new("http://127.0.0.1".into(), None);
     /// let status = tokio::runtime::Runtime::new()
     ///     .unwrap()
@@ -374,11 +370,7 @@ impl Client {
     /// assert!(status.is_success());
     /// ```
     pub async fn clear_done(&self) -> Result<StatusCode, Error> {
-        let result = self
-            .client
-            .delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str())
-            .send()
-            .await;
+        let result = self.client.delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str()).send().await;
         match result {
             Ok(result) => Ok(result.status()),
             Err(err) => Err(err),
@@ -454,11 +446,6 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
         let unwrapped = result.unwrap();
-        assert!(
-            unwrapped.0 == StatusCode::OK
-                && unwrapped.1.len() == 1
-                && unwrapped.1[0].name == "test2"
-        );
+        assert!(unwrapped.0 == StatusCode::OK && unwrapped.1.len() == 1 && unwrapped.1[0].name == "test2");
     }
 }
-
