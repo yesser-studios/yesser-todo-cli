@@ -398,7 +398,7 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
         // get_index
-        let result = client.get_index(&"test".to_string()).await;
+        let result = client.get_index("test").await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
         // done
@@ -411,6 +411,11 @@ mod tests {
         assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
         // remove
         let result = client.remove(&"test".to_string()).await;
+        println!("{:?}", result);
+        assert!(result.is_ok() && result.unwrap() == StatusCode::OK);
+
+        // cleanup
+        let result = client.clear().await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap() == StatusCode::OK);
     }
@@ -447,5 +452,10 @@ mod tests {
         assert!(result.is_ok());
         let unwrapped = result.unwrap();
         assert!(unwrapped.0 == StatusCode::OK && unwrapped.1.len() == 1 && unwrapped.1[0].name == "test2");
+
+        // cleanup
+        let result = client.clear().await;
+        println!("{:?}", result);
+        assert!(result.is_ok() && result.unwrap() == StatusCode::OK);
     }
 }
