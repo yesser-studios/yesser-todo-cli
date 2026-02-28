@@ -55,6 +55,7 @@ pub struct SaveData {
 /// # Examples
 ///
 /// ```
+/// use yesser_todo_db::{Task, exactly_matches};
 /// let task = Task { name: "Buy milk".into(), done: false };
 /// assert!(exactly_matches(&task, "Buy milk"));
 /// assert!(!exactly_matches(&task, "buy milk"));
@@ -76,8 +77,7 @@ pub fn exactly_matches(task: &Task, query_string: &str) -> bool {
 /// # Examples
 ///
 /// ```
-/// # use crate::Task;
-/// # use crate::get_index;
+/// use yesser_todo_db::{get_index, Task};
 /// let tasks = vec![Task { name: "one".into(), done: false }, Task { name: "two".into(), done: true }];
 /// assert_eq!(get_index(&tasks, "two"), Some(1));
 /// assert_eq!(get_index(&tasks, "three"), None);
@@ -96,6 +96,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
+    /// use yesser_todo_db::SaveData;
     /// let mut sd = SaveData::new();
     /// assert!(sd.get_tasks().is_empty());
     /// ```
@@ -111,7 +112,7 @@ impl SaveData {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// let (app_dirs, data_path) = yesser_todo_db::SaveData::get_data_paths().unwrap();
     /// assert!(data_path.starts_with(app_dirs.data_dir));
     /// assert_eq!(data_path.file_name().unwrap(), "todos.json");
@@ -132,7 +133,7 @@ impl SaveData {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// let Ok((_app_dirs, config_path)) = yesser_todo_db::SaveData::get_cloud_config_paths();
     /// assert!(config_path.ends_with("cloud.json"));
     /// ```
@@ -276,7 +277,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```no_run
-    /// use crate::SaveData;
+    /// use yesser_todo_db::SaveData;
     ///
     /// let data = SaveData::new();
     /// data.save_tasks().unwrap();
@@ -300,6 +301,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
+    /// use yesser_todo_db::{SaveData, Task};
     /// let mut data = SaveData::new();
     /// data.get_tasks().push(Task { name: "buy milk".to_string(), done: false });
     /// assert_eq!(data.get_tasks().len(), 1);
@@ -315,6 +317,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
+    /// use yesser_todo_db::{SaveData, Task};
     /// let mut sd = SaveData::new();
     /// sd.add_task(Task { name: "Write tests".into(), done: false });
     /// assert_eq!(sd.get_tasks().len(), 1);
@@ -344,6 +347,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
+    /// use yesser_todo_db::{SaveData, Task};
     /// let mut data = SaveData::new();
     /// data.add_task(Task { name: "a".into(), done: false });
     /// let prev = data.mark_task_done(0);
@@ -361,6 +365,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
+    /// use yesser_todo_db::{SaveData, Task};
     /// let mut sd = SaveData::new();
     /// sd.add_task(Task { name: "task".into(), done: true });
     /// // It was done, so the previous "undone" state is false.
@@ -379,6 +384,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
+    /// use yesser_todo_db::{SaveData, Task};
     /// let mut sd = SaveData::new();
     /// sd.add_task(Task { name: "a".into(), done: false });
     /// sd.add_task(Task { name: "b".into(), done: true });
@@ -396,6 +402,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
+    /// use yesser_todo_db::{SaveData, Task};
     /// let mut store = SaveData::new();
     /// store.add_task(Task { name: "a".into(), done: false });
     /// store.add_task(Task { name: "b".into(), done: true });

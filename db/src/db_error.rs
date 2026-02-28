@@ -18,7 +18,7 @@ impl From<serde_json::Error> for DatabaseError {
     /// # Examples
     ///
     /// ```
-    /// // Assuming `DatabaseError` is in scope:
+    /// use yesser_todo_db::db_error::DatabaseError;
     /// let serde_err = serde_json::from_str::<serde_json::Value>("not json").unwrap_err();
     /// let db_err = DatabaseError::from(serde_err);
     /// assert!(matches!(db_err, DatabaseError::JsonError(_)));
@@ -34,7 +34,7 @@ impl From<std::io::Error> for DatabaseError {
     /// # Examples
     ///
     /// ```
-    /// use db::db_error::DatabaseError;
+    /// use yesser_todo_db::db_error::DatabaseError;
     /// let io_err = std::io::Error::new(std::io::ErrorKind::Other, "oops");
     /// let db_err = DatabaseError::from(io_err);
     /// match db_err {
