@@ -464,7 +464,7 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
         let unwrapped = result.unwrap();
-        assert!(unwrapped.0.is_success() && unwrapped.1.len() == 0);
+        assert!(unwrapped.0.is_success() && unwrapped.1.is_empty());
     }
 
     #[tokio::test]
