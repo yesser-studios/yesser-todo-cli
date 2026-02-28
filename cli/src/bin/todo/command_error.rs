@@ -1,6 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
 use thiserror::Error;
+use yesser_todo_db::db_error::DatabaseError;
 
 #[derive(Debug, Error)]
 pub(crate) enum CommandError {
@@ -8,7 +9,7 @@ pub(crate) enum CommandError {
     TaskExists { name: String },
     TaskNotFound { name: String },
     DuplicateInput { name: String },
-    DataError { what: String },
+    DataError { what: String, err: DatabaseError },
     HTTPError { name: String, status_code: u16 },
     ConnectionError { name: String },
     UnlinkedError,
@@ -27,7 +28,7 @@ impl Display for CommandError {
             CommandError::TaskExists { name } => write!(f, "Task {name} already exists!"),
             CommandError::TaskNotFound { name } => write!(f, "Task {name} not found!"),
             CommandError::DuplicateInput { name } => write!(f, "Task {name} was specified multiple times!"),
-            CommandError::DataError { what } => write!(f, "Unable to save {what}!"),
+            CommandError::DataError { what, err } => write!(f, "Unable to save {what}: {err}!"),
             CommandError::HTTPError { name, status_code } => {
                 write!(
                     f,

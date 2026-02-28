@@ -205,8 +205,9 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
             println!("Successfully linked server.");
             Ok(())
         }
-        Err(_) => Err(CommandError::DataError {
+        Err(err) => Err(CommandError::DataError {
             what: "server configuration".to_string(),
+            err,
         }),
     }
 }
@@ -217,10 +218,11 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
             println!("Successfully unlinked server.");
             Ok(())
         }
-        Err(err) => match err.kind() {
-            ErrorKind::NotFound => Err(CommandError::UnlinkedError),
+        Err(err) => match err {
+            yesser_todo_db::db_error::DatabaseError::IOError(io_err) if io_err.kind() == ErrorKind::NotFound => Err(CommandError::UnlinkedError),
             _ => Err(CommandError::DataError {
-                what: format!("configuration: {err}"),
+                what: format!("configuration"),
+                err: err,
             }),
         },
     }
