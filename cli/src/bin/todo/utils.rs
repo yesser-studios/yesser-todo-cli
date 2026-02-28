@@ -21,5 +21,8 @@ pub(crate) const DONE_STYLE: Style = Style::new().strikethrough().green();
 /// }
 /// ```
 pub(crate) fn process_cloud_config() -> Option<(String, String)> {
-    SaveData::get_cloud_config().unwrap_or_else(|_| None)
+    SaveData::get_cloud_config().unwrap_or_else(|err| {
+        eprintln!("Warning: Failed to read cloud config: {err}. Proceeding with local mode.");
+        None
+    })
 }
