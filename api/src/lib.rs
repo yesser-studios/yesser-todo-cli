@@ -21,7 +21,7 @@ impl Client {
     /// # Examples
     ///
     /// ```
-    /// # use yesser_todo_api::Client;
+    /// # use yesser_todo_api::{Client, DEFAULT_PORT};
     ///
     /// let c = Client::new("http://127.0.0.1".to_string(), None);
     /// # assert_eq!(c.hostname, "http://127.0.0.1");
