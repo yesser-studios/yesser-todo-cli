@@ -101,7 +101,7 @@ impl Client {
     /// # #[tokio::test]
     /// # async fn example_add() {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
-    /// let (status, task) = client.add(&"example task".to_string()).await.unwrap();
+    /// let (status, task) = client.add("example task").await.unwrap();
     /// assert_eq!(status, StatusCode::OK);
     /// assert_eq!(task.name, "example task");
     /// # }
@@ -202,7 +202,7 @@ impl Client {
     /// #[tokio::main]
     /// async fn main() {
     ///     let client = Client::new("http://127.0.0.1".to_string(), None);
-    ///     let status = client.remove(&"example-task".to_string()).await;
+    ///     let status = client.remove("example-task").await;
     ///     // handle result...
     ///     let _ = status;
     /// }
@@ -250,7 +250,7 @@ impl Client {
     /// # use reqwest::StatusCode;
     /// # async fn _example() {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
-    /// let res = client.done(&"test".to_string()).await;
+    /// let res = client.done("test").await;
     /// match res {
     ///     Ok((status, task)) => {
     ///         assert!(status.is_success() || status.is_client_error() || status.is_server_error());
@@ -431,7 +431,7 @@ mod tests {
     async fn add_get_index_done_undone_remove() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         // add
-        let result = client.add(&"test".to_string()).await;
+        let result = client.add("test").await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0.is_success());
         // get_index
@@ -439,15 +439,15 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0.is_success());
         // done
-        let result = client.done(&"test".to_string()).await;
+        let result = client.done("test").await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0.is_success());
         // undone
-        let result = client.undone(&"test".to_string()).await;
+        let result = client.undone("test").await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().0.is_success());
         // remove
-        let result = client.remove(&"test".to_string()).await;
+        let result = client.remove("test").await;
         println!("{:?}", result);
         assert!(result.is_ok() && result.unwrap().is_success());
 
@@ -460,9 +460,9 @@ mod tests {
     #[tokio::test]
     async fn clear() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
-        let _ = client.add(&"test".to_string()).await;
-        let _ = client.add(&"test".to_string()).await;
-        let _ = client.add(&"test".to_string()).await;
+        let _ = client.add("test").await;
+        let _ = client.add("test").await;
+        let _ = client.add("test").await;
         let result = client.clear().await;
         println!("{:?}", result);
         assert!(result.is_ok());
@@ -476,11 +476,11 @@ mod tests {
     #[tokio::test]
     async fn clear_done() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
-        let _ = client.add(&"test1".to_string()).await;
-        let _ = client.add(&"test2".to_string()).await;
-        let _ = client.add(&"test3".to_string()).await;
-        let _ = client.done(&"test1".to_string()).await;
-        let _ = client.done(&"test3".to_string()).await;
+        let _ = client.add("test1").await;
+        let _ = client.add("test2").await;
+        let _ = client.add("test3").await;
+        let _ = client.done("test1").await;
+        let _ = client.done("test3").await;
         let result = client.clear_done().await;
         println!("{:?}", result);
         assert!(result.is_ok());
