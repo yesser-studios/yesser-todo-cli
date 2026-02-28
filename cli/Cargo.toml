@@ -17,9 +17,12 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 console = "0"
-yesser-todo-db = "1"
-yesser-todo-api = "1"
+# yesser-todo-db = "1"
+# yesser-todo-api = "1"
 tokio = { version = "1.47.1", features = ["full"] }
+yesser-todo-db = {path = "../db"}
+yesser-todo-api = {path = "../api"}
+thiserror = "2.0.18"
 
 [[bin]]
 name = "todo"

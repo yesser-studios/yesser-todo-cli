@@ -12,6 +12,7 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 
 [dependencies]
 reqwest = { version = "0", features = ["json"] }
+thiserror = "2.0.18"
 yesser-todo-db = "1"
 
 [dev-dependencies]

@@ -1,33 +1,15 @@
 mod args;
+mod command_error;
+mod command_impl;
+mod command_impl_cloud;
+mod utils;
 
 use args::{Command, TodoArgs};
 use clap::Parser;
-use console::Style;
-use std::io::ErrorKind;
-use std::ops::Deref;
 use yesser_todo_api::Client;
-use yesser_todo_db::{get_index, SaveData, Task};
+use yesser_todo_db::SaveData;
 
-/// Retrieve the saved cloud server host and port if available.
-///
-/// # Returns
-///
-/// `Some((host, port))` when a cloud configuration is present and readable, `None` if no configuration exists or it cannot be read.
-///
-/// # Examples
-///
-/// ```
-/// // Suppose SaveData::get_cloud_config() returns Ok(Some(("example.com".into(), "6982".into())))
-/// if let Some((host, port)) = process_cloud_config() {
-///     assert_eq!(host, "example.com");
-///     assert_eq!(port, "6982");
-/// } else {
-///     panic!("expected cloud config");
-/// }
-/// ```
-fn process_cloud_config() -> Option<(String, String)> {
-    SaveData::get_cloud_config().unwrap_or_else(|_| None)
-}
+use crate::utils::process_cloud_config;
 
 /// Application entry point for the Todo CLI.
 ///
@@ -46,293 +28,41 @@ fn process_cloud_config() -> Option<(String, String)> {
 async fn main() {
     let args = TodoArgs::parse();
     let mut data = SaveData::new();
-    let done_style = Style::new().strikethrough().green();
 
-    let _ = data.load_tasks();
-
-    match &args.command {
-        Command::Add(command) => {
-            if command.tasks.len() <= 0 {
-                println!("No tasks specified!")
-            } else {
-                match process_cloud_config() {
-                    None => {
-                        for task in &command.tasks {
-                            let option = get_index(data.get_tasks(), task);
-                            match option {
-                                Some(_) => {
-                                    // Task already exists
-                                    println!("Task {task} already exists!");
-                                }
-                                None => {
-                                    let task_obj: Task = Task { name: task.deref().parse().unwrap(), done: false };
-                                    data.add_task(task_obj);
-                                }
-                            }
-                        }
-                    }
-                    Some((host, port)) => {
-                        let client = Client::new(host, Some(port));
-                        for task in &command.tasks {
-                            let result = client.get_index(task).await;
-                            let mut exists: bool = false;
-                            match result {
-                                Ok((status_code, _)) => {
-                                    if status_code.is_success() {
-                                        exists = true
-                                    }
-                                }
-                                Err(_) => {}
-                            }
-                            match exists {
-                                true => {
-                                    // Task already exists
-                                    println!("Task {task} already exists!");
-                                }
-                                false => {
-                                    let result = client.add(task).await;
-                                    match result {
-                                        Ok((status_code, _)) => {
-                                            if status_code.is_success() {
-                                                println!("Task {task} added successfully!");
-                                            } else {
-                                                println!("HTTP Error while adding task {task}: {status_code}!");
-                                            }
-                                        }
-                                        Err(err) => {
-                                            println!("Adding task {task} failed! {err}");
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                };
-            }
-        }
-        Command::Remove(command) => {
-            if command.tasks.len() <= 0 {
-                println!("No tasks specified!")
-            } else {
-                match process_cloud_config() {
-                    None => {
-                        for task in &command.tasks {
-                            let option = get_index(data.get_tasks(), task);
-                            match option {
-                                Some(index) => {
-                                    data.remove_task(index);
-                                }
-                                None => println!("Unable to find task {task}!"),
-                            }
-                        }
-                    }
-                    Some((host, port)) => {
-                        let client = Client::new(host, Some(port));
-                        for task in &command.tasks {
-                            let result = client.remove(task).await;
-                            match result {
-                                Ok(status_code) => {
-                                    if status_code.is_success() {
-                                        println!("Task {task} removed!");
-                                    } else if status_code.as_u16() == 404 {
-                                        println!("Task {task} not found!");
-                                    } else {
-                                        println!("Error while removing task {task}: {status_code}!");
-                                    }
-                                }
-                                Err(err) => println!("Removing task {task} failed (task may still exist): {err}"),
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Command::Done(command) => {
-            if command.tasks.len() <= 0 {
-                println!("No tasks specified!")
-            } else {
-                match process_cloud_config() {
-                    None => {
-                        for task in &command.tasks {
-                            let option = get_index(data.get_tasks(), task);
-                            match option {
-                                Some(index) => {
-                                    data.mark_task_done(index);
-                                }
-                                None => println!("Unable to find task {task}!"),
-                            }
-                        }
-                    }
-                    Some((host, port)) => {
-                        let client = Client::new(host, Some(port));
-                        for task in &command.tasks {
-                            let result = client.done(task).await;
-                            match result {
-                                Ok((status_code, _)) => {
-                                    if status_code.is_success() {
-                                        println!("Task {task} done!");
-                                    } else if status_code.as_u16() == 404 {
-                                        println!("Task {task} not found!");
-                                    } else {
-                                        println!("HTTP Error while marking task {task} as done: {status_code}!");
-                                    }
-                                }
-                                Err(err) => {println!("Marking task {task} as done failed: {err}")}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Command::Undone(command) => {
-            if command.tasks.len() <= 0 {
-                println!("No tasks specified!")
-            } else {
-                match process_cloud_config() {
-                    None => {
-                        for task in &command.tasks {
-                            let option = get_index(data.get_tasks(), task);
-                            match option {
-                                Some(index) => {
-                                    data.mark_task_undone(index);
-                                }
-                                None => println!("Unable to find task {task}!"),
-                            }
-                        }
-                    }
-                    Some((host, port)) => {
-                        let client = Client::new(host, Some(port));
-                        for task in &command.tasks {
-                            let result = client.undone(task).await;
-                            match result {
-                                Ok((status_code, _)) => {
-                                    if status_code.is_success() {
-                                        println!("Task {task} undone!");
-                                    } else if status_code.as_u16() == 404 {
-                                        println!("Task {task} not found!");
-                                    } else {
-                                        println!("HTTP Error while marking task {task} as undone: {status_code}!");
-                                    }
-                                }
-                                Err(err) => {println!("Marking task {task} as undone failed: {err}")}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Command::Clear(command) => {
-            match process_cloud_config() {
-                None => {
-                    if command.done {
-                        data.clear_done_tasks();
-                    } else {
-                        data.clear_tasks()
-                    }
-                },
-                Some((host, port)) => {
-                    let client = Client::new(host, Some(port));
-                    let result: Result<_, _>;
-                    if command.done {
-                        result = client.clear_done().await;
-                    } else {
-                        result = client.clear().await;
-                    }
-                    match result {
-                        Ok(status_code) => {
-                            if status_code.is_success() {
-                                println!("Tasks cleared!");
-                            } else {
-                                println!("HTTP error while clearing: {}", status_code.as_u16());
-                            }
-                        }
-                        Err(err) => println!("Clearing tasks failed: {err}"),
-                    }
-                }
-            }
-        }
-        Command::ClearDone => {
-            println!("clear-done is deprecated. Use clear -d instead.");
-
-            match process_cloud_config() {
-                None => data.clear_done_tasks(),
-                Some((host, port)) => {
-                    let client = Client::new(host, Some(port));
-                    let result = client.clear_done().await;
-                    match result {
-                        Ok(status_code) => {
-                            if status_code.is_success() {
-                                println!("Tasks cleared!");
-                            } else {
-                                println!("HTTP error while clearing: {}", status_code.as_u16());
-                            }
-                        }
-                        Err(err) => println!("Clearing tasks failed: {err}"),
-                    }
-                }
-            }
-        }
-        Command::List => {} // List just shows the tasks, that is below
-        Command::Connect(command) => {
-            let result = match &command.port {
-                None => {
-                    let client = Client::new("".to_string(), None);
-                    SaveData::save_cloud_config(&command.host, &client.port)
-                },
-                Some(port) => SaveData::save_cloud_config(&command.host, port),
-            };
-            match result {
-                Ok(_) => println!("Successfully linked server."),
-                Err(_) => {println!("Unable to save server configuration.")}
-            }
-        }
-        Command::Disconnect => {
-            let result = SaveData::remove_cloud_config();
-            match result {
-                Ok(_) => {println!("Successfully unlinked server.")}
-                Err(err) => {
-                    match err.kind() {
-                        ErrorKind::NotFound => println!("You're already unlinked!"),
-                        _ => println!("Something went wrong")
-                    }
-                }
-            }
+    match data.load_tasks() {
+        Ok(_) => {}
+        Err(err) => {
+            println!("Error while getting saved data: {err}");
+            return;
         }
     }
 
-    match process_cloud_config() {
-        None => {
-            data.save_tasks().unwrap();
+    let mut client: Option<Client> = None;
 
-            println!("\nCurrent tasks:");
-            for task in data.get_tasks() {
-                if task.done {
-                    println!("{}", done_style.apply_to(&task.name))
-                } else {
-                    println!("{}", task.name)
-                }
-            }
-        }
-        Some((host, port)) => {
-            let client = Client::new(host, Some(port));
-            let result = client.get().await;
-            match result {
-                Ok((status_code, tasks)) => {
-                    if status_code.is_success() {
-                        println!("\nCurrent tasks:");
-                        for task in tasks {
-                            if task.done {
-                                println!("{}", done_style.apply_to(&task.name))
-                            } else {
-                                println!("{}", task.name)
-                            }
+    if let Some((hostname, port)) = process_cloud_config() {
+        client = Some(Client::new(hostname, Some(port)));
+    }
+
+    match args.command.execute(data.get_tasks(), &mut client).await {
+        Ok(()) => match args.command {
+            Command::List => {}
+            _ => {
+                if client.is_none() {
+                    match data.save_tasks() {
+                        Ok(()) => {}
+                        Err(err) => {
+                            println!("Failed to save tasks: {}", err);
+                            return;
                         }
-                    } else {
-                        println!("HTTP error while getting tasks: {}", status_code.as_u16());
                     }
                 }
-                Err(err) => println!("Error while getting tasks: {err}"),
+
+                match Command::List.execute(data.get_tasks(), &mut client).await {
+                    Ok(()) => {}
+                    Err(err) => err.handle(),
+                }
             }
-        }
+        },
+        Err(err) => err.handle(),
     }
 }
