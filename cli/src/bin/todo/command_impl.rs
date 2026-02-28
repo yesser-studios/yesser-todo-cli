@@ -12,6 +12,9 @@ pub(crate) fn handle_add(command: &TasksCommand, data: &mut Vec<Task>) -> Result
         if data.iter().find(|x| x.name == task.as_str()).is_some() {
             return Err(CommandError::TaskExists { name: task.clone() });
         }
+    }
+
+    for task in &command.tasks {
         let task_obj: Task = Task {
             name: task.clone(),
             done: false,
@@ -27,11 +30,14 @@ pub(crate) fn handle_remove(command: &TasksCommand, data: &mut Vec<Task>) -> Res
     }
 
     for task in &command.tasks {
-        match get_index(data, task) {
-            Some(index) => {
-                data.remove(index);
-            }
-            None => return Err(CommandError::TaskNotFound { name: task.clone() }),
+        if get_index(data, task).is_none() {
+            return Err(CommandError::TaskNotFound { name: task.clone() });
+        }
+    }
+
+    for task in &command.tasks {
+        if let Some(index) = get_index(data, task) {
+            data.remove(index);
         }
     }
     Ok(())
@@ -56,9 +62,14 @@ pub(crate) fn handle_done_undone(command: &TasksCommand, data: &mut Vec<Task>, d
     }
 
     for task in &command.tasks {
-        match get_index(data, task) {
-            Some(index) => data[index].done = done,
-            None => return Err(CommandError::TaskNotFound { name: task.clone() }),
+        if get_index(data, task).is_none() {
+            return Err(CommandError::TaskNotFound { name: task.clone() });
+        }
+    }
+
+    for task in &command.tasks {
+        if let Some(index) = get_index(data, task) {
+            data[index].done = done;
         }
     }
 

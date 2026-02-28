@@ -34,13 +34,16 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
         return Err(CommandError::NoTasksSpecified);
     }
 
-    let results = command.tasks.iter().map(|task| (client.add(task), task));
-    for (result, task) in results {
+    for task in &command.tasks {
         match check_exists_cloud(task, client).await {
             Ok(true) => return Err(CommandError::TaskExists { name: task.clone() }),
             Ok(false) => {}
             Err(err) => return Err(err),
         }
+    }
+
+    let results = command.tasks.iter().map(|task| (client.add(task), task));
+    for (result, task) in results {
         match result.await {
             Err(err) => match err {
                 ApiError::HTTPError(status_code) => {
@@ -62,13 +65,16 @@ pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Cli
         return Err(CommandError::NoTasksSpecified);
     }
 
-    let results = command.tasks.iter().map(|task| (client.remove(task), task));
-    for (result, task) in results {
+    for task in &command.tasks {
         match check_exists_cloud(task, client).await {
             Ok(true) => {}
             Ok(false) => return Err(CommandError::TaskNotFound { name: task.clone() }),
             Err(err) => return Err(err),
         }
+    }
+
+    let results = command.tasks.iter().map(|task| (client.remove(task), task));
+    for (result, task) in results {
         match result.await {
             Err(err) => match err {
                 ApiError::HTTPError(status_code) => {
@@ -118,6 +124,14 @@ pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandErro
 pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mut Client, done: bool) -> Result<(), CommandError> {
     if command.tasks.len() <= 0 {
         return Err(CommandError::NoTasksSpecified);
+    }
+
+    for task in &command.tasks {
+        match check_exists_cloud(task, client).await {
+            Ok(true) => {}
+            Ok(false) => return Err(CommandError::TaskNotFound { name: task.clone() }),
+            Err(err) => return Err(err),
+        }
     }
 
     for task in &command.tasks {
