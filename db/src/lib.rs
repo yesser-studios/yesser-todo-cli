@@ -11,7 +11,7 @@ use serde_json::{from_reader, to_writer};
 
 use crate::db_error::DatabaseError;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Task {
     pub name: String,
     pub done: bool,
