@@ -1,6 +1,9 @@
+pub mod api_error;
+
 use reqwest::{Error, StatusCode};
-use std::string::ToString;
 use yesser_todo_db::Task;
+
+use crate::api_error::ApiError;
 
 pub struct Client {
     pub hostname: String,
@@ -52,10 +55,10 @@ impl Client {
     /// let client = Client::new("http://127.0.0.1".into(), None);
     /// let rt = tokio::runtime::Runtime::new().unwrap();
     /// let (status, tasks) = rt.block_on(client.get()).unwrap();
-    /// assert!(status == StatusCode::OK || status.is_success());
+    /// assert!(status.is_success() || status.is_success());
     /// // `tasks` is a Vec<yesser_todo_db::Task>
     /// ```
-    pub async fn get(&self) -> Result<(StatusCode, Vec<Task>), Error> {
+    pub async fn get(&self) -> Result<(StatusCode, Vec<Task>), ApiError> {
         let result = self.client.get(format!("{}:{}/tasks", self.hostname, self.port).as_str()).send().await;
 
         match result {
@@ -63,11 +66,17 @@ impl Client {
                 let status_code = result.status();
                 let result = result.json::<Vec<Task>>().await;
                 match result {
-                    Ok(result) => Ok((status_code, result)),
-                    Err(err) => Err(err),
+                    Ok(result) => {
+                        if status_code.is_success() {
+                            Ok((status_code, result))
+                        } else {
+                            Err(ApiError::HTTPError(status_code))
+                        }
+                    }
+                    Err(err) => Err(ApiError::RequestError(err)),
                 }
             }
-            Err(err) => Err(err),
+            Err(err) => Err(ApiError::RequestError(err)),
         }
     }
 
@@ -97,7 +106,7 @@ impl Client {
     /// assert_eq!(task.name, "example task");
     /// # }
     /// ```
-    pub async fn add(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
+    pub async fn add(&self, task_name: &str) -> Result<(StatusCode, Task), ApiError> {
         let result = self
             .client
             .post(format!("{}:{}/add", self.hostname, self.port).as_str())
@@ -110,11 +119,17 @@ impl Client {
                 let status_code = result.status();
                 let result = result.json::<Task>().await;
                 match result {
-                    Ok(result) => Ok((status_code, result)),
-                    Err(err) => Err(err),
+                    Ok(result) => {
+                        if status_code.is_success() {
+                            Ok((status_code, result))
+                        } else {
+                            Err(ApiError::HTTPError(status_code))
+                        }
+                    }
+                    Err(err) => Err(ApiError::RequestError(err)),
                 }
             }
-            Err(err) => Err(err),
+            Err(err) => Err(ApiError::RequestError(err)),
         }
     }
 
@@ -138,11 +153,11 @@ impl Client {
     ///
     /// # async fn run_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Client::new("http://127.0.0.1".into(), None);
-    /// let (status, index) = client.get_index("example-task").await?;
+    /// let (status, index) = client.get_index("example-task").await.unwrap();
     /// println!("status: {}, index: {}", status, index);
     /// # Ok(()) }
     /// ```
-    pub async fn get_index(&self, task_name: &str) -> Result<(StatusCode, usize), Error> {
+    pub async fn get_index(&self, task_name: &str) -> Result<(StatusCode, usize), ApiError> {
         let result = self
             .client
             .get(format!("{}:{}/index", self.hostname, self.port).as_str())
@@ -154,11 +169,17 @@ impl Client {
                 let status_code = result.status();
                 let result = result.json::<usize>().await;
                 match result {
-                    Ok(result) => Ok((status_code, result)),
-                    Err(err) => Err(err),
+                    Ok(result) => {
+                        if status_code.is_success() {
+                            Ok((status_code, result))
+                        } else {
+                            Err(ApiError::HTTPError(status_code))
+                        }
+                    }
+                    Err(err) => Err(ApiError::RequestError(err)),
                 }
             }
-            Err(err) => Err(err),
+            Err(err) => Err(ApiError::RequestError(err)),
         }
     }
 
@@ -186,14 +207,11 @@ impl Client {
     ///     let _ = status;
     /// }
     /// ```
-    pub async fn remove(&self, task_name: &String) -> Result<StatusCode, Error> {
+    pub async fn remove(&self, task_name: &str) -> Result<StatusCode, ApiError> {
         let index_result = self.get_index(task_name).await;
         let index: usize;
         match index_result {
-            Ok((status_code, result)) => {
-                if status_code != StatusCode::OK {
-                    return Ok(status_code);
-                }
+            Ok((_, result)) => {
                 index = result;
             }
             Err(err) => return Err(err),
@@ -205,8 +223,14 @@ impl Client {
             .send()
             .await;
         match result {
-            Ok(result) => Ok(result.status()),
-            Err(err) => Err(err),
+            Ok(result) => {
+                if result.status().is_success() {
+                    Ok(result.status())
+                } else {
+                    Err(ApiError::HTTPError(result.status()))
+                }
+            }
+            Err(err) => Err(ApiError::RequestError(err)),
         }
     }
 
@@ -229,7 +253,7 @@ impl Client {
     /// let res = client.done(&"test".to_string()).await;
     /// match res {
     ///     Ok((status, task)) => {
-    ///         assert!(status == StatusCode::OK || status.is_client_error() || status.is_server_error());
+    ///         assert!(status.is_success() || status.is_client_error() || status.is_server_error());
     ///         // `task` is the updated task from the server
     ///         let _ = task.name;
     ///     }
@@ -237,19 +261,13 @@ impl Client {
     /// }
     /// # }
     /// ```
-    pub async fn done(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
+    pub async fn done(&self, task_name: &str) -> Result<(StatusCode, Task), ApiError> {
         let index_result = self.get_index(task_name).await;
         let index: usize;
         match index_result {
             Ok((status_code, result)) => {
-                if status_code != StatusCode::OK {
-                    return Ok((
-                        status_code,
-                        Task {
-                            name: "Something went wrong".to_string(),
-                            done: false,
-                        },
-                    ));
+                if !status_code.is_success() {
+                    return Err(ApiError::HTTPError(status_code));
                 }
                 index = result;
             }
@@ -265,11 +283,17 @@ impl Client {
             Ok(result) => {
                 let status_code = result.status();
                 match result.json::<Task>().await {
-                    Ok(result) => Ok((status_code, result)),
-                    Err(err) => Err(err),
+                    Ok(result) => {
+                        if status_code.is_success() {
+                            Ok((status_code, result))
+                        } else {
+                            Err(ApiError::HTTPError(status_code))
+                        }
+                    }
+                    Err(err) => Err(ApiError::RequestError(err)),
                 }
             }
-            Err(err) => Err(err),
+            Err(err) => Err(ApiError::RequestError(err)),
         }
     }
 
@@ -292,22 +316,18 @@ impl Client {
     ///
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
     /// let rt = tokio::runtime::Runtime::new().unwrap();
-    /// let res = rt.block_on(async { client.undone(&"example".to_string()).await }).unwrap();
-    /// assert!(matches!(res.0, StatusCode::OK) || res.0.is_client_error() || res.0.is_server_error());
+    /// let result = rt.block_on(async { client.undone("example").await });
+    /// if let Ok(res) = result {
+    ///     assert!(matches!(res.0, StatusCode::OK) || res.0.is_client_error() || res.0.is_server_error());
+    /// }
     /// ```
-    pub async fn undone(&self, task_name: &String) -> Result<(StatusCode, Task), Error> {
+    pub async fn undone(&self, task_name: &str) -> Result<(StatusCode, Task), ApiError> {
         let index_result = self.get_index(task_name).await;
         let index: usize;
         match index_result {
             Ok((status_code, result)) => {
-                if status_code != StatusCode::OK {
-                    return Ok((
-                        status_code,
-                        Task {
-                            name: "Something went wrong".to_string(),
-                            done: false,
-                        },
-                    ));
+                if !status_code.is_success() {
+                    return Err(ApiError::HTTPError(status_code));
                 }
                 index = result;
             }
@@ -323,11 +343,17 @@ impl Client {
             Ok(result) => {
                 let status_code = result.status();
                 match result.json::<Task>().await {
-                    Ok(result) => Ok((status_code, result)),
-                    Err(err) => Err(err),
+                    Ok(result) => {
+                        if status_code.is_success() {
+                            Ok((status_code, result))
+                        } else {
+                            Err(ApiError::HTTPError(status_code))
+                        }
+                    }
+                    Err(err) => Err(ApiError::RequestError(err)),
                 }
             }
-            Err(err) => Err(err),
+            Err(err) => Err(ApiError::RequestError(err)),
         }
     }
 
@@ -345,11 +371,17 @@ impl Client {
     /// assert_eq!(status, reqwest::StatusCode::OK);
     /// # }
     /// ```
-    pub async fn clear(&self) -> Result<StatusCode, Error> {
+    pub async fn clear(&self) -> Result<StatusCode, ApiError> {
         let result = self.client.delete(format!("{}:{}/clear", self.hostname, self.port).as_str()).send().await;
         match result {
-            Ok(result) => Ok(result.status()),
-            Err(err) => Err(err),
+            Ok(result) => {
+                if result.status().is_success() {
+                    Ok(result.status())
+                } else {
+                    Err(ApiError::HTTPError(result.status()))
+                }
+            }
+            Err(err) => Err(ApiError::RequestError(err)),
         }
     }
 
@@ -369,11 +401,17 @@ impl Client {
     ///     .unwrap();
     /// assert!(status.is_success());
     /// ```
-    pub async fn clear_done(&self) -> Result<StatusCode, Error> {
+    pub async fn clear_done(&self) -> Result<StatusCode, ApiError> {
         let result = self.client.delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str()).send().await;
         match result {
-            Ok(result) => Ok(result.status()),
-            Err(err) => Err(err),
+            Ok(result) => {
+                if result.status().is_success() {
+                    Ok(result.status())
+                } else {
+                    Err(ApiError::HTTPError(result.status()))
+                }
+            }
+            Err(err) => Err(ApiError::RequestError(err)),
         }
     }
 }
@@ -387,7 +425,7 @@ mod tests {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         let result = client.get().await;
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+        assert!(result.is_ok() && result.unwrap().0.is_success());
     }
 
     #[tokio::test]
@@ -396,28 +434,28 @@ mod tests {
         // add
         let result = client.add(&"test".to_string()).await;
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+        assert!(result.is_ok() && result.unwrap().0.is_success());
         // get_index
         let result = client.get_index("test").await;
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+        assert!(result.is_ok() && result.unwrap().0.is_success());
         // done
         let result = client.done(&"test".to_string()).await;
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+        assert!(result.is_ok() && result.unwrap().0.is_success());
         // undone
         let result = client.undone(&"test".to_string()).await;
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0 == StatusCode::OK);
+        assert!(result.is_ok() && result.unwrap().0.is_success());
         // remove
         let result = client.remove(&"test".to_string()).await;
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap() == StatusCode::OK);
+        assert!(result.is_ok() && result.unwrap().is_success());
 
         // cleanup
         let result = client.clear().await;
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap() == StatusCode::OK);
+        assert!(result.is_ok() && result.unwrap().is_success());
     }
 
     #[tokio::test]
@@ -433,7 +471,7 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
         let unwrapped = result.unwrap();
-        assert!(unwrapped.0 == StatusCode::OK && unwrapped.1.len() == 0);
+        assert!(unwrapped.0.is_success() && unwrapped.1.len() == 0);
     }
 
     #[tokio::test]
@@ -451,11 +489,11 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
         let unwrapped = result.unwrap();
-        assert!(unwrapped.0 == StatusCode::OK && unwrapped.1.len() == 1 && unwrapped.1[0].name == "test2");
+        assert!(unwrapped.0.is_success() && unwrapped.1.len() == 1 && unwrapped.1[0].name == "test2");
 
         // cleanup
         let result = client.clear().await;
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap() == StatusCode::OK);
+        assert!(result.is_ok() && result.unwrap().is_success());
     }
 }
