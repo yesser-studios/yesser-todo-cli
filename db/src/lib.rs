@@ -33,10 +33,10 @@ impl CloudConfig {
     /// assert_eq!(cfg.host, "example.com");
     /// assert_eq!(cfg.port, "8080");
     /// ```
-    pub fn new(host: &String, port: &String) -> Self {
+    pub fn new(host: &str, port: &str) -> Self {
         CloudConfig {
-            host: host.clone(),
-            port: port.clone(),
+            host: host.to_string(),
+            port: port.to_string(),
         }
     }
 }
@@ -45,11 +45,11 @@ pub struct SaveData {
     tasks: Vec<Task>,
 }
 
-pub fn exactly_matches(task: &Task, query_string: &String) -> bool {
+pub fn exactly_matches(task: &Task, query_string: &str) -> bool {
     return task.name == *query_string;
 }
 
-pub fn get_index(tasks: &Vec<Task>, query_string: &String) -> Option<usize> {
+pub fn get_index(tasks: &Vec<Task>, query_string: &str) -> Option<usize> {
     return tasks.iter().position(|r| exactly_matches(r, query_string));
 }
 
@@ -145,7 +145,7 @@ impl SaveData {
     /// let port = "1234".to_string();
     /// SaveData::save_cloud_config(&host, &port).unwrap();
     /// ```
-    pub fn save_cloud_config(host: &String, port: &String) -> Result<(), serde_json::Error> {
+    pub fn save_cloud_config(host: &str, port: &str) -> Result<(), serde_json::Error> {
         let config_paths = SaveData::get_cloud_config_paths();
         let app_dirs = config_paths.0;
         let config_file_path = config_paths.1;
@@ -263,4 +263,3 @@ impl SaveData {
         self.tasks.retain(|t| !t.done);
     }
 }
-
