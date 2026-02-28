@@ -93,7 +93,7 @@ impl Command {
                 Command::ClearDone => handle_clear_done(data),
                 Command::List => handle_list(data),
                 Command::Connect(cloud_command) => handle_connect(cloud_command),
-                Command::Disconnect => Err(UnlinkedError),
+                Command::Disconnect => handle_disconnect(),
             },
             Some(client) => match self {
                 Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
