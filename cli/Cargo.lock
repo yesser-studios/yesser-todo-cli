@@ -2066,11 +2066,13 @@ checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
 
 [[package]]
 name = "yesser-todo-api"
-version = "1.0.0"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6f17e0c56c810b822c4b205ed1f2a4024d7671fea3cd138fb16871d81af33b5"
 dependencies = [
  "reqwest",
  "thiserror 2.0.18",
- "yesser-todo-db 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yesser-todo-db",
 ]
 
 [[package]]
@@ -2082,28 +2084,19 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "yesser-todo-api",
- "yesser-todo-db 1.3.1",
+ "yesser-todo-db",
 ]
 
 [[package]]
 name = "yesser-todo-db"
-version = "1.3.1"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c8e59020d20b166005c064ed4c5f5ffda2a74178885f0017c04546d9f555f8d"
 dependencies = [
  "platform-dirs",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "yesser-todo-db"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29b7a86bc413f94863ac65f30c135fab08bff0000704fc7d5d294ee8a5b1bba9"
-dependencies = [
- "platform-dirs",
- "serde",
- "serde_json",
 ]
 
 [[package]]
