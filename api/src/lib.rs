@@ -50,13 +50,15 @@ impl Client {
     ///
     /// ```no_run
     /// use yesser_todo_api::Client;
+    /// use yesser_todo_db::Task;
     /// use reqwest::StatusCode;
     ///
+    /// # async fn example_get() -> Option<Vec<Task>> {
     /// let client = Client::new("http://127.0.0.1".into(), None);
-    /// let rt = tokio::runtime::Runtime::new().unwrap();
-    /// let (status, tasks) = rt.block_on(client.get()).unwrap();
-    /// assert!(status.is_success() || status.is_success());
+    /// let (status, tasks) = client.get().await.ok()?;
     /// // `tasks` is a Vec<yesser_todo_db::Task>
+    /// # Some(tasks)
+    /// # }
     /// ```
     pub async fn get(&self) -> Result<(StatusCode, Vec<Task>), ApiError> {
         let result = self.client.get(format!("{}:{}/tasks", self.hostname, self.port).as_str()).send().await;
@@ -64,16 +66,14 @@ impl Client {
         match result {
             Ok(result) => {
                 let status_code = result.status();
-                let result = result.json::<Vec<Task>>().await;
-                match result {
-                    Ok(result) => {
-                        if status_code.is_success() {
-                            Ok((status_code, result))
-                        } else {
-                            Err(ApiError::HTTPError(status_code))
-                        }
+                if status_code.is_success() {
+                    let result = result.json::<Vec<Task>>().await;
+                    match result {
+                        Ok(result) => Ok((status_code, result)),
+                        Err(err) => Err(ApiError::RequestError(err)),
                     }
-                    Err(err) => Err(ApiError::RequestError(err)),
+                } else {
+                    Err(ApiError::HTTPError(status_code))
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
@@ -117,16 +117,14 @@ impl Client {
         match result {
             Ok(result) => {
                 let status_code = result.status();
-                let result = result.json::<Task>().await;
-                match result {
-                    Ok(result) => {
-                        if status_code.is_success() {
-                            Ok((status_code, result))
-                        } else {
-                            Err(ApiError::HTTPError(status_code))
-                        }
+                if status_code.is_success() {
+                    let result = result.json::<Task>().await;
+                    match result {
+                        Ok(result) => Ok((status_code, result)),
+                        Err(err) => Err(ApiError::RequestError(err)),
                     }
-                    Err(err) => Err(ApiError::RequestError(err)),
+                } else {
+                    Err(ApiError::HTTPError(status_code))
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
@@ -167,16 +165,14 @@ impl Client {
         match result {
             Ok(result) => {
                 let status_code = result.status();
-                let result = result.json::<usize>().await;
-                match result {
-                    Ok(result) => {
-                        if status_code.is_success() {
-                            Ok((status_code, result))
-                        } else {
-                            Err(ApiError::HTTPError(status_code))
-                        }
+                if status_code.is_success() {
+                    let result = result.json::<usize>().await;
+                    match result {
+                        Ok(result) => Ok((status_code, result)),
+                        Err(err) => Err(ApiError::RequestError(err)),
                     }
-                    Err(err) => Err(ApiError::RequestError(err)),
+                } else {
+                    Err(ApiError::HTTPError(status_code))
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
@@ -282,15 +278,14 @@ impl Client {
         match result {
             Ok(result) => {
                 let status_code = result.status();
-                match result.json::<Task>().await {
-                    Ok(result) => {
-                        if status_code.is_success() {
-                            Ok((status_code, result))
-                        } else {
-                            Err(ApiError::HTTPError(status_code))
-                        }
+                if status_code.is_success() {
+                    let result = result.json::<Task>().await;
+                    match result {
+                        Ok(result) => Ok((status_code, result)),
+                        Err(err) => Err(ApiError::RequestError(err)),
                     }
-                    Err(err) => Err(ApiError::RequestError(err)),
+                } else {
+                    Err(ApiError::HTTPError(status_code))
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
@@ -340,15 +335,14 @@ impl Client {
         match result {
             Ok(result) => {
                 let status_code = result.status();
-                match result.json::<Task>().await {
-                    Ok(result) => {
-                        if status_code.is_success() {
-                            Ok((status_code, result))
-                        } else {
-                            Err(ApiError::HTTPError(status_code))
-                        }
+                if status_code.is_success() {
+                    let result = result.json::<Task>().await;
+                    match result {
+                        Ok(result) => Ok((status_code, result)),
+                        Err(err) => Err(ApiError::RequestError(err)),
                     }
-                    Err(err) => Err(ApiError::RequestError(err)),
+                } else {
+                    Err(ApiError::HTTPError(status_code))
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
