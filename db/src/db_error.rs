@@ -24,8 +24,8 @@ impl From<std::io::Error> for DatabaseError {
 impl Display for DatabaseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DatabaseError::JsonError(error) => write!(f, "A JSON Deserialization error occured: {error}"),
-            DatabaseError::IOError(error) => write!(f, "An error occured while writing to config file or directory: {error}"),
+            DatabaseError::JsonError(error) => write!(f, "A JSON Deserialization error occurred: {error}"),
+            DatabaseError::IOError(error) => write!(f, "An error occurred while writing to config file or directory: {error}"),
             DatabaseError::UserDirsError => write!(f, "Could not get user config directory location"),
         }
     }
