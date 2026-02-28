@@ -1,19 +1,26 @@
-use std::{fs::{self, File}, path::PathBuf};
+pub mod db_error;
 
-use serde::{Deserialize, Serialize};
-use serde_json::{to_writer, from_reader};
+use std::{
+    fs::{self, File},
+    path::PathBuf,
+};
+
 use platform_dirs::AppDirs;
+use serde::{Deserialize, Serialize};
+use serde_json::{from_reader, to_writer};
+
+use crate::db_error::DatabaseError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
     pub name: String,
-    pub done: bool
+    pub done: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CloudConfig {
     pub host: String,
-    pub port: String
+    pub port: String,
 }
 
 impl CloudConfig {
@@ -23,33 +30,37 @@ impl CloudConfig {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```
+    /// # use yesser_todo_db::CloudConfig;
     /// let host = "example.com".to_string();
     /// let port = "8080".to_string();
     /// let cfg = CloudConfig::new(&host, &port);
     /// assert_eq!(cfg.host, "example.com");
     /// assert_eq!(cfg.port, "8080");
     /// ```
-    pub fn new(host: &String, port: &String) -> Self {
-        CloudConfig{host: host.clone(), port: port.clone()}
+    pub fn new(host: &str, port: &str) -> Self {
+        CloudConfig {
+            host: host.to_string(),
+            port: port.to_string(),
+        }
     }
 }
 
 pub struct SaveData {
-    tasks: Vec<Task>
+    tasks: Vec<Task>,
 }
 
-pub fn exactly_matches(task: &Task, query_string: &String) -> bool {
+pub fn exactly_matches(task: &Task, query_string: &str) -> bool {
     return task.name == *query_string;
 }
 
-pub fn get_index(tasks: &Vec<Task>, query_string: &String) -> Option<usize> {
-    return tasks.iter().position(|r| exactly_matches(r, query_string))
+pub fn get_index(tasks: &Vec<Task>, query_string: &str) -> Option<usize> {
+    return tasks.iter().position(|r| exactly_matches(r, query_string));
 }
 
 impl SaveData {
     pub fn new() -> SaveData {
-        return SaveData {tasks: Vec::new()}
+        return SaveData { tasks: Vec::new() };
     }
 
     /// Builds the application's platform-specific directories and the full path to the todos.json data file.
@@ -60,15 +71,15 @@ impl SaveData {
     ///
     /// # Examples
     ///
-    /// ```
-    /// let (app_dirs, data_path) = db::get_data_paths();
+    /// ```ignore
+    /// let Ok((app_dirs, data_path)) = yesser_todo_db::SaveData::get_data_paths();
     /// assert!(data_path.starts_with(app_dirs.data_dir));
     /// assert_eq!(data_path.file_name().unwrap(), "todos.json");
     /// ```
-    pub(crate) fn get_data_paths() -> (AppDirs, PathBuf) {
-        let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
+    pub(crate) fn get_data_paths() -> Result<(AppDirs, PathBuf), DatabaseError> {
+        let app_dirs = AppDirs::new(Some("todo"), true).ok_or_else(|| DatabaseError::UserDirsError)?;
         let data_file_path = app_dirs.data_dir.join("todos.json");
-        return (app_dirs, data_file_path);
+        return Ok((app_dirs, data_file_path));
     }
 
     /// Constructs application directories for this app and returns them together with the full path to the cloud config file.
@@ -77,14 +88,14 @@ impl SaveData {
     ///
     /// # Examples
     ///
-    /// ```
-    /// let (_app_dirs, config_path) = db::get_cloud_config_paths();
+    /// ```ignore
+    /// let Ok((_app_dirs, config_path)) = yesser_todo_db::SaveData::get_cloud_config_paths();
     /// assert!(config_path.ends_with("cloud.json"));
     /// ```
-    pub(crate) fn get_cloud_config_paths() -> (AppDirs, PathBuf) {
-        let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
+    pub(crate) fn get_cloud_config_paths() -> Result<(AppDirs, PathBuf), DatabaseError> {
+        let app_dirs = AppDirs::new(Some("todo"), true).ok_or_else(|| DatabaseError::UserDirsError)?;
         let config_file_path = app_dirs.config_dir.join("cloud.json");
-        return (app_dirs, config_file_path);
+        return Ok((app_dirs, config_file_path));
     }
 
     /// Retrieves the cloud configuration if one has been saved.
@@ -94,6 +105,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
+    /// # use yesser_todo_db::SaveData;
     /// // This example assumes no cloud config is present or a valid one exists.
     /// let res = SaveData::get_cloud_config();
     /// match res {
@@ -102,16 +114,18 @@ impl SaveData {
     ///     Err(e) => panic!("Failed to read cloud config: {}", e),
     /// }
     /// ```
-    pub fn get_cloud_config() -> Result<Option<(String, String)>, serde_json::Error> {
-        let config_paths = SaveData::get_cloud_config_paths();
+    pub fn get_cloud_config() -> Result<Option<(String, String)>, DatabaseError> {
+        let config_paths = SaveData::get_cloud_config_paths()?;
         let app_dirs = config_paths.0;
         let config_file_path = config_paths.1;
 
-        fs::create_dir_all(&app_dirs.config_dir).unwrap();
+        fs::create_dir_all(&app_dirs.config_dir)?;
 
-        if !config_file_path.exists() {return Ok(None)}
+        if !config_file_path.exists() {
+            return Ok(None);
+        }
 
-        let file = File::open(config_file_path).unwrap();
+        let file = File::open(config_file_path)?;
         let result: CloudConfig = from_reader(file)?;
 
         Ok(Some((result.host.clone(), result.port.clone())))
@@ -126,50 +140,51 @@ impl SaveData {
     ///
     /// # Returns
     ///
-    /// `Ok(())` on success, `Err(serde_json::Error)` if serialization or writing fails.
+    /// `Ok(())` on success, `Err(DatabaseError)` if serialization or writing fails.
     ///
     /// # Examples
     ///
-    /// ```
-    /// use db::SaveData;
+    /// ```no_run
+    /// use yesser_todo_db::SaveData;
     ///
     /// let host = "example.com".to_string();
     /// let port = "1234".to_string();
     /// SaveData::save_cloud_config(&host, &port).unwrap();
     /// ```
-    pub fn save_cloud_config(host: &String, port: &String) -> Result<(), serde_json::Error> {
-        let config_paths = SaveData::get_cloud_config_paths();
+    pub fn save_cloud_config(host: &str, port: &str) -> Result<(), DatabaseError> {
+        let config_paths = SaveData::get_cloud_config_paths()?;
         let app_dirs = config_paths.0;
         let config_file_path = config_paths.1;
 
-        fs::create_dir_all(&app_dirs.config_dir).unwrap();
-        let file = File::create(config_file_path).unwrap();
+        fs::create_dir_all(&app_dirs.config_dir)?;
+        let file = File::create(config_file_path)?;
         to_writer(file, &CloudConfig::new(host, port))?;
 
         Ok(())
     }
-    
+
     /// Removes the cloud configuration file (`cloud.json`) from the application's config directory.
     ///
     /// The file path is obtained from `SaveData::get_cloud_config_paths()`. If removal fails, the underlying I/O error is returned.
     ///
     /// # Errors
     ///
-    /// Returns the `std::io::Error` produced by `std::fs::remove_file` when the file cannot be removed.
+    /// Returns a `DatabaseError` when the file cannot be removed.
     ///
     /// # Examples
     ///
     /// ```no_run
+    /// # use yesser_todo_db::SaveData;
     /// // Remove the cloud config and handle any error.
     /// let result = SaveData::remove_cloud_config();
     /// if let Err(e) = result {
     ///     eprintln!("failed to remove cloud config: {}", e);
     /// }
     /// ```
-    pub fn remove_cloud_config() -> Result<(), std::io::Error> {
-        let config_paths = SaveData::get_cloud_config_paths();
+    pub fn remove_cloud_config() -> Result<(), DatabaseError> {
+        let config_paths = SaveData::get_cloud_config_paths()?;
         let config_file_path = config_paths.1;
-        
+
         fs::remove_file(config_file_path)?;
         Ok(())
     }
@@ -181,48 +196,50 @@ impl SaveData {
     ///
     /// # Returns
     ///
-    /// `Ok(())` on success, or a `serde_json::Error` if the data file exists but cannot be deserialized.
+    /// `Ok(())` on success, or a `DatabaseError` if the data file exists but cannot be deserialized.
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
+    /// # use yesser_todo_db::SaveData;
     /// let mut sd = SaveData::new();
     /// // If no data file is present this will succeed and leave tasks empty.
     /// sd.load_tasks().unwrap();
     /// assert!(sd.get_tasks().is_empty());
     /// ```
-    pub fn load_tasks(&mut self) -> Result<(), serde_json::Error> {
-        let data_paths = SaveData::get_data_paths();
+    pub fn load_tasks(&mut self) -> Result<(), DatabaseError> {
+        let data_paths = SaveData::get_data_paths()?;
         let app_dirs = data_paths.0;
         let data_file_path = data_paths.1;
 
-        fs::create_dir_all(&app_dirs.data_dir).unwrap();
+        fs::create_dir_all(&app_dirs.data_dir)?;
 
-        if !data_file_path.exists() {return Ok(())}
+        if !data_file_path.exists() {
+            return Ok(());
+        }
 
-        let file = File::open(data_file_path).unwrap();
+        let file = File::open(data_file_path)?;
 
         let result: Vec<Task> = from_reader(file)?;
         self.tasks = result;
 
-        return Ok(())
+        return Ok(());
     }
 
-    pub fn save_tasks(&self) -> Result<(), serde_json::Error> {
-        let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
-        let data_file_path = app_dirs.data_dir.join("todos.json");
+    pub fn save_tasks(&self) -> Result<(), DatabaseError> {
+        let (app_dirs, data_file_path) = SaveData::get_data_paths()?;
 
-        fs::create_dir_all(&app_dirs.data_dir).unwrap();
+        fs::create_dir_all(&app_dirs.data_dir)?;
 
-        let file = File::create(data_file_path).unwrap();
+        let file = File::create(data_file_path)?;
 
         to_writer(file, &self.tasks)?;
 
-        return Ok(())
+        return Ok(());
     }
 
-    pub fn get_tasks(&self) -> &Vec<Task> {
-        return &self.tasks;
+    pub fn get_tasks(&mut self) -> &mut Vec<Task> {
+        return &mut self.tasks;
     }
 
     pub fn add_task(&mut self, task: Task) {
@@ -236,13 +253,13 @@ impl SaveData {
     pub fn mark_task_done(&mut self, task_index: usize) -> bool {
         let was_done = self.tasks[task_index].done;
         self.tasks[task_index].done = true;
-        return was_done
+        return was_done;
     }
 
     pub fn mark_task_undone(&mut self, task_index: usize) -> bool {
         let was_undone = !self.tasks[task_index].done;
         self.tasks[task_index].done = false;
-        return was_undone
+        return was_undone;
     }
 
     pub fn clear_tasks(&mut self) {
@@ -251,5 +268,352 @@ impl SaveData {
 
     pub fn clear_done_tasks(&mut self) {
         self.tasks.retain(|t| !t.done);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        self.tasks.retain(|t| !t.done);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_exactly_matches() {
+        let task = Task {
+            name: "Buy milk".to_string(),
+            done: false,
+        };
+        assert!(exactly_matches(&task, "Buy milk"));
+        assert!(!exactly_matches(&task, "buy milk"));
+        assert!(!exactly_matches(&task, "Buy Milk"));
+        assert!(!exactly_matches(&task, ""));
+    }
+
+    #[test]
+    fn test_get_index() {
+        let tasks = vec![
+            Task { name: "one".to_string(), done: false },
+            Task { name: "two".to_string(), done: true },
+            Task { name: "three".to_string(), done: false },
+        ];
+        assert_eq!(get_index(&tasks, "one"), Some(0));
+        assert_eq!(get_index(&tasks, "two"), Some(1));
+        assert_eq!(get_index(&tasks, "three"), Some(2));
+        assert_eq!(get_index(&tasks, "four"), None);
+        assert_eq!(get_index(&tasks, ""), None);
+    }
+
+    #[test]
+    fn test_get_index_empty_list() {
+        let tasks: Vec<Task> = vec![];
+        assert_eq!(get_index(&tasks, "anything"), None);
+    }
+
+    #[test]
+    fn test_cloud_config_new() {
+        let config = CloudConfig::new("example.com", "8080");
+        assert_eq!(config.host, "example.com");
+        assert_eq!(config.port, "8080");
+    }
+
+    #[test]
+    fn test_save_data_new() {
+        let mut save_data = SaveData::new();
+        assert!(save_data.get_tasks().is_empty());
+    }
+
+    #[test]
+    fn test_add_task() {
+        let mut save_data = SaveData::new();
+        let task = Task {
+            name: "Test task".to_string(),
+            done: false,
+        };
+        save_data.add_task(task.clone());
+        assert_eq!(save_data.get_tasks().len(), 1);
+        assert_eq!(save_data.get_tasks()[0].name, "Test task");
+        assert_eq!(save_data.get_tasks()[0].done, false);
+    }
+
+    #[test]
+    fn test_remove_task() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task { name: "first".to_string(), done: false });
+        save_data.add_task(Task { name: "second".to_string(), done: false });
+        save_data.add_task(Task { name: "third".to_string(), done: false });
+        assert_eq!(save_data.get_tasks().len(), 3);
+
+        save_data.remove_task(1);
+        assert_eq!(save_data.get_tasks().len(), 2);
+        assert_eq!(save_data.get_tasks()[0].name, "first");
+        assert_eq!(save_data.get_tasks()[1].name, "third");
+    }
+
+    #[test]
+    fn test_mark_task_done() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task { name: "task".to_string(), done: false });
+
+        let was_done = save_data.mark_task_done(0);
+        assert_eq!(was_done, false);
+        assert_eq!(save_data.get_tasks()[0].done, true);
+
+        let was_done_again = save_data.mark_task_done(0);
+        assert_eq!(was_done_again, true);
+        assert_eq!(save_data.get_tasks()[0].done, true);
+    }
+
+    #[test]
+    fn test_mark_task_undone() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task { name: "task".to_string(), done: true });
+
+        let was_undone = save_data.mark_task_undone(0);
+        assert_eq!(was_undone, false);
+        assert_eq!(save_data.get_tasks()[0].done, false);
+
+        let was_undone_again = save_data.mark_task_undone(0);
+        assert_eq!(was_undone_again, true);
+        assert_eq!(save_data.get_tasks()[0].done, false);
+    }
+
+    #[test]
+    fn test_clear_tasks() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task { name: "one".to_string(), done: false });
+        save_data.add_task(Task { name: "two".to_string(), done: true });
+        save_data.add_task(Task { name: "three".to_string(), done: false });
+        assert_eq!(save_data.get_tasks().len(), 3);
+
+        save_data.clear_tasks();
+        assert!(save_data.get_tasks().is_empty());
+    }
+
+    #[test]
+    fn test_clear_done_tasks() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task { name: "not done 1".to_string(), done: false });
+        save_data.add_task(Task { name: "done 1".to_string(), done: true });
+        save_data.add_task(Task { name: "not done 2".to_string(), done: false });
+        save_data.add_task(Task { name: "done 2".to_string(), done: true });
+
+        save_data.clear_done_tasks();
+        assert_eq!(save_data.get_tasks().len(), 2);
+        assert_eq!(save_data.get_tasks()[0].name, "not done 1");
+        assert_eq!(save_data.get_tasks()[1].name, "not done 2");
+    }
+
+    #[test]
+    fn test_clear_done_tasks_all_done() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task { name: "done 1".to_string(), done: true });
+        save_data.add_task(Task { name: "done 2".to_string(), done: true });
+
+        save_data.clear_done_tasks();
+        assert!(save_data.get_tasks().is_empty());
+    }
+
+    #[test]
+    fn test_clear_done_tasks_none_done() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task { name: "not done 1".to_string(), done: false });
+        save_data.add_task(Task { name: "not done 2".to_string(), done: false });
+
+        save_data.clear_done_tasks();
+        assert_eq!(save_data.get_tasks().len(), 2);
+    }
+
+    #[test]
+    fn test_get_data_paths() {
+        let result = SaveData::get_data_paths();
+        assert!(result.is_ok());
+        let (_app_dirs, data_path) = result.unwrap();
+        assert!(data_path.ends_with("todos.json"));
+    }
+
+    #[test]
+    fn test_get_cloud_config_paths() {
+        let result = SaveData::get_cloud_config_paths();
+        assert!(result.is_ok());
+        let (_app_dirs, config_path) = result.unwrap();
+        assert!(config_path.ends_with("cloud.json"));
+    }
+
+    #[test]
+    fn test_multiple_tasks_with_same_done_status() {
+        let mut save_data = SaveData::new();
+        for i in 0..10 {
+            save_data.add_task(Task {
+                name: format!("task_{}", i),
+                done: i % 2 == 0,
+            });
+        }
+        assert_eq!(save_data.get_tasks().len(), 10);
+
+        save_data.clear_done_tasks();
+        assert_eq!(save_data.get_tasks().len(), 5);
+        for task in save_data.get_tasks() {
+            assert_eq!(task.done, false);
+        }
+    }
+
+    #[test]
+    fn test_task_serialization() {
+        let task = Task {
+            name: "test".to_string(),
+            done: true,
+        };
+        let serialized = serde_json::to_string(&task).unwrap();
+        let deserialized: Task = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(task.name, deserialized.name);
+        assert_eq!(task.done, deserialized.done);
+    }
+
+    #[test]
+    fn test_cloud_config_serialization() {
+        let config = CloudConfig {
+            host: "example.com".to_string(),
+            port: "8080".to_string(),
+        };
+        let serialized = serde_json::to_string(&config).unwrap();
+        let deserialized: CloudConfig = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(config.host, deserialized.host);
+        assert_eq!(config.port, deserialized.port);
     }
 }

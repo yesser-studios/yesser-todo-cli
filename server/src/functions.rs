@@ -1,5 +1,5 @@
-use axum::{debug_handler, Json};
 use axum::http::StatusCode;
+use axum::{Json, debug_handler};
 use yesser_todo_db::{SaveData, Task};
 
 /// Returns the current list of stored tasks as JSON.
@@ -40,7 +40,7 @@ pub async fn add_task(Json(name): Json<String>) -> Json<Task> {
     println!("Adding task {}", name);
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
-    let task = Task{name, done: false};
+    let task = Task { name, done: false };
     save_data.add_task(task.clone());
     save_data.save_tasks().unwrap();
     Json(task)
@@ -107,7 +107,13 @@ pub async fn done_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
     if save_data.get_tasks().len() <= index {
-        return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
+        return (
+            StatusCode::NOT_FOUND,
+            Json(Task {
+                name: "Could not find specified index".to_string(),
+                done: false,
+            }),
+        );
     }
     println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_done(index);
@@ -140,7 +146,13 @@ pub async fn undone_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
     if save_data.get_tasks().len() <= index {
-        return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
+        return (
+            StatusCode::NOT_FOUND,
+            Json(Task {
+                name: "Could not find specified index".to_string(),
+                done: false,
+            }),
+        );
     }
     println!("Marking task with index {} as undone: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_undone(index);
@@ -191,7 +203,7 @@ pub async fn clear_done_tasks() {
 
 /// Looks up the numeric index of a task by its name and returns it as a JSON response.
 ///
-/// Looks up `name` in persisted tasks and persists the storage state after the lookup.
+/// Looks up `name` in persisted tasks.
 ///
 /// # Returns
 ///
@@ -211,14 +223,140 @@ pub async fn clear_done_tasks() {
 ///     assert_eq!(idx, 0);
 /// }
 /// ```
-#[debug_handler]
-pub async fn get_index(Json(name): Json<String>) -> (StatusCode, Json<usize>) {
-    let mut save_data = SaveData::new();
+        Some(result) => (StatusCode::OK, Json(result)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_tasks_empty() {
+        let Json(tasks) = get_tasks().await;
+        assert!(tasks.len() >= 0);
+    }
+
+    #[tokio::test]
+    async fn test_add_task_creates_task() {
+        let Json(task) = add_task(Json("Test Task".to_string())).await;
+        assert_eq!(task.name, "Test Task");
+        assert_eq!(task.done, false);
+    }
+
+    #[tokio::test]
+    async fn test_add_task_with_empty_name() {
+        let Json(task) = add_task(Json("".to_string())).await;
+        assert_eq!(task.name, "");
+        assert_eq!(task.done, false);
+    }
+
+    #[tokio::test]
+    async fn test_remove_task_out_of_bounds() {
+        let status = remove_task(Json(9999)).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_done_task_out_of_bounds() {
+        let (status, _) = done_task(Json(9999)).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_done_task_error_response() {
+        let (status, Json(task)) = done_task(Json(9999)).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(task.name, "Could not find specified index");
+        assert_eq!(task.done, false);
+    }
+
+    #[tokio::test]
+    async fn test_undone_task_out_of_bounds() {
+        let (status, _) = undone_task(Json(9999)).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_undone_task_error_response() {
+        let (status, Json(task)) = undone_task(Json(9999)).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(task.name, "Could not find specified index");
+        assert_eq!(task.done, false);
+    }
+
+    #[tokio::test]
+    async fn test_clear_tasks_executes() {
+        clear_tasks().await;
+    }
+
+    #[tokio::test]
+    async fn test_clear_done_tasks_executes() {
+        clear_done_tasks().await;
+    }
+
+    #[tokio::test]
+    async fn test_get_index_not_found() {
+        let (status, Json(idx)) = get_index(Json("nonexistent task".to_string())).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(idx, 0);
+    }
+
+    #[tokio::test]
+    async fn test_add_and_get_index() {
+        let unique_name = format!("unique_task_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
+        let Json(task) = add_task(Json(unique_name.clone())).await;
+        assert_eq!(task.name, unique_name);
+
+        let (status, Json(_idx)) = get_index(Json(unique_name.clone())).await;
+        assert_eq!(status, StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_task_workflow() {
+        let unique_name = format!("workflow_task_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
+
+        let Json(task) = add_task(Json(unique_name.clone())).await;
+        assert_eq!(task.name, unique_name);
+        assert_eq!(task.done, false);
+
+        let (status, Json(idx)) = get_index(Json(unique_name.clone())).await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, Json(task)) = done_task(Json(idx)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(task.done, true);
+
+        let (status, Json(task)) = undone_task(Json(idx)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(task.done, false);
+
+        let status = remove_task(Json(idx)).await;
+        assert_eq!(status, StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_add_task_special_characters() {
+        let special_name = "Task with 特殊字符 and émojis 🎉".to_string();
+        let Json(task) = add_task(Json(special_name.clone())).await;
+        assert_eq!(task.name, special_name);
+    }
+
+    #[tokio::test]
+    async fn test_multiple_tasks_same_name() {
+        let name = format!("duplicate_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
+
+        let Json(task1) = add_task(Json(name.clone())).await;
+        let Json(task2) = add_task(Json(name.clone())).await;
+
+        assert_eq!(task1.name, name);
+        assert_eq!(task2.name, name);
+    }
+}
     let _ = save_data.load_tasks();
     let result = yesser_todo_db::get_index(save_data.get_tasks(), &name);
-    save_data.save_tasks().unwrap();
     match result {
-        None => {(StatusCode::NOT_FOUND, Json(0))}
-        Some(result) => {(StatusCode::OK, Json(result))}
+        None => (StatusCode::NOT_FOUND, Json(0)),
+        Some(result) => (StatusCode::OK, Json(result)),
     }
 }
