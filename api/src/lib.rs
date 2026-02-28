@@ -46,7 +46,8 @@ impl Client {
     ///
     /// # Returns
     ///
-    /// `(StatusCode, Vec<Task>)` where the `StatusCode` is the HTTP response status and the `Vec<Task>` is the list of tasks parsed from the response body.
+    /// - `(StatusCode, Vec<Task>)` where the `StatusCode` is the HTTP response status and the `Vec<Task>` is the list of tasks;
+    /// - on error returns Err(ApiError)
     ///
     /// # Examples
     ///
@@ -93,7 +94,8 @@ impl Client {
     ///
     /// # Returns
     ///
-    /// A `(StatusCode, Task)` tuple containing the HTTP response status and the created `Task`.
+    /// - A `(StatusCode, Task)` containing the HTTP response status and the created `Task`;
+    /// - on error returns `Err(ApiError)`
     ///
     /// # Examples
     ///
@@ -143,7 +145,8 @@ impl Client {
     ///
     /// # Returns
     ///
-    /// `(StatusCode, usize)` where `usize` is the index of the task returned by the server, and `StatusCode` is the HTTP response status.
+    /// - `(StatusCode, usize)` where `StatusCode` is the HTTP response status, and `usize` is the index of the queried task;
+    /// - on error returns `Err(ApiError)`
     ///
     /// # Examples
     ///
@@ -184,13 +187,12 @@ impl Client {
     /// Remove a task identified by name from the remote server.
     ///
     /// This resolves the task's index on the server and requests deletion of that index.
-    /// If the index lookup returns a non-OK HTTP status, that status is returned unchanged.
-    /// Network or request errors are propagated as `Err`.
     ///
     /// # Returns
     ///
-    /// `Ok(StatusCode)` containing the server's status for the delete request, or the non-OK
-    /// status returned by the index lookup; `Err(ApiError)` on request/transport failures.
+    /// - `Ok(StatusCode)` containing the server's status for the delete request;
+    /// - on error returns `Err(ApiError)`
+    /// errors.
     ///
     /// # Examples
     ///
@@ -234,11 +236,10 @@ impl Client {
 
     /// Marks the task with the given name as done and returns the HTTP status and the updated task.
     ///
-    /// If retrieving the task index returns a non-OK status, the function returns Err(ApiError).
-    ///
     /// # Returns
     ///
-    /// `(StatusCode, Task)` containing the response status and the task as returned by the server.
+    /// - `(StatusCode, Task)` containing the response status and the task as returned by the server;
+    /// - on failure returns `Err(ApiError)`.
     ///
     /// # Examples
     ///
@@ -296,11 +297,10 @@ impl Client {
 
     /// Mark the task identified by `task_name` as not done and return the updated task with the response status.
     ///
-    /// Attempts to resolve the task's index by name; if index resolution returns a non-OK status, returns Err(ApiError)
     /// # Returns
     ///
-    /// `(StatusCode, Task)` with the HTTP response status and the updated task on success; if index lookup returns a non-OK status,
-    /// returns `Err(ApiError)`.
+    /// - `(StatusCode, Task)` with the HTTP response status and the updated task on success;
+    /// - on failure returns `Err(ApiError)`.
     ///
     /// # Examples
     ///
@@ -355,6 +355,10 @@ impl Client {
     ///
     /// Sends a DELETE request to the configured `/clear` endpoint and returns the HTTP status code.
     ///
+    /// # Returns
+    /// - `StatusCode` of the request;
+    /// - on failure returns `Err(ApiError)`
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -381,14 +385,16 @@ impl Client {
 
     /// Deletes all tasks marked as done on the remote to-do service.
     ///
-    /// On success returns the HTTP response status code from the server; on failure returns
-    /// Err(ApiError)`.
+    /// # Returns
+    ///
+    /// - `StatusCode` of the HTTP request;
+    /// - on failure returns `Err(ApiError)`.
     ///
     /// # Examples
     ///
     /// ```no_run
-    ///
     /// # use yesser_todo_api::Client;
+    ///
     /// let client = Client::new("http://127.0.0.1".into(), None);
     /// let status = tokio::runtime::Runtime::new()
     ///     .unwrap()
