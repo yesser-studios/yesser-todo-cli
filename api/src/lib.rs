@@ -97,7 +97,7 @@ impl Client {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// # use yesser_todo_api::Client;
     /// # use reqwest::StatusCode;
     /// # #[tokio::test]
@@ -194,7 +194,7 @@ impl Client {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// # use yesser_todo_api::Client;
     /// # use tokio;
     /// #[tokio::main]
@@ -242,7 +242,7 @@ impl Client {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// # use yesser_todo_api::Client;
     /// # use yesser_todo_db::Task;
     /// # use reqwest::StatusCode;
@@ -300,11 +300,11 @@ impl Client {
     /// # Returns
     ///
     /// `(StatusCode, Task)` with the HTTP response status and the updated task on success; if index lookup returns a non-OK status,
-    /// returns that status paired with a placeholder `Task`.
+    /// returns `Err(ApiError)`.
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use yesser_todo_api::Client;
     /// use std::string::String;
     /// use reqwest::StatusCode;
@@ -357,7 +357,7 @@ impl Client {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// # use yesser_todo_api::Client;
     /// # async fn example() {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
