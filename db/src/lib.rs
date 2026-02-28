@@ -1,3 +1,5 @@
+mod db_error;
+
 use std::{
     fs::{self, File},
     path::PathBuf,
@@ -6,6 +8,8 @@ use std::{
 use platform_dirs::AppDirs;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_reader, to_writer};
+
+use crate::db_error::DatabaseError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
@@ -71,10 +75,10 @@ impl SaveData {
     /// assert!(data_path.starts_with(app_dirs.data_dir));
     /// assert_eq!(data_path.file_name().unwrap(), "todos.json");
     /// ```
-    pub(crate) fn get_data_paths() -> (AppDirs, PathBuf) {
-        let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
+    pub(crate) fn get_data_paths() -> Result<(AppDirs, PathBuf), DatabaseError> {
+        let app_dirs = AppDirs::new(Some("todo"), true).ok_or_else(|| DatabaseError::UserDirsError)?;
         let data_file_path = app_dirs.data_dir.join("todos.json");
-        return (app_dirs, data_file_path);
+        return Ok((app_dirs, data_file_path));
     }
 
     /// Constructs application directories for this app and returns them together with the full path to the cloud config file.
@@ -87,10 +91,10 @@ impl SaveData {
     /// let (_app_dirs, config_path) = db::get_cloud_config_paths();
     /// assert!(config_path.ends_with("cloud.json"));
     /// ```
-    pub(crate) fn get_cloud_config_paths() -> (AppDirs, PathBuf) {
-        let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
+    pub(crate) fn get_cloud_config_paths() -> Result<(AppDirs, PathBuf), DatabaseError> {
+        let app_dirs = AppDirs::new(Some("todo"), true).ok_or_else(|| DatabaseError::UserDirsError)?;
         let config_file_path = app_dirs.config_dir.join("cloud.json");
-        return (app_dirs, config_file_path);
+        return Ok((app_dirs, config_file_path));
     }
 
     /// Retrieves the cloud configuration if one has been saved.
@@ -108,18 +112,18 @@ impl SaveData {
     ///     Err(e) => panic!("Failed to read cloud config: {}", e),
     /// }
     /// ```
-    pub fn get_cloud_config() -> Result<Option<(String, String)>, serde_json::Error> {
-        let config_paths = SaveData::get_cloud_config_paths();
+    pub fn get_cloud_config() -> Result<Option<(String, String)>, DatabaseError> {
+        let config_paths = SaveData::get_cloud_config_paths()?;
         let app_dirs = config_paths.0;
         let config_file_path = config_paths.1;
 
-        fs::create_dir_all(&app_dirs.config_dir).unwrap();
+        fs::create_dir_all(&app_dirs.config_dir)?;
 
         if !config_file_path.exists() {
             return Ok(None);
         }
 
-        let file = File::open(config_file_path).unwrap();
+        let file = File::open(config_file_path)?;
         let result: CloudConfig = from_reader(file)?;
 
         Ok(Some((result.host.clone(), result.port.clone())))
@@ -134,7 +138,7 @@ impl SaveData {
     ///
     /// # Returns
     ///
-    /// `Ok(())` on success, `Err(serde_json::Error)` if serialization or writing fails.
+    /// `Ok(())` on success, `Err(DatabaseError)` if serialization or writing fails.
     ///
     /// # Examples
     ///
@@ -145,13 +149,13 @@ impl SaveData {
     /// let port = "1234".to_string();
     /// SaveData::save_cloud_config(&host, &port).unwrap();
     /// ```
-    pub fn save_cloud_config(host: &str, port: &str) -> Result<(), serde_json::Error> {
-        let config_paths = SaveData::get_cloud_config_paths();
+    pub fn save_cloud_config(host: &str, port: &str) -> Result<(), DatabaseError> {
+        let config_paths = SaveData::get_cloud_config_paths()?;
         let app_dirs = config_paths.0;
         let config_file_path = config_paths.1;
 
-        fs::create_dir_all(&app_dirs.config_dir).unwrap();
-        let file = File::create(config_file_path).unwrap();
+        fs::create_dir_all(&app_dirs.config_dir)?;
+        let file = File::create(config_file_path)?;
         to_writer(file, &CloudConfig::new(host, port))?;
 
         Ok(())
@@ -163,7 +167,7 @@ impl SaveData {
     ///
     /// # Errors
     ///
-    /// Returns the `std::io::Error` produced by `std::fs::remove_file` when the file cannot be removed.
+    /// Returns a `DatabaseError` when the file cannot be removed.
     ///
     /// # Examples
     ///
@@ -174,8 +178,8 @@ impl SaveData {
     ///     eprintln!("failed to remove cloud config: {}", e);
     /// }
     /// ```
-    pub fn remove_cloud_config() -> Result<(), std::io::Error> {
-        let config_paths = SaveData::get_cloud_config_paths();
+    pub fn remove_cloud_config() -> Result<(), DatabaseError> {
+        let config_paths = SaveData::get_cloud_config_paths()?;
         let config_file_path = config_paths.1;
 
         fs::remove_file(config_file_path)?;
@@ -189,7 +193,7 @@ impl SaveData {
     ///
     /// # Returns
     ///
-    /// `Ok(())` on success, or a `serde_json::Error` if the data file exists but cannot be deserialized.
+    /// `Ok(())` on success, or a `DatabaseError` if the data file exists but cannot be deserialized.
     ///
     /// # Examples
     ///
@@ -199,18 +203,18 @@ impl SaveData {
     /// sd.load_tasks().unwrap();
     /// assert!(sd.get_tasks().is_empty());
     /// ```
-    pub fn load_tasks(&mut self) -> Result<(), serde_json::Error> {
-        let data_paths = SaveData::get_data_paths();
+    pub fn load_tasks(&mut self) -> Result<(), DatabaseError> {
+        let data_paths = SaveData::get_data_paths()?;
         let app_dirs = data_paths.0;
         let data_file_path = data_paths.1;
 
-        fs::create_dir_all(&app_dirs.data_dir).unwrap();
+        fs::create_dir_all(&app_dirs.data_dir)?;
 
         if !data_file_path.exists() {
             return Ok(());
         }
 
-        let file = File::open(data_file_path).unwrap();
+        let file = File::open(data_file_path)?;
 
         let result: Vec<Task> = from_reader(file)?;
         self.tasks = result;
@@ -218,13 +222,16 @@ impl SaveData {
         return Ok(());
     }
 
-    pub fn save_tasks(&self) -> Result<(), serde_json::Error> {
-        let app_dirs = AppDirs::new(Some("todo"), true).unwrap();
+    pub fn save_tasks(&self) -> Result<(), DatabaseError> {
+        let app_dirs = match AppDirs::new(Some("todo"), true) {
+            Some(them) => them,
+            None => return Err(DatabaseError::UserDirsError),
+        };
         let data_file_path = app_dirs.data_dir.join("todos.json");
 
-        fs::create_dir_all(&app_dirs.data_dir).unwrap();
+        fs::create_dir_all(&app_dirs.data_dir)?;
 
-        let file = File::create(data_file_path).unwrap();
+        let file = File::create(data_file_path)?;
 
         to_writer(file, &self.tasks)?;
 
