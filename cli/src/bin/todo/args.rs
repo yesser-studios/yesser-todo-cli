@@ -57,6 +57,31 @@ pub(crate) struct CloudCommand {
 }
 
 impl Command {
+    /// Execute the command against either a local task list or a connected cloud client.
+    ///
+    /// When `client` is `None`, the command operates on the provided mutable `data` (local handlers).
+    /// When `client` is `Some`, the command is routed to the cloud client (cloud handlers). Connect and
+    /// Disconnect are handled without requiring an active client; Disconnect returns an `UnlinkedError`
+    /// if no client is connected.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or a `crate::command_error::CommandError` on failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use yesser_todo_db::Task;
+    /// # use yesser_todo_api::Client;
+    /// # use crate::cli::args::Command;
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut tasks: Vec<Task> = Vec::new();
+    /// let mut client: Option<Client> = None;
+    /// let cmd = Command::List;
+    /// cmd.execute(&mut tasks, &mut client).await?;
+    /// # Ok(()) }
+    /// ```
     pub(crate) async fn execute(&self, data: &mut Vec<Task>, client: &mut Option<Client>) -> Result<(), crate::command_error::CommandError> {
         match client {
             None => match self {

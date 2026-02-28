@@ -18,9 +18,9 @@ pub async fn get_tasks() -> Json<Vec<Task>> {
     Json(tasks)
 }
 
-/// Create and persist a new task with the given name.
+/// Creates and persists a new task with the given name.
 ///
-/// The task is created with `done = false`, saved to persistent storage, and returned wrapped in JSON.
+/// The task is created with `done = false`, saved to persistent storage, and returned as `Json<Task>`.
 ///
 /// # Examples
 ///
@@ -28,7 +28,6 @@ pub async fn get_tasks() -> Json<Vec<Task>> {
 /// use axum::Json;
 /// use yesser_todo_db::Task;
 ///
-/// // Example usage in an async context:
 /// # async fn example() {
 /// let Json(task) = crate::functions::add_task(Json("Buy milk".to_string())).await;
 /// assert_eq!(task.name, "Buy milk");
@@ -78,11 +77,11 @@ pub async fn remove_task(Json(index): Json<usize>) -> StatusCode {
     StatusCode::OK
 }
 
-/// Marks the task at the provided index as done.
+/// Mark the task at the given index as done.
 ///
-/// If the index is within bounds, returns `StatusCode::OK` and a JSON-serialized copy of the updated `Task`.
-/// If the index is out of bounds, returns `StatusCode::NOT_FOUND` and a `Task` with `name` set to
-/// `"Could not find specified index"` and `done` set to `false`.
+/// Returns `StatusCode::OK` and the updated `Task` when the index is valid. If the index is out of bounds,
+/// returns `StatusCode::NOT_FOUND` and a `Task` with `name` set to `"Could not find specified index"` and
+/// `done` set to `false`.
 ///
 /// # Examples
 ///
@@ -92,14 +91,7 @@ pub async fn remove_task(Json(index): Json<usize>) -> StatusCode {
 /// # use yesser_todo_db::Task;
 /// # async fn run_example() {
 /// let (status, Json(task)) = crate::done_task(Json(0usize)).await;
-/// if status == StatusCode::OK {
-///     // task is the updated task marked done
-///     assert!(task.done);
-/// } else {
-///     // index was not found
-///     assert_eq!(status, StatusCode::NOT_FOUND);
-///     assert_eq!(task.name, "Could not find specified index");
-/// }
+/// assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND);
 /// # }
 /// ```
 #[debug_handler]
@@ -201,14 +193,15 @@ pub async fn clear_done_tasks() {
     save_data.save_tasks().unwrap();
 }
 
-/// Looks up the numeric index of a task by its name and returns it as a JSON response.
+/// Finds the index of a task by name and returns it as a JSON response.
 ///
-/// Looks up `name` in persisted tasks.
+/// If a matching task name is found, returns `StatusCode::OK` with the task's index.
+/// If no match is found, returns `StatusCode::NOT_FOUND` with `0`.
 ///
 /// # Returns
 ///
-/// - `(StatusCode::OK, Json(index))` when a task with the given name is found.
-/// - `(StatusCode::NOT_FOUND, Json(0))` when no matching task name exists.
+/// `(StatusCode::OK, Json(index))` when a task with the given name is found.
+/// `(StatusCode::NOT_FOUND, Json(0))` when no matching task name exists.
 ///
 /// # Examples
 ///

@@ -3,11 +3,11 @@ use yesser_todo_db::SaveData;
 
 pub(crate) const DONE_STYLE: Style = Style::new().strikethrough().green();
 
-/// Retrieve the saved cloud server host and port if available.
+/// Return the saved cloud server host and port when available.
 ///
 /// # Returns
 ///
-/// `Some((host, port))` when a cloud configuration is present and readable, `None` if no configuration exists or it cannot be read.
+/// `Some((host, port))` if a readable cloud configuration exists, `None` otherwise.
 ///
 /// # Examples
 ///

@@ -9,6 +9,34 @@ use crate::{
     utils::DONE_STYLE,
 };
 
+/// Checks whether a task with the given name exists on the cloud server.
+///
+/// Queries the cloud API for the task index; returns `true` when the server
+/// returns a successful response and `false` when the server responds with
+/// HTTP 404. Other HTTP status codes and request/connection failures are
+/// returned as `CommandError` variants.
+///
+/// # Errors
+///
+/// Returns `CommandError::HTTPError { name, status_code }` for non-404 HTTP
+/// responses and `CommandError::ConnectionError { name }` for request/connection
+/// failures.
+///
+/// # Examples
+///
+/// ```ignore
+/// // create or obtain a `Client` appropriate for your environment
+/// let client = /* Client::new(...) */ ;
+/// let exists = tokio::runtime::Runtime::new()
+///     .unwrap()
+///     .block_on(check_exists_cloud("my-task", &client))
+///     .unwrap();
+/// if exists {
+///     println!("Task exists");
+/// } else {
+///     println!("Task not found");
+/// }
+/// ```
 pub(crate) async fn check_exists_cloud(task: &str, client: &Client) -> Result<bool, CommandError> {
     let result = client.get_index(task).await;
     match result {
@@ -29,6 +57,25 @@ pub(crate) async fn check_exists_cloud(task: &str, client: &Client) -> Result<bo
     }
 }
 
+/// Adds one or more tasks to the cloud after validating input and existence.
+///
+/// Validates that `command.tasks` is non-empty, that task names are unique, and that none of the tasks already exist remotely; on success it sends add requests for each task and maps API errors to `CommandError`.
+///
+/// # Returns
+///
+/// `Ok(())` on success, `Err(CommandError)` if validation fails or an API/connection error occurs (possible variants include `NoTasksSpecified`, `DuplicateInput`, `TaskExists`, `HTTPError`, and `ConnectionError`).
+///
+/// # Examples
+///
+/// ```
+/// // Illustrative example; adapt `command` and `client` to your test setup.
+/// use futures::executor::block_on;
+///
+/// // let mut client = /* obtain Client */;
+/// // let command = /* TasksCommand { tasks: vec!["task1".into()] } */;
+///
+/// // block_on(handle_add_cloud(&command, &mut client)).unwrap();
+/// ```
 pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
     if command.tasks.len() <= 0 {
         return Err(CommandError::NoTasksSpecified);
@@ -64,6 +111,25 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
     Ok(())
 }
 
+/// Removes the specified tasks from the cloud after validating input and confirming each task exists.
+///
+/// Validates that at least one task is provided and that task names are unique; verifies each task exists before attempting removal. On failure, returns the corresponding `CommandError`:
+/// - `NoTasksSpecified` if no tasks were given.
+/// - `DuplicateInput { name }` if the same task name appears more than once in the input.
+/// - `TaskNotFound { name }` if a task does not exist on the server.
+/// - `HTTPError { name, status_code }` for non-404 HTTP errors returned while removing a task.
+/// - `ConnectionError { name }` for transport-level errors while communicating with the server.
+///
+/// # Examples
+///
+/// ```
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// // Assume `client` implements the cloud API client and `TasksCommand` wraps task names.
+/// // let mut client = Client::new("http://api")?;
+/// // let cmd = TasksCommand { tasks: vec!["buy milk".into()] };
+/// // handle_remove_cloud(&cmd, &mut client).await?;
+/// # Ok(()) }
+/// ```
 pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
     if command.tasks.len() <= 0 {
         return Err(CommandError::NoTasksSpecified);
@@ -100,6 +166,23 @@ pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Cli
     Ok(())
 }
 
+/// List tasks from the cloud and print them to stdout.
+///
+/// Prints "Current tasks:" followed by each task name; completed tasks are styled with
+/// `DONE_STYLE`. If the remote API responds with an HTTP error, returns `CommandError::HTTPError`
+/// with an empty `name` and the response status code. If the request fails due to a connection
+/// problem, returns `CommandError::ConnectionError` with an empty `name`.
+///
+/// # Examples
+///
+/// ```
+/// # use todo_cli::cloud::Client;
+/// # use todo_cli::command_impl_cloud::handle_list_cloud;
+/// # tokio_test::block_on(async {
+/// let client = Client::example(); // construct a client connected to a test server
+/// let _ = handle_list_cloud(&client).await;
+/// # });
+/// ```
 pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandError> {
     let result = client.get().await;
     match result {
@@ -129,6 +212,27 @@ pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandErro
     Ok(())
 }
 
+/// Marks the given tasks as done or undone in the cloud after validating input.
+///
+/// Validates that at least one task is provided and that task names are unique; returns
+/// a `TaskNotFound` error if any task does not exist. For each task, sends the appropriate
+/// request (`done` or `undone`) and maps HTTP and connection failures to `CommandError`.
+///
+/// # Examples
+///
+/// ```
+/// # use todo_cli::{Client, TasksCommand, CommandError};
+/// # async fn _example(mut client: Client) -> Result<(), CommandError> {
+/// let cmd = TasksCommand { tasks: vec!["task1".into(), "task2".into()] };
+/// // mark tasks as done
+/// handle_done_undone_cloud(&cmd, &mut client, true).await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Returns
+///
+/// `Ok(())` on success; `Err(CommandError)` on validation failures or API/connection errors.
 pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mut Client, done: bool) -> Result<(), CommandError> {
     if command.tasks.len() <= 0 {
         return Err(CommandError::NoTasksSpecified);
@@ -169,6 +273,22 @@ pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mu
     Ok(())
 }
 
+/// Clears tasks stored in the cloud according to the provided command.
+///
+/// When `command.done` is `true`, only completed tasks are removed; otherwise all tasks are removed.
+/// On failure, returns a `CommandError` describing either an HTTP error (with an empty `name` and the HTTP status code)
+/// or a connection error (with an empty `name`).
+///
+/// # Examples
+///
+/// ```no_run
+/// # use todo_cli::command_impl_cloud::{handle_clear_cloud, ClearCommand, Client};
+/// # async fn run_example(mut client: Client) -> Result<(), Box<dyn std::error::Error>> {
+/// let cmd = ClearCommand { done: true };
+/// handle_clear_cloud(&cmd, &mut client).await?;
+/// # Ok(())
+/// # }
+/// ```
 pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Client) -> Result<(), CommandError> {
     let result;
     if command.done {
@@ -188,12 +308,47 @@ pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Clie
     }
 }
 
+/// Clears completed tasks from the configured cloud backend and prints a deprecation notice.
+///
+/// This command is deprecated: it prints a short notice advising `clear -d` and then clears tasks
+/// that are marked done on the remote server.
+///
+/// # Examples
+///
+/// ```no_run
+/// # async fn example(mut client: Client) -> Result<(), CommandError> {
+/// handle_clear_done_cloud(&mut client).await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Returns
+///
+/// `Ok(())` on success, `Err(CommandError)` if the operation fails.
 #[deprecated]
 pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), CommandError> {
     println!("clear-done is deprecated. Use clear -d instead.");
     handle_clear_cloud(&ClearCommand { done: true }, client).await
 }
 
+/// Link the local client to a cloud server by saving the host and port to persistent config.
+///
+/// Saves the provided host and either the given port or the default port; on success prints a
+/// confirmation message.
+///
+/// # Returns
+///
+/// `Ok(())` if the configuration was saved successfully, `CommandError::DataError` if saving fails.
+///
+/// # Examples
+///
+/// ```
+/// use crate::CloudCommand;
+/// use crate::command_impl_cloud::handle_connect;
+///
+/// let cmd = CloudCommand { host: "example.com".to_string(), port: None };
+/// let _ = handle_connect(&cmd).unwrap();
+/// ```
 pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError> {
     let result = match &command.port {
         None => SaveData::save_cloud_config(&command.host, DEFAULT_PORT),
@@ -212,6 +367,22 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
     }
 }
 
+/// Unlinks the local configuration from the cloud server.
+///
+/// Removes the saved cloud configuration and prints a confirmation on success.
+///
+/// # Returns
+///
+/// `Ok(())` if the configuration was removed.
+/// `Err(CommandError::UnlinkedError)` if no cloud configuration was found.
+/// `Err(CommandError::DataError)` for other errors encountered while removing the configuration.
+///
+/// # Examples
+///
+/// ```
+/// // Attempt to unlink; succeed when a configuration exists.
+/// let _ = todo_cli::command_impl_cloud::handle_disconnect();
+/// ```
 pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
     match SaveData::remove_cloud_config() {
         Ok(_) => {
