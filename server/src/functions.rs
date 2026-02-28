@@ -203,7 +203,7 @@ pub async fn clear_done_tasks() {
 
 /// Looks up the numeric index of a task by its name and returns it as a JSON response.
 ///
-/// Looks up `name` in persisted tasks and persists the storage state after the lookup.
+/// Looks up `name` in persisted tasks.
 ///
 /// # Returns
 ///
