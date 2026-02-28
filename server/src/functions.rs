@@ -1,5 +1,5 @@
-use axum::{debug_handler, Json};
 use axum::http::StatusCode;
+use axum::{Json, debug_handler};
 use yesser_todo_db::{SaveData, Task};
 
 /// Returns the current list of stored tasks as JSON.
@@ -40,7 +40,7 @@ pub async fn add_task(Json(name): Json<String>) -> Json<Task> {
     println!("Adding task {}", name);
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
-    let task = Task{name, done: false};
+    let task = Task { name, done: false };
     save_data.add_task(task.clone());
     save_data.save_tasks().unwrap();
     Json(task)
@@ -107,7 +107,13 @@ pub async fn done_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
     if save_data.get_tasks().len() <= index {
-        return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
+        return (
+            StatusCode::NOT_FOUND,
+            Json(Task {
+                name: "Could not find specified index".to_string(),
+                done: false,
+            }),
+        );
     }
     println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_done(index);
@@ -140,7 +146,13 @@ pub async fn undone_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
     if save_data.get_tasks().len() <= index {
-        return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
+        return (
+            StatusCode::NOT_FOUND,
+            Json(Task {
+                name: "Could not find specified index".to_string(),
+                done: false,
+            }),
+        );
     }
     println!("Marking task with index {} as undone: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_undone(index);
@@ -218,7 +230,8 @@ pub async fn get_index(Json(name): Json<String>) -> (StatusCode, Json<usize>) {
     let result = yesser_todo_db::get_index(save_data.get_tasks(), &name);
     save_data.save_tasks().unwrap();
     match result {
-        None => {(StatusCode::NOT_FOUND, Json(0))}
-        Some(result) => {(StatusCode::OK, Json(result))}
+        None => (StatusCode::NOT_FOUND, Json(0)),
+        Some(result) => (StatusCode::OK, Json(result)),
     }
 }
+
