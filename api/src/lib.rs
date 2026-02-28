@@ -1,6 +1,6 @@
 pub mod api_error;
 
-use reqwest::{Error, StatusCode};
+use reqwest::StatusCode;
 use yesser_todo_db::Task;
 
 use crate::api_error::ApiError;
@@ -192,7 +192,7 @@ impl Client {
     /// # Returns
     ///
     /// `Ok(StatusCode)` containing the server's status for the delete request, or the non-OK
-    /// status returned by the index lookup; `Err(Error)` on request/transport failures.
+    /// status returned by the index lookup; `Err(ApiError)` on request/transport failures.
     ///
     /// # Examples
     ///
@@ -236,7 +236,7 @@ impl Client {
 
     /// Marks the task with the given name as done and returns the HTTP status and the updated task.
     ///
-    /// If retrieving the task index returns a non-OK status, the function returns that status along with a `Task` whose `name` is `"Something went wrong"` and `done` is `false`.
+    /// If retrieving the task index returns a non-OK status, the function returns Err(ApiError).
     ///
     /// # Returns
     ///
@@ -299,9 +299,7 @@ impl Client {
 
     /// Mark the task identified by `task_name` as not done and return the updated task with the response status.
     ///
-    /// Attempts to resolve the task's index by name; if index resolution returns a non-OK status, returns that status
-    /// together with a placeholder `Task` having name `"Something went wrong"` and `done: false`.
-    ///
+    /// Attempts to resolve the task's index by name; if index resolution returns a non-OK status, returns Err(ApiError)
     /// # Returns
     ///
     /// `(StatusCode, Task)` with the HTTP response status and the updated task on success; if index lookup returns a non-OK status,
@@ -387,7 +385,8 @@ impl Client {
 
     /// Deletes all tasks marked as done on the remote to-do service.
     ///
-    /// On success returns the HTTP response status code from the server; on failure returns the underlying `reqwest::Error`.
+    /// On success returns the HTTP response status code from the server; on failure returns
+    /// Err(ApiError)`.
     ///
     /// # Examples
     ///
