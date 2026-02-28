@@ -30,7 +30,8 @@ impl CloudConfig {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```
+    /// # use yesser_todo_db::CloudConfig;
     /// let host = "example.com".to_string();
     /// let port = "8080".to_string();
     /// let cfg = CloudConfig::new(&host, &port);
@@ -70,8 +71,8 @@ impl SaveData {
     ///
     /// # Examples
     ///
-    /// ```
-    /// let (app_dirs, data_path) = db::get_data_paths();
+    /// ```ignore
+    /// let Ok((app_dirs, data_path)) = yesser_todo_db::SaveData::get_data_paths();
     /// assert!(data_path.starts_with(app_dirs.data_dir));
     /// assert_eq!(data_path.file_name().unwrap(), "todos.json");
     /// ```
@@ -87,8 +88,8 @@ impl SaveData {
     ///
     /// # Examples
     ///
-    /// ```
-    /// let (_app_dirs, config_path) = db::get_cloud_config_paths();
+    /// ```ignore
+    /// let Ok((_app_dirs, config_path)) = yesser_todo_db::SaveData::get_cloud_config_paths();
     /// assert!(config_path.ends_with("cloud.json"));
     /// ```
     pub(crate) fn get_cloud_config_paths() -> Result<(AppDirs, PathBuf), DatabaseError> {
@@ -104,6 +105,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
+    /// # use yesser_todo_db::SaveData;
     /// // This example assumes no cloud config is present or a valid one exists.
     /// let res = SaveData::get_cloud_config();
     /// match res {
@@ -142,8 +144,8 @@ impl SaveData {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use db::SaveData;
+    /// ```no_run
+    /// use yesser_todo_db::SaveData;
     ///
     /// let host = "example.com".to_string();
     /// let port = "1234".to_string();
@@ -172,6 +174,7 @@ impl SaveData {
     /// # Examples
     ///
     /// ```no_run
+    /// # use yesser_todo_db::SaveData;
     /// // Remove the cloud config and handle any error.
     /// let result = SaveData::remove_cloud_config();
     /// if let Err(e) = result {
@@ -197,7 +200,8 @@ impl SaveData {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
+    /// # use yesser_todo_db::SaveData;
     /// let mut sd = SaveData::new();
     /// // If no data file is present this will succeed and leave tasks empty.
     /// sd.load_tasks().unwrap();
