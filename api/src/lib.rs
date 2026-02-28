@@ -312,12 +312,12 @@ impl Client {
     /// use std::string::String;
     /// use reqwest::StatusCode;
     ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
-    /// let rt = tokio::runtime::Runtime::new().unwrap();
-    /// let result = rt.block_on(async { client.undone("example").await });
-    /// if let Ok(res) = result {
-    ///     assert!(matches!(res.0, StatusCode::OK) || res.0.is_client_error() || res.0.is_server_error());
-    /// }
+    /// let res = client.undone("example").await?;
+    /// assert!(matches!(res.0, StatusCode::OK) || res.0.is_client_error() || res.0.is_server_error());
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn undone(&self, task_name: &str) -> Result<(StatusCode, Task), ApiError> {
         let index_result = self.get_index(task_name).await;
