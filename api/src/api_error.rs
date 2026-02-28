@@ -19,9 +19,11 @@ impl Display for ApiError {
     ///
     /// ```
     /// use reqwest::StatusCode;
+    /// use yesser_todo_api::api_error::ApiError;
     /// // `ApiError` is defined in the current crate module where this formatter lives.
-    /// let err = crate::api_error::ApiError::HTTPError(StatusCode::BAD_REQUEST);
-    /// assert_eq!(format!("{}", err), "Server returned HTTP error code 400");
+    /// let err = ApiError::HTTPError(StatusCode::BAD_REQUEST);
+    /// assert_eq!(format!("{}", err), format!("Server returned HTTP error code {}",
+    /// StatusCode::BAD_REQUEST));
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
