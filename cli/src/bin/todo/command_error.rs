@@ -75,3 +75,140 @@ impl Display for CommandError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_no_tasks_specified_display() {
+        let err = CommandError::NoTasksSpecified;
+        assert_eq!(format!("{}", err), "No tasks specified!");
+    }
+
+    #[test]
+    fn test_task_exists_display() {
+        let err = CommandError::TaskExists {
+            name: "test task".to_string(),
+        };
+        assert_eq!(format!("{}", err), "Task test task already exists!");
+    }
+
+    #[test]
+    fn test_task_not_found_display() {
+        let err = CommandError::TaskNotFound {
+            name: "missing".to_string(),
+        };
+        assert_eq!(format!("{}", err), "Task missing not found!");
+    }
+
+    #[test]
+    fn test_duplicate_input_display() {
+        let err = CommandError::DuplicateInput {
+            name: "duplicate".to_string(),
+        };
+        assert_eq!(format!("{}", err), "Task duplicate was specified multiple times!");
+    }
+
+    #[test]
+    fn test_data_error_display() {
+        let db_err = DatabaseError::UserDirsError;
+        let err = CommandError::DataError {
+            what: "tasks".to_string(),
+            err: db_err,
+        };
+        let display = format!("{}", err);
+        assert!(display.contains("Unable to save tasks"));
+        assert!(display.contains("Could not get user config directory location"));
+    }
+
+    #[test]
+    fn test_http_error_with_name() {
+        let err = CommandError::HTTPError {
+            name: "my-task".to_string(),
+            status_code: 404,
+        };
+        assert_eq!(format!("{}", err), "HTTP error code: 404 for task my-task");
+    }
+
+    #[test]
+    fn test_http_error_without_name() {
+        let err = CommandError::HTTPError {
+            name: String::new(),
+            status_code: 500,
+        };
+        assert_eq!(format!("{}", err), "HTTP error code: 500!");
+    }
+
+    #[test]
+    fn test_connection_error_with_name() {
+        let err = CommandError::ConnectionError {
+            name: "test-task".to_string(),
+        };
+        assert_eq!(format!("{}", err), "Failed to connect to the server for task test-task");
+    }
+
+    #[test]
+    fn test_connection_error_without_name() {
+        let err = CommandError::ConnectionError { name: String::new() };
+        assert_eq!(format!("{}", err), "Failed to connect to the server!");
+    }
+
+    #[test]
+    fn test_unlinked_error_display() {
+        let err = CommandError::UnlinkedError;
+        assert_eq!(format!("{}", err), "You're already unlinked!");
+    }
+
+    #[test]
+    fn test_command_error_is_error_trait() {
+        fn assert_error<T: std::error::Error>() {}
+        assert_error::<CommandError>();
+    }
+
+    #[test]
+    fn test_command_error_debug() {
+        let err = CommandError::NoTasksSpecified;
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("NoTasksSpecified"));
+    }
+
+    #[test]
+    fn test_various_http_status_codes() {
+        let test_cases = vec![
+            (200, "HTTP error code: 200!"),
+            (400, "HTTP error code: 400!"),
+            (404, "HTTP error code: 404!"),
+            (500, "HTTP error code: 500!"),
+        ];
+
+        for (code, expected) in test_cases {
+            let err = CommandError::HTTPError {
+                name: String::new(),
+                status_code: code,
+            };
+            assert_eq!(format!("{}", err), expected);
+        }
+    }
+
+    #[test]
+    fn test_task_names_with_special_characters() {
+        let err = CommandError::TaskExists {
+            name: "task with spaces & symbols!".to_string(),
+        };
+        assert_eq!(format!("{}", err), "Task task with spaces & symbols! already exists!");
+    }
+
+    #[test]
+    fn test_data_error_with_io_error() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
+        let db_err = DatabaseError::IOError(io_err);
+        let err = CommandError::DataError {
+            what: "config".to_string(),
+            err: db_err,
+        };
+        let display = format!("{}", err);
+        assert!(display.contains("Unable to save config"));
+        assert!(display.contains("access denied"));
+    }
+}

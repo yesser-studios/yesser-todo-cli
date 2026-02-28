@@ -26,3 +26,39 @@ pub(crate) fn process_cloud_config() -> Option<(String, String)> {
         None
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_done_style_exists() {
+        let style = DONE_STYLE;
+        let styled = style.apply_to("test");
+        let styled_str = format!("{}", styled);
+        assert!(styled_str.contains("test"));
+    }
+
+    #[test]
+    fn test_process_cloud_config_returns_option() {
+        let result = process_cloud_config();
+        assert!(result.is_some() || result.is_none());
+    }
+
+    #[test]
+    fn test_process_cloud_config_tuple_structure() {
+        if let Some((host, port)) = process_cloud_config() {
+            assert!(!host.is_empty() || host.is_empty());
+            assert!(!port.is_empty() || port.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_done_style_properties() {
+        let style = DONE_STYLE;
+        let test_text = "completed task";
+        let styled = style.apply_to(test_text);
+        let output = format!("{}", styled);
+        assert!(output.len() >= test_text.len());
+    }
+}

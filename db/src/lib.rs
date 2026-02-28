@@ -408,3 +408,386 @@ impl SaveData {
         self.tasks.retain(|t| !t.done);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_task_equality() {
+        let task1 = Task {
+            name: "test".to_string(),
+            done: false,
+        };
+        let task2 = Task {
+            name: "test".to_string(),
+            done: false,
+        };
+        let task3 = Task {
+            name: "test".to_string(),
+            done: true,
+        };
+        assert_eq!(task1, task2);
+        assert_ne!(task1, task3);
+    }
+
+    #[test]
+    fn test_task_clone() {
+        let task = Task {
+            name: "original".to_string(),
+            done: false,
+        };
+        let cloned = task.clone();
+        assert_eq!(task, cloned);
+    }
+
+    #[test]
+    fn test_cloud_config_new() {
+        let config = CloudConfig::new("localhost", "8080");
+        assert_eq!(config.host, "localhost");
+        assert_eq!(config.port, "8080");
+    }
+
+    #[test]
+    fn test_cloud_config_clone() {
+        let config = CloudConfig::new("example.com", "443");
+        let cloned = config.clone();
+        assert_eq!(config.host, cloned.host);
+        assert_eq!(config.port, cloned.port);
+    }
+
+    #[test]
+    fn test_exactly_matches_true() {
+        let task = Task {
+            name: "Buy milk".to_string(),
+            done: false,
+        };
+        assert!(exactly_matches(&task, "Buy milk"));
+    }
+
+    #[test]
+    fn test_exactly_matches_false_case() {
+        let task = Task {
+            name: "Buy milk".to_string(),
+            done: false,
+        };
+        assert!(!exactly_matches(&task, "buy milk"));
+    }
+
+    #[test]
+    fn test_exactly_matches_false_different() {
+        let task = Task {
+            name: "Buy milk".to_string(),
+            done: false,
+        };
+        assert!(!exactly_matches(&task, "Buy bread"));
+    }
+
+    #[test]
+    fn test_get_index_found() {
+        let tasks = vec![
+            Task {
+                name: "one".to_string(),
+                done: false,
+            },
+            Task {
+                name: "two".to_string(),
+                done: true,
+            },
+            Task {
+                name: "three".to_string(),
+                done: false,
+            },
+        ];
+        assert_eq!(get_index(&tasks, "two"), Some(1));
+    }
+
+    #[test]
+    fn test_get_index_not_found() {
+        let tasks = vec![Task {
+            name: "one".to_string(),
+            done: false,
+        }];
+        assert_eq!(get_index(&tasks, "two"), None);
+    }
+
+    #[test]
+    fn test_get_index_empty_list() {
+        let tasks: Vec<Task> = vec![];
+        assert_eq!(get_index(&tasks, "any"), None);
+    }
+
+    #[test]
+    fn test_get_index_first_match() {
+        let tasks = vec![
+            Task {
+                name: "duplicate".to_string(),
+                done: false,
+            },
+            Task {
+                name: "duplicate".to_string(),
+                done: true,
+            },
+        ];
+        assert_eq!(get_index(&tasks, "duplicate"), Some(0));
+    }
+
+    #[test]
+    fn test_save_data_new() {
+        let save_data = SaveData::new();
+        assert_eq!(save_data.tasks.len(), 0);
+    }
+
+    #[test]
+    fn test_save_data_add_task() {
+        let mut save_data = SaveData::new();
+        let task = Task {
+            name: "test task".to_string(),
+            done: false,
+        };
+        save_data.add_task(task.clone());
+        assert_eq!(save_data.tasks.len(), 1);
+        assert_eq!(save_data.tasks[0], task);
+    }
+
+    #[test]
+    fn test_save_data_add_multiple_tasks() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task1".to_string(),
+            done: false,
+        });
+        save_data.add_task(Task {
+            name: "task2".to_string(),
+            done: true,
+        });
+        save_data.add_task(Task {
+            name: "task3".to_string(),
+            done: false,
+        });
+        assert_eq!(save_data.tasks.len(), 3);
+        assert_eq!(save_data.tasks[1].name, "task2");
+    }
+
+    #[test]
+    fn test_save_data_get_tasks() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "test".to_string(),
+            done: false,
+        });
+        let tasks = save_data.get_tasks();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].name, "test");
+    }
+
+    #[test]
+    fn test_save_data_get_tasks_mutable() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "test".to_string(),
+            done: false,
+        });
+        let tasks = save_data.get_tasks();
+        tasks[0].done = true;
+        assert!(save_data.tasks[0].done);
+    }
+
+    #[test]
+    fn test_save_data_remove_task() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task1".to_string(),
+            done: false,
+        });
+        save_data.add_task(Task {
+            name: "task2".to_string(),
+            done: false,
+        });
+        save_data.add_task(Task {
+            name: "task3".to_string(),
+            done: false,
+        });
+        save_data.remove_task(1);
+        assert_eq!(save_data.tasks.len(), 2);
+        assert_eq!(save_data.tasks[0].name, "task1");
+        assert_eq!(save_data.tasks[1].name, "task3");
+    }
+
+    #[test]
+    fn test_save_data_mark_task_done() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task".to_string(),
+            done: false,
+        });
+        let was_done = save_data.mark_task_done(0);
+        assert!(!was_done);
+        assert!(save_data.tasks[0].done);
+    }
+
+    #[test]
+    fn test_save_data_mark_task_done_already_done() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task".to_string(),
+            done: true,
+        });
+        let was_done = save_data.mark_task_done(0);
+        assert!(was_done);
+        assert!(save_data.tasks[0].done);
+    }
+
+    #[test]
+    fn test_save_data_mark_task_undone() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task".to_string(),
+            done: true,
+        });
+        let was_undone = save_data.mark_task_undone(0);
+        assert!(!was_undone);
+        assert!(!save_data.tasks[0].done);
+    }
+
+    #[test]
+    fn test_save_data_mark_task_undone_already_undone() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task".to_string(),
+            done: false,
+        });
+        let was_undone = save_data.mark_task_undone(0);
+        assert!(was_undone);
+        assert!(!save_data.tasks[0].done);
+    }
+
+    #[test]
+    fn test_save_data_clear_tasks() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task1".to_string(),
+            done: false,
+        });
+        save_data.add_task(Task {
+            name: "task2".to_string(),
+            done: true,
+        });
+        save_data.clear_tasks();
+        assert_eq!(save_data.tasks.len(), 0);
+    }
+
+    #[test]
+    fn test_save_data_clear_done_tasks() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "undone1".to_string(),
+            done: false,
+        });
+        save_data.add_task(Task {
+            name: "done1".to_string(),
+            done: true,
+        });
+        save_data.add_task(Task {
+            name: "undone2".to_string(),
+            done: false,
+        });
+        save_data.add_task(Task {
+            name: "done2".to_string(),
+            done: true,
+        });
+        save_data.clear_done_tasks();
+        assert_eq!(save_data.tasks.len(), 2);
+        assert_eq!(save_data.tasks[0].name, "undone1");
+        assert_eq!(save_data.tasks[1].name, "undone2");
+    }
+
+    #[test]
+    fn test_save_data_clear_done_tasks_no_done() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task1".to_string(),
+            done: false,
+        });
+        save_data.add_task(Task {
+            name: "task2".to_string(),
+            done: false,
+        });
+        save_data.clear_done_tasks();
+        assert_eq!(save_data.tasks.len(), 2);
+    }
+
+    #[test]
+    fn test_save_data_clear_done_tasks_all_done() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task1".to_string(),
+            done: true,
+        });
+        save_data.add_task(Task {
+            name: "task2".to_string(),
+            done: true,
+        });
+        save_data.clear_done_tasks();
+        assert_eq!(save_data.tasks.len(), 0);
+    }
+
+    #[test]
+    fn test_task_serialization() {
+        let task = Task {
+            name: "test".to_string(),
+            done: true,
+        };
+        let json = serde_json::to_string(&task).unwrap();
+        assert!(json.contains("\"name\""));
+        assert!(json.contains("\"done\""));
+        assert!(json.contains("test"));
+    }
+
+    #[test]
+    fn test_task_deserialization() {
+        let json = r#"{"name":"test task","done":false}"#;
+        let task: Task = serde_json::from_str(json).unwrap();
+        assert_eq!(task.name, "test task");
+        assert!(!task.done);
+    }
+
+    #[test]
+    fn test_cloud_config_serialization() {
+        let config = CloudConfig::new("localhost", "8080");
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("localhost"));
+        assert!(json.contains("8080"));
+    }
+
+    #[test]
+    fn test_cloud_config_deserialization() {
+        let json = r#"{"host":"example.com","port":"443"}"#;
+        let config: CloudConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.host, "example.com");
+        assert_eq!(config.port, "443");
+    }
+
+    #[test]
+    fn test_multiple_operations() {
+        let mut save_data = SaveData::new();
+        save_data.add_task(Task {
+            name: "task1".to_string(),
+            done: false,
+        });
+        save_data.add_task(Task {
+            name: "task2".to_string(),
+            done: false,
+        });
+        save_data.mark_task_done(0);
+        save_data.add_task(Task {
+            name: "task3".to_string(),
+            done: false,
+        });
+        save_data.remove_task(1);
+        assert_eq!(save_data.tasks.len(), 2);
+        assert!(save_data.tasks[0].done);
+        assert_eq!(save_data.tasks[0].name, "task1");
+        assert_eq!(save_data.tasks[1].name, "task3");
+    }
+}

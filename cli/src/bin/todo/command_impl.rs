@@ -223,3 +223,331 @@ pub(crate) fn handle_clear_done(data: &mut Vec<Task>) -> Result<(), CommandError
     println!("clear-done is deprecated. Use clear -d instead.");
     handle_clear(&ClearCommand { done: true }, data)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handle_add_success() {
+        let mut data = Vec::new();
+        let cmd = TasksCommand {
+            tasks: vec!["task1".to_string(), "task2".to_string()],
+        };
+        let result = handle_add(&cmd, &mut data);
+        assert!(result.is_ok());
+        assert_eq!(data.len(), 2);
+        assert_eq!(data[0].name, "task1");
+        assert_eq!(data[1].name, "task2");
+        assert!(!data[0].done);
+        assert!(!data[1].done);
+    }
+
+    #[test]
+    fn test_handle_add_no_tasks() {
+        let mut data = Vec::new();
+        let cmd = TasksCommand { tasks: vec![] };
+        let result = handle_add(&cmd, &mut data);
+        assert!(matches!(result, Err(CommandError::NoTasksSpecified)));
+    }
+
+    #[test]
+    fn test_handle_add_duplicate_input() {
+        let mut data = Vec::new();
+        let cmd = TasksCommand {
+            tasks: vec!["task".to_string(), "task".to_string()],
+        };
+        let result = handle_add(&cmd, &mut data);
+        assert!(matches!(result, Err(CommandError::DuplicateInput { .. })));
+    }
+
+    #[test]
+    fn test_handle_add_task_exists() {
+        let mut data = vec![Task {
+            name: "existing".to_string(),
+            done: false,
+        }];
+        let cmd = TasksCommand {
+            tasks: vec!["existing".to_string()],
+        };
+        let result = handle_add(&cmd, &mut data);
+        assert!(matches!(result, Err(CommandError::TaskExists { .. })));
+    }
+
+    #[test]
+    fn test_handle_remove_success() {
+        let mut data = vec![
+            Task {
+                name: "task1".to_string(),
+                done: false,
+            },
+            Task {
+                name: "task2".to_string(),
+                done: false,
+            },
+            Task {
+                name: "task3".to_string(),
+                done: false,
+            },
+        ];
+        let cmd = TasksCommand {
+            tasks: vec!["task2".to_string()],
+        };
+        let result = handle_remove(&cmd, &mut data);
+        assert!(result.is_ok());
+        assert_eq!(data.len(), 2);
+        assert_eq!(data[0].name, "task1");
+        assert_eq!(data[1].name, "task3");
+    }
+
+    #[test]
+    fn test_handle_remove_no_tasks() {
+        let mut data = Vec::new();
+        let cmd = TasksCommand { tasks: vec![] };
+        let result = handle_remove(&cmd, &mut data);
+        assert!(matches!(result, Err(CommandError::NoTasksSpecified)));
+    }
+
+    #[test]
+    fn test_handle_remove_duplicate_input() {
+        let mut data = vec![Task {
+            name: "task".to_string(),
+            done: false,
+        }];
+        let cmd = TasksCommand {
+            tasks: vec!["task".to_string(), "task".to_string()],
+        };
+        let result = handle_remove(&cmd, &mut data);
+        assert!(matches!(result, Err(CommandError::DuplicateInput { .. })));
+    }
+
+    #[test]
+    fn test_handle_remove_task_not_found() {
+        let mut data = vec![Task {
+            name: "existing".to_string(),
+            done: false,
+        }];
+        let cmd = TasksCommand {
+            tasks: vec!["nonexistent".to_string()],
+        };
+        let result = handle_remove(&cmd, &mut data);
+        assert!(matches!(result, Err(CommandError::TaskNotFound { .. })));
+    }
+
+    #[test]
+    fn test_handle_remove_multiple_tasks() {
+        let mut data = vec![
+            Task {
+                name: "task1".to_string(),
+                done: false,
+            },
+            Task {
+                name: "task2".to_string(),
+                done: false,
+            },
+            Task {
+                name: "task3".to_string(),
+                done: false,
+            },
+        ];
+        let cmd = TasksCommand {
+            tasks: vec!["task1".to_string(), "task3".to_string()],
+        };
+        let result = handle_remove(&cmd, &mut data);
+        assert!(result.is_ok());
+        assert_eq!(data.len(), 1);
+        assert_eq!(data[0].name, "task2");
+    }
+
+    #[test]
+    fn test_handle_list_empty() {
+        let data = vec![];
+        let result = handle_list(&data);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_handle_list_with_tasks() {
+        let data = vec![
+            Task {
+                name: "task1".to_string(),
+                done: false,
+            },
+            Task {
+                name: "task2".to_string(),
+                done: true,
+            },
+        ];
+        let result = handle_list(&data);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_handle_done_undone_mark_done() {
+        let mut data = vec![Task {
+            name: "task".to_string(),
+            done: false,
+        }];
+        let cmd = TasksCommand {
+            tasks: vec!["task".to_string()],
+        };
+        let result = handle_done_undone(&cmd, &mut data, true);
+        assert!(result.is_ok());
+        assert!(data[0].done);
+    }
+
+    #[test]
+    fn test_handle_done_undone_mark_undone() {
+        let mut data = vec![Task {
+            name: "task".to_string(),
+            done: true,
+        }];
+        let cmd = TasksCommand {
+            tasks: vec!["task".to_string()],
+        };
+        let result = handle_done_undone(&cmd, &mut data, false);
+        assert!(result.is_ok());
+        assert!(!data[0].done);
+    }
+
+    #[test]
+    fn test_handle_done_undone_no_tasks() {
+        let mut data = Vec::new();
+        let cmd = TasksCommand { tasks: vec![] };
+        let result = handle_done_undone(&cmd, &mut data, true);
+        assert!(matches!(result, Err(CommandError::NoTasksSpecified)));
+    }
+
+    #[test]
+    fn test_handle_done_undone_duplicate_input() {
+        let mut data = vec![Task {
+            name: "task".to_string(),
+            done: false,
+        }];
+        let cmd = TasksCommand {
+            tasks: vec!["task".to_string(), "task".to_string()],
+        };
+        let result = handle_done_undone(&cmd, &mut data, true);
+        assert!(matches!(result, Err(CommandError::DuplicateInput { .. })));
+    }
+
+    #[test]
+    fn test_handle_done_undone_task_not_found() {
+        let mut data = vec![Task {
+            name: "existing".to_string(),
+            done: false,
+        }];
+        let cmd = TasksCommand {
+            tasks: vec!["nonexistent".to_string()],
+        };
+        let result = handle_done_undone(&cmd, &mut data, true);
+        assert!(matches!(result, Err(CommandError::TaskNotFound { .. })));
+    }
+
+    #[test]
+    fn test_handle_done_undone_multiple_tasks() {
+        let mut data = vec![
+            Task {
+                name: "task1".to_string(),
+                done: false,
+            },
+            Task {
+                name: "task2".to_string(),
+                done: false,
+            },
+            Task {
+                name: "task3".to_string(),
+                done: false,
+            },
+        ];
+        let cmd = TasksCommand {
+            tasks: vec!["task1".to_string(), "task3".to_string()],
+        };
+        let result = handle_done_undone(&cmd, &mut data, true);
+        assert!(result.is_ok());
+        assert!(data[0].done);
+        assert!(!data[1].done);
+        assert!(data[2].done);
+    }
+
+    #[test]
+    fn test_handle_clear_all() {
+        let mut data = vec![
+            Task {
+                name: "task1".to_string(),
+                done: false,
+            },
+            Task {
+                name: "task2".to_string(),
+                done: true,
+            },
+        ];
+        let cmd = ClearCommand { done: false };
+        let result = handle_clear(&cmd, &mut data);
+        assert!(result.is_ok());
+        assert_eq!(data.len(), 0);
+    }
+
+    #[test]
+    fn test_handle_clear_done_only() {
+        let mut data = vec![
+            Task {
+                name: "undone".to_string(),
+                done: false,
+            },
+            Task {
+                name: "done1".to_string(),
+                done: true,
+            },
+            Task {
+                name: "done2".to_string(),
+                done: true,
+            },
+        ];
+        let cmd = ClearCommand { done: true };
+        let result = handle_clear(&cmd, &mut data);
+        assert!(result.is_ok());
+        assert_eq!(data.len(), 1);
+        assert_eq!(data[0].name, "undone");
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_handle_clear_done_deprecated() {
+        let mut data = vec![
+            Task {
+                name: "undone".to_string(),
+                done: false,
+            },
+            Task {
+                name: "done".to_string(),
+                done: true,
+            },
+        ];
+        let result = handle_clear_done(&mut data);
+        assert!(result.is_ok());
+        assert_eq!(data.len(), 1);
+        assert_eq!(data[0].name, "undone");
+    }
+
+    #[test]
+    fn test_handle_add_single_task() {
+        let mut data = Vec::new();
+        let cmd = TasksCommand {
+            tasks: vec!["single".to_string()],
+        };
+        let result = handle_add(&cmd, &mut data);
+        assert!(result.is_ok());
+        assert_eq!(data.len(), 1);
+        assert_eq!(data[0].name, "single");
+    }
+
+    #[test]
+    fn test_handle_clear_empty_list() {
+        let mut data = Vec::new();
+        let cmd = ClearCommand { done: false };
+        let result = handle_clear(&cmd, &mut data);
+        assert!(result.is_ok());
+        assert_eq!(data.len(), 0);
+    }
+}
