@@ -35,6 +35,8 @@ impl Display for ApiError {
 
 #[cfg(test)]
 mod tests {
+    use crate::Client;
+
     use super::*;
 
     #[test]
@@ -61,11 +63,17 @@ mod tests {
         assert_eq!(format!("{}", err), "Server returned HTTP error code 401 Unauthorized");
     }
 
-    #[test]
-    fn test_request_error_display() {
-        let req_err = reqwest::Error::builder(reqwest::StatusCode::OK).url("http://example.com".parse().unwrap()).build();
-        let err = ApiError::RequestError(req_err);
-        assert_eq!(format!("{}", err), "Failed to connect to server");
+    #[tokio::test]
+    async fn test_request_error_display() {
+        let client = Client::new("http://example.invalid".to_string(), None);
+        let result = client.get().await;
+        assert!(result.is_err());
+        let req_err = result.unwrap_err();
+        if let ApiError::RequestError(_) = req_err {
+            assert_eq!(format!("{}", req_err), "Failed to connect to server");
+        } else {
+            panic!("API error is not a RequestError");
+        }
     }
 
     #[test]
@@ -97,3 +105,4 @@ mod tests {
         }
     }
 }
+
