@@ -61,8 +61,8 @@ impl Command {
     ///
     /// When `client` is `None`, the command operates on the provided mutable `data` (local handlers).
     /// When `client` is `Some`, the command is routed to the cloud client (cloud handlers). Connect and
-    /// Disconnect are handled without requiring an active client; Disconnect returns an `UnlinkedError`
-    /// if no client is connected.
+    /// Connect and Disconnect are handled without requiring an active client; Disconnect delegates to
+    /// `handle_disconnect()` and returns `UnlinkedError` when no saved cloud configuration exists.
     ///
     /// # Returns
     ///
