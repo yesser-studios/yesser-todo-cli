@@ -223,11 +223,7 @@ impl SaveData {
     }
 
     pub fn save_tasks(&self) -> Result<(), DatabaseError> {
-        let app_dirs = match AppDirs::new(Some("todo"), true) {
-            Some(them) => them,
-            None => return Err(DatabaseError::UserDirsError),
-        };
-        let data_file_path = app_dirs.data_dir.join("todos.json");
+        let (app_dirs, data_file_path) = SaveData::get_data_paths()?;
 
         fs::create_dir_all(&app_dirs.data_dir)?;
 

@@ -1,11 +1,14 @@
-use std::fmt::Display;
-
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum DatabaseError {
+    #[error("A JSON deserialization error occured: {0}")]
     JsonError(serde_json::Error),
+
+    #[error("An error occurred while writing to config file or directory: {0}")]
     IOError(std::io::Error),
+
+    #[error("Could not get user config directory location")]
     UserDirsError,
 }
 
@@ -18,15 +21,5 @@ impl From<serde_json::Error> for DatabaseError {
 impl From<std::io::Error> for DatabaseError {
     fn from(err: std::io::Error) -> Self {
         Self::IOError(err)
-    }
-}
-
-impl Display for DatabaseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DatabaseError::JsonError(error) => write!(f, "A JSON Deserialization error occurred: {error}"),
-            DatabaseError::IOError(error) => write!(f, "An error occurred while writing to config file or directory: {error}"),
-            DatabaseError::UserDirsError => write!(f, "Could not get user config directory location"),
-        }
     }
 }

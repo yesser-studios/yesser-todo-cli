@@ -30,18 +30,18 @@ impl Display for CommandError {
             CommandError::DuplicateInput { name } => write!(f, "Task {name} was specified multiple times!"),
             CommandError::DataError { what, err } => write!(f, "Unable to save {what}: {err}!"),
             CommandError::HTTPError { name, status_code } => {
-                write!(
-                    f,
-                    "HTTP error code {status_code}{}!",
-                    if name.is_empty() { "".into() } else { format!(" for task {name}") }
-                )
+                if name.is_empty() {
+                    write!(f, "HTTP error code: {status_code}!")
+                } else {
+                    write!(f, "HTTP error code: {status_code} for task {name}")
+                }
             }
             CommandError::ConnectionError { name } => {
-                write!(
-                    f,
-                    "Failed to connect to the server{}!",
-                    if name.is_empty() { "".into() } else { format!(" for task {name}") }
-                )
+                if name.is_empty() {
+                    write!(f, "Failed to connect to the server!")
+                } else {
+                    write!(f, "Failed to connect to the server for task {name}")
+                }
             }
             CommandError::UnlinkedError => write!(f, "You're already unlinked!"),
         }

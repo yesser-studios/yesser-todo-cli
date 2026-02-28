@@ -228,10 +228,8 @@ pub async fn get_index(Json(name): Json<String>) -> (StatusCode, Json<usize>) {
     let mut save_data = SaveData::new();
     let _ = save_data.load_tasks();
     let result = yesser_todo_db::get_index(save_data.get_tasks(), &name);
-    save_data.save_tasks().unwrap();
     match result {
         None => (StatusCode::NOT_FOUND, Json(0)),
         Some(result) => (StatusCode::OK, Json(result)),
     }
 }
-

@@ -30,7 +30,7 @@ pub(crate) fn handle_add(command: &TasksCommand, data: &mut Vec<Task>) -> Result
 }
 
 pub(crate) fn handle_remove(command: &TasksCommand, data: &mut Vec<Task>) -> Result<(), CommandError> {
-    if command.tasks.len() <= 0 {
+    if command.tasks.is_empty() {
         return Err(CommandError::NoTasksSpecified);
     }
 
@@ -65,7 +65,7 @@ pub(crate) fn handle_list(data: &[Task]) -> Result<(), CommandError> {
 }
 
 pub(crate) fn handle_done_undone(command: &TasksCommand, data: &mut Vec<Task>, done: bool) -> Result<(), CommandError> {
-    if command.tasks.len() <= 0 {
+    if command.tasks.is_empty() {
         return Err(CommandError::NoTasksSpecified);
     }
 
