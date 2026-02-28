@@ -7,6 +7,7 @@ pub(crate) enum CommandError {
     NoTasksSpecified,
     TaskExists { name: String },
     TaskNotFound { name: String },
+    DuplicateInput { name: String },
     DataError { what: String },
     HTTPError { name: String, status_code: u16 },
     ConnectionError { name: String },
@@ -25,6 +26,7 @@ impl Display for CommandError {
             CommandError::NoTasksSpecified => write!(f, "No tasks specified!"),
             CommandError::TaskExists { name } => write!(f, "Task {name} already exists!"),
             CommandError::TaskNotFound { name } => write!(f, "Task {name} not found!"),
+            CommandError::DuplicateInput { name } => write!(f, "Task {name} was specified multiple times!"),
             CommandError::DataError { what } => write!(f, "Unable to save {what}!"),
             CommandError::HTTPError { name, status_code } => {
                 write!(

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{args::ClearCommand, utils::DONE_STYLE};
 use yesser_todo_db::{Task, get_index};
 
@@ -8,8 +10,11 @@ pub(crate) fn handle_add(command: &TasksCommand, data: &mut Vec<Task>) -> Result
         return Err(CommandError::NoTasksSpecified);
     }
 
+    let mut seen = HashSet::new();
     for task in &command.tasks {
-        if data.iter().any(|x| x.name == task.as_str()) {
+        if !seen.insert(task.as_str()) {
+            return Err(CommandError::DuplicateInput { name: task.clone() });
+        } else if data.iter().any(|x| x.name == task.as_str()) {
             return Err(CommandError::TaskExists { name: task.clone() });
         }
     }
@@ -29,8 +34,11 @@ pub(crate) fn handle_remove(command: &TasksCommand, data: &mut Vec<Task>) -> Res
         return Err(CommandError::NoTasksSpecified);
     }
 
+    let mut seen = HashSet::new();
     for task in &command.tasks {
-        if get_index(data, task).is_none() {
+        if !seen.insert(task.as_str()) {
+            return Err(CommandError::DuplicateInput { name: task.clone() });
+        } else if get_index(data, task).is_none() {
             return Err(CommandError::TaskNotFound { name: task.clone() });
         }
     }
@@ -61,8 +69,11 @@ pub(crate) fn handle_done_undone(command: &TasksCommand, data: &mut Vec<Task>, d
         return Err(CommandError::NoTasksSpecified);
     }
 
+    let mut seen = HashSet::new();
     for task in &command.tasks {
-        if get_index(data, task).is_none() {
+        if !seen.insert(task.as_str()) {
+            return Err(CommandError::DuplicateInput { name: task.clone() });
+        } else if get_index(data, task).is_none() {
             return Err(CommandError::TaskNotFound { name: task.clone() });
         }
     }

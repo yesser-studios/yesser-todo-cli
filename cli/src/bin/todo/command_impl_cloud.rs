@@ -1,4 +1,4 @@
-use std::io::ErrorKind;
+use std::{collections::HashSet, io::ErrorKind};
 
 use yesser_todo_api::{Client, DEFAULT_PORT, api_error::ApiError};
 use yesser_todo_db::SaveData;
@@ -34,7 +34,11 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
         return Err(CommandError::NoTasksSpecified);
     }
 
+    let mut seen = HashSet::new();
     for task in &command.tasks {
+        if !seen.insert(task.as_str()) {
+            return Err(CommandError::DuplicateInput { name: task.clone() });
+        }
         match check_exists_cloud(task, client).await {
             Ok(true) => return Err(CommandError::TaskExists { name: task.clone() }),
             Ok(false) => {}
@@ -65,7 +69,11 @@ pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Cli
         return Err(CommandError::NoTasksSpecified);
     }
 
+    let mut seen = HashSet::new();
     for task in &command.tasks {
+        if !seen.insert(task.as_str()) {
+            return Err(CommandError::DuplicateInput { name: task.clone() });
+        }
         match check_exists_cloud(task, client).await {
             Ok(true) => {}
             Ok(false) => return Err(CommandError::TaskNotFound { name: task.clone() }),
@@ -126,7 +134,11 @@ pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mu
         return Err(CommandError::NoTasksSpecified);
     }
 
+    let mut seen = HashSet::new();
     for task in &command.tasks {
+        if !seen.insert(task.as_str()) {
+            return Err(CommandError::DuplicateInput { name: task.clone() });
+        }
         match check_exists_cloud(task, client).await {
             Ok(true) => {}
             Ok(false) => return Err(CommandError::TaskNotFound { name: task.clone() }),
