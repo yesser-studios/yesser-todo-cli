@@ -34,7 +34,7 @@ impl CommandError {
 }
 
 impl Display for CommandError {
-    /// Produates a human-readable, user-facing message for each `CommandError` variant.
+    /// Produces a human-readable, user-facing message for each `CommandError` variant.
     ///
     /// # Examples
     ///
