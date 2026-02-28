@@ -4,12 +4,12 @@ use yesser_todo_db::{Task, get_index};
 use crate::{args::TasksCommand, command_error::CommandError};
 
 pub(crate) fn handle_add(command: &TasksCommand, data: &mut Vec<Task>) -> Result<(), CommandError> {
-    if command.tasks.len() <= 0 {
+    if command.tasks.is_empty() {
         return Err(CommandError::NoTasksSpecified);
     }
 
     for task in &command.tasks {
-        if data.iter().find(|x| x.name == task.as_str()).is_some() {
+        if data.iter().any(|x| x.name == task.as_str()) {
             return Err(CommandError::TaskExists { name: task.clone() });
         }
     }
@@ -43,7 +43,7 @@ pub(crate) fn handle_remove(command: &TasksCommand, data: &mut Vec<Task>) -> Res
     Ok(())
 }
 
-pub(crate) fn handle_list(data: &Vec<Task>) -> Result<(), CommandError> {
+pub(crate) fn handle_list(data: &[Task]) -> Result<(), CommandError> {
     println!("\nCurrent tasks:");
     for task in data {
         if task.done {

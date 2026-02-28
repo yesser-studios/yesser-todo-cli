@@ -1,6 +1,6 @@
 use std::io::ErrorKind;
 
-use yesser_todo_api::{Client, api_error::ApiError};
+use yesser_todo_api::{Client, DEFAULT_PORT, api_error::ApiError};
 use yesser_todo_db::SaveData;
 
 use crate::{
@@ -184,10 +184,7 @@ pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), C
 
 pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError> {
     let result = match &command.port {
-        None => {
-            let client = Client::new("".to_string(), None);
-            SaveData::save_cloud_config(&command.host, &client.port)
-        }
+        None => SaveData::save_cloud_config(&command.host, DEFAULT_PORT),
         Some(port) => SaveData::save_cloud_config(&command.host, port),
     };
 

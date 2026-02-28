@@ -5,6 +5,8 @@ use yesser_todo_db::Task;
 
 use crate::api_error::ApiError;
 
+pub const DEFAULT_PORT: &str = "6982";
+
 pub struct Client {
     pub hostname: String,
     pub port: String,
@@ -22,14 +24,14 @@ impl Client {
     /// # use yesser_todo_api::Client;
     ///
     /// let c = Client::new("http://127.0.0.1".to_string(), None);
-    /// assert_eq!(c.hostname, "http://127.0.0.1");
-    /// assert_eq!(c.port, "6982");
+    /// # assert_eq!(c.hostname, "http://127.0.0.1");
+    /// # assert_eq!(c.port, DEFAULT_PORT);
     /// ```
     pub fn new(hostname: String, port: Option<String>) -> Client {
         match port {
             None => Client {
                 hostname,
-                port: "6982".to_string(),
+                port: DEFAULT_PORT.to_string(),
                 client: reqwest::Client::new(),
             },
             Some(port) => Client {
