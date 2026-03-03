@@ -2,7 +2,6 @@ use clap::{Args, Parser, Subcommand};
 use yesser_todo_api::Client;
 use yesser_todo_db::Task;
 
-use crate::command_error::CommandError::UnlinkedError;
 use crate::command_impl::*;
 use crate::command_impl_cloud::*;
 
