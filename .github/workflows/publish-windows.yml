@@ -21,6 +21,7 @@ jobs:
         uses: hecrj/setup-rust-action@v2.0.1
 
       - name: Build
+        shell: bash
         run: |
           cd cli
           TAG="${{ github.ref_name }}"
