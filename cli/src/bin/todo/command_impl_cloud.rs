@@ -371,9 +371,13 @@ pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), C
 /// let _ = handle_connect(&cmd).unwrap();
 /// ```
 pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError> {
+    let host = command.host;
+    if !command.host.contains("://") {
+        let host = format!("http://{}", command.host);
+    }
     let result = match &command.port {
-        None => SaveData::save_cloud_config(&command.host, DEFAULT_PORT),
-        Some(port) => SaveData::save_cloud_config(&command.host, port),
+        None => SaveData::save_cloud_config(&host, DEFAULT_PORT),
+        Some(port) => SaveData::save_cloud_config(&host, port),
     };
 
     match result {
