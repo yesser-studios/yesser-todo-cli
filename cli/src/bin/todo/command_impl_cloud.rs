@@ -420,19 +420,27 @@ pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
 pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError> {
     let url = parse_url(&command.host)?;
 
-    let port: &str = match (url.port(), command.port.as_deref()) {
-        (Some(url_port), Some(cmd_port))
-            if url_port
-                != cmd_port.parse::<u16>().map_err(|_| CommandError::InvalidUrlError {
-                    why: "Port specified in --port is invalid!".to_string(),
-                })? =>
-        {
+    let cmd_port = if let Some(cmd_port) = &command.port {
+        Some(
+            cmd_port
+                .parse::<u16>()
+                .map_err(|_| CommandError::InvalidUrlError {
+                    why: "The port specified in the <PORT> parameter is invalid!".to_string(),
+                })?
+                .to_string(),
+        )
+    } else {
+        None
+    };
+
+    let port: &str = match (url.port(), cmd_port) {
+        (Some(url_port), Some(cmd_port)) if url_port.to_string() != cmd_port => {
             return Err(CommandError::InvalidUrlError {
                 why: "Port in URL and --port flag do not match!".to_string(),
             });
         }
         (Some(url_port), _) => &url_port.to_string(),
-        (None, Some(cmd_port)) => cmd_port,
+        (None, Some(cmd_port)) => &cmd_port.clone(),
         (None, None) => DEFAULT_PORT,
     };
 
