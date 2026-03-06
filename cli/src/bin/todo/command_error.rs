@@ -12,6 +12,7 @@ pub(crate) enum CommandError {
     DataError { what: String, err: DatabaseError },
     HTTPError { name: String, status_code: u16 },
     ConnectionError { name: String },
+    InvalidUrlError { why: String },
     UnlinkedError,
 }
 
@@ -34,7 +35,7 @@ impl CommandError {
 }
 
 impl Display for CommandError {
-    /// Produces a human-readable, user-facing message for each `CommandError` variant.
+    /// Format the error as a concise, user-facing message.
     ///
     /// # Examples
     ///
@@ -45,6 +46,7 @@ impl Display for CommandError {
     ///     format!("{}", CommandError::TaskNotFound { name: "foo".into() }),
     ///     "Task foo not found!"
     /// );
+    ///
     /// assert_eq!(
     ///     format!("{}", CommandError::NoTasksSpecified),
     ///     "No tasks specified!"
@@ -71,6 +73,9 @@ impl Display for CommandError {
                     write!(f, "Failed to connect to the server for task {name}")
                 }
             }
+            Self::InvalidUrlError { why } => {
+                write!(f, "Invalid URL: {why}")
+            }
             CommandError::UnlinkedError => write!(f, "You're already unlinked!"),
         }
     }
@@ -88,25 +93,19 @@ mod tests {
 
     #[test]
     fn test_task_exists_display() {
-        let err = CommandError::TaskExists {
-            name: "test task".to_string(),
-        };
+        let err = CommandError::TaskExists { name: "test task".to_string() };
         assert_eq!(format!("{}", err), "Task test task already exists!");
     }
 
     #[test]
     fn test_task_not_found_display() {
-        let err = CommandError::TaskNotFound {
-            name: "missing".to_string(),
-        };
+        let err = CommandError::TaskNotFound { name: "missing".to_string() };
         assert_eq!(format!("{}", err), "Task missing not found!");
     }
 
     #[test]
     fn test_duplicate_input_display() {
-        let err = CommandError::DuplicateInput {
-            name: "duplicate".to_string(),
-        };
+        let err = CommandError::DuplicateInput { name: "duplicate".to_string() };
         assert_eq!(format!("{}", err), "Task duplicate was specified multiple times!");
     }
 
@@ -142,9 +141,7 @@ mod tests {
 
     #[test]
     fn test_connection_error_with_name() {
-        let err = CommandError::ConnectionError {
-            name: "test-task".to_string(),
-        };
+        let err = CommandError::ConnectionError { name: "test-task".to_string() };
         assert_eq!(format!("{}", err), "Failed to connect to the server for task test-task");
     }
 
@@ -210,5 +207,41 @@ mod tests {
         let display = format!("{}", err);
         assert!(display.contains("Unable to save config"));
         assert!(display.contains("access denied"));
+    }
+
+    #[test]
+    fn test_invalid_url_error_display() {
+        let err = CommandError::InvalidUrlError {
+            why: "scheme is not http or https".to_string(),
+        };
+        assert_eq!(format!("{}", err), "Invalid URL: scheme is not http or https");
+    }
+
+    #[test]
+    fn test_invalid_url_error_with_empty_reason() {
+        let err = CommandError::InvalidUrlError {
+            why: String::new(),
+        };
+        assert_eq!(format!("{}", err), "Invalid URL: ");
+    }
+
+    #[test]
+    fn test_invalid_url_error_with_multiline_reason() {
+        let err = CommandError::InvalidUrlError {
+            why: "invalid scheme\nHelp: use http or https".to_string(),
+        };
+        let display = format!("{}", err);
+        assert!(display.contains("Invalid URL: invalid scheme"));
+        assert!(display.contains("Help: use http or https"));
+    }
+
+    #[test]
+    fn test_invalid_url_error_debug() {
+        let err = CommandError::InvalidUrlError {
+            why: "test".to_string(),
+        };
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("InvalidUrlError"));
+        assert!(debug_str.contains("test"));
     }
 }

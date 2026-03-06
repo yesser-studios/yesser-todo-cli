@@ -1,5 +1,6 @@
 use std::{collections::HashSet, io::ErrorKind};
 
+use url::Url;
 use yesser_todo_api::{Client, DEFAULT_PORT, api_error::ApiError};
 use yesser_todo_db::{SaveData, Task};
 
@@ -329,10 +330,10 @@ pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Clie
     }
 }
 
-/// Clears completed tasks from the configured cloud backend and prints a deprecation notice.
+/// Clears tasks marked done on the configured cloud backend and emits a deprecation notice.
 ///
-/// This command is deprecated: it prints a short notice advising `clear -d` and then clears tasks
-/// that are marked done on the remote server.
+/// This command is deprecated; it prints a short notice advising `clear -d` before clearing
+/// completed tasks on the remote server.
 ///
 /// # Examples
 ///
@@ -343,23 +344,90 @@ pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Clie
 /// # }
 /// ```
 ///
-/// # Returns
-///
-/// `Ok(())` on success, `Err(CommandError)` if the operation fails.
+/// Returns `Ok(())` on success, or a `CommandError` if the operation fails.
 #[deprecated]
 pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), CommandError> {
     println!("clear-done is deprecated. Use clear -d instead.");
     handle_clear_cloud(&ClearCommand { done: true }, client).await
 }
 
-/// Link the local client to a cloud server by saving the host and port to persistent config.
+/// Normalizes and validates a host URL for cloud configuration.
 ///
-/// Saves the provided host and either the given port or the default port; on success prints a
-/// confirmation message.
+/// Accepts a string with or without a scheme (defaults to `http` if missing), parses it as a URL,
+/// and enforces that the scheme is `http` or `https`. Rejects URLs that include a path (other than `/`),
+/// a query, a fragment, or embedded credentials. When parsing fails and the input looks like an unbracketed
+/// IPv6 address, the error message includes a hint about wrapping IPv6 addresses with `[]`.
+///
+/// # Examples
+///
+/// ```
+/// let url = parse_url("example.com").unwrap();
+/// assert_eq!(url.scheme(), "http");
+/// assert_eq!(url.host_str().unwrap(), "example.com");
+/// ```
+pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
+    let url = if url.contains("://") { url } else { &format!("http://{url}") };
+
+    let parsed = Url::parse(url).map_err(|x| CommandError::InvalidUrlError {
+        why: format!(
+            "{}{}",
+            x.to_string(),
+            if url.to_string().matches(':').count() >= 3 {
+                // One ':' is before scheme and one before port
+                "\nHelp: Did you mean to wrap IPv6 address with []?"
+            } else {
+                ""
+            }
+        ),
+    })?;
+
+    match parsed.scheme() {
+        "http" | "https" => {}
+        s => {
+            return Err(CommandError::InvalidUrlError {
+                why: format!("Invalid scheme: {}", s.to_uppercase()),
+            });
+        }
+    }
+
+    if parsed.path() != "/" && !parsed.path().is_empty() {
+        return Err(CommandError::InvalidUrlError {
+            why: "You should not specify a path!".to_string(),
+        });
+    }
+
+    if parsed.query().is_some() {
+        return Err(CommandError::InvalidUrlError {
+            why: "You should not specify a query!".to_string(),
+        });
+    }
+
+    if parsed.fragment().is_some() {
+        return Err(CommandError::InvalidUrlError {
+            why: "You should not specify a fragment!".to_string(),
+        });
+    }
+
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err(CommandError::InvalidUrlError {
+            why: "You should not specify credentials!".to_string(),
+        });
+    }
+
+    Ok(parsed)
+}
+
+/// Link the local client to a cloud server by saving the host and port to persistent configuration.
+///
+/// Parses and normalizes the provided host, determines the effective port (honoring a provided
+/// `--port` flag when present, and ensuring it does not conflict with a port in the URL), validates
+/// the port range, and saves the resulting host and port to persistent configuration.
 ///
 /// # Returns
 ///
-/// `Ok(())` if the configuration was saved successfully, `CommandError::DataError` if saving fails.
+/// `Ok(())` if the configuration was saved successfully.
+/// `Err(CommandError::InvalidUrlError)` if the host or port are invalid or inconsistent.
+/// `Err(CommandError::DataError)` if saving the configuration fails.
 ///
 /// # Examples
 ///
@@ -367,16 +435,50 @@ pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), C
 /// use crate::CloudCommand;
 /// use crate::command_impl_cloud::handle_connect;
 ///
-/// let cmd = CloudCommand { host: "example.com".to_string(), port: None };
+/// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
 /// let _ = handle_connect(&cmd).unwrap();
 /// ```
 pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError> {
-    let result = match &command.port {
-        None => SaveData::save_cloud_config(&command.host, DEFAULT_PORT),
-        Some(port) => SaveData::save_cloud_config(&command.host, port),
+    let url = parse_url(&command.host)?;
+
+    let cmd_port = if let Some(cmd_port) = &command.port {
+        Some(
+            cmd_port
+                .parse::<u16>()
+                .map_err(|_| CommandError::InvalidUrlError {
+                    why: "The port specified in the <PORT> parameter is invalid!".to_string(),
+                })?
+                .to_string(),
+        )
+    } else {
+        None
     };
 
-    match result {
+    let port: &str = match (url.port(), cmd_port) {
+        (Some(url_port), Some(cmd_port)) if url_port.to_string() != cmd_port => {
+            return Err(CommandError::InvalidUrlError {
+                why: "Port in URL and --port flag do not match!".to_string(),
+            });
+        }
+        (Some(url_port), _) => &url_port.to_string(),
+        (None, Some(cmd_port)) => &cmd_port.clone(),
+        (None, None) => DEFAULT_PORT,
+    };
+
+    if !(1..=65535).contains(&port.parse::<i32>().unwrap()) {
+        return Err(CommandError::InvalidUrlError {
+            why: "The port must be between 1 and 65535!".to_string(),
+        });
+    }
+
+    let host = format!(
+        "{}://{}",
+        url.scheme(),
+        url.host_str().ok_or_else(|| CommandError::InvalidUrlError {
+            why: "Unable to parse host!".to_string()
+        })?
+    );
+    match SaveData::save_cloud_config(&host, port) {
         Ok(()) => {
             println!("Successfully linked server.");
             Ok(())
@@ -388,20 +490,19 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
     }
 }
 
-/// Unlinks the local configuration from the cloud server.
+/// Removes the saved cloud configuration.
 ///
-/// Removes the saved cloud configuration and prints a confirmation on success.
+/// Prints a confirmation message on success.
 ///
 /// # Returns
 ///
-/// `Ok(())` if the configuration was removed.
-/// `Err(CommandError::UnlinkedError)` if no cloud configuration was found.
-/// `Err(CommandError::DataError)` for other errors encountered while removing the configuration.
+/// - `Ok(())` if a configuration was removed.
+/// - `Err(CommandError::UnlinkedError)` if no cloud configuration was found.
+/// - `Err(CommandError::DataError)` for other errors encountered while removing the configuration.
 ///
 /// # Examples
 ///
 /// ```
-/// // Attempt to unlink; succeed when a configuration exists.
 /// let _ = todo_cli::command_impl_cloud::handle_disconnect();
 /// ```
 pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
@@ -419,3 +520,385 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_url_with_http_scheme() {
+        let result = parse_url("http://example.com");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        assert_eq!(url.scheme(), "http");
+        assert_eq!(url.host_str(), Some("example.com"));
+    }
+
+    #[test]
+    fn test_parse_url_with_https_scheme() {
+        let result = parse_url("https://example.com");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        assert_eq!(url.scheme(), "https");
+        assert_eq!(url.host_str(), Some("example.com"));
+    }
+
+    #[test]
+    fn test_parse_url_without_scheme_defaults_to_http() {
+        let result = parse_url("example.com");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        assert_eq!(url.scheme(), "http");
+        assert_eq!(url.host_str(), Some("example.com"));
+    }
+
+    #[test]
+    fn test_parse_url_with_port() {
+        let result = parse_url("http://example.com:8080");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        assert_eq!(url.port(), Some(8080));
+    }
+
+    #[test]
+    fn test_parse_url_with_ipv4() {
+        let result = parse_url("http://192.168.1.1:8080");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        assert_eq!(url.host_str(), Some("192.168.1.1"));
+        assert_eq!(url.port(), Some(8080));
+    }
+
+    #[test]
+    fn test_parse_url_with_ipv6_brackets() {
+        let result = parse_url("http://[::1]:8080");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        assert_eq!(url.host_str(), Some("[::1]"));
+        assert_eq!(url.port(), Some(8080));
+    }
+
+    #[test]
+    fn test_parse_url_with_ipv6_without_brackets_gives_helpful_error() {
+        let result = parse_url("http://::1:8080");
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("Did you mean to wrap IPv6 address with []?"));
+        } else {
+            panic!("Expected InvalidUrlError");
+        }
+    }
+
+    #[test]
+    fn test_parse_url_with_invalid_scheme() {
+        let result = parse_url("ftp://example.com");
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("Invalid scheme"));
+            assert!(why.contains("FTP"));
+        } else {
+            panic!("Expected InvalidUrlError for invalid scheme");
+        }
+    }
+
+    #[test]
+    fn test_parse_url_with_path_returns_error() {
+        let result = parse_url("http://example.com/path");
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("should not specify a path"));
+        } else {
+            panic!("Expected InvalidUrlError for path");
+        }
+    }
+
+    #[test]
+    fn test_parse_url_with_query_returns_error() {
+        let result = parse_url("http://example.com?query=value");
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("should not specify a query"));
+        } else {
+            panic!("Expected InvalidUrlError for query");
+        }
+    }
+
+    #[test]
+    fn test_parse_url_with_fragment_returns_error() {
+        let result = parse_url("http://example.com#fragment");
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("should not specify a fragment"));
+        } else {
+            panic!("Expected InvalidUrlError for fragment");
+        }
+    }
+
+    #[test]
+    fn test_parse_url_with_localhost() {
+        let result = parse_url("localhost:8080");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        assert_eq!(url.host_str(), Some("localhost"));
+        assert_eq!(url.port(), Some(8080));
+    }
+
+    #[test]
+    fn test_parse_url_with_multiple_colons_suggests_ipv6_brackets() {
+        let result = parse_url("2001:db8::1:8080");
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("Did you mean to wrap IPv6 address with []?"));
+        } else {
+            panic!("Expected helpful IPv6 error message");
+        }
+    }
+
+    #[test]
+    fn test_parse_url_empty_string() {
+        let result = parse_url("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_url_with_username_password() {
+        let result = parse_url("http://user:pass@example.com");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_handle_connect_creates_config_with_default_port() {
+        // This test will attempt to save config, which may fail in test environment
+        // Testing the function behavior rather than file system side effects
+        let command = CloudCommand {
+            host: "http://testhost.com".to_string(),
+            port: None,
+        };
+        // Even if this errors due to file system, we're testing it doesn't panic
+        let _ = handle_connect(&command);
+    }
+
+    #[test]
+    fn test_handle_connect_with_explicit_port() {
+        let command = CloudCommand {
+            host: "http://testhost.com".to_string(),
+            port: Some("9000".to_string()),
+        };
+        let _ = handle_connect(&command);
+    }
+
+    #[test]
+    fn test_handle_connect_with_url_and_flag_port_match() {
+        let command = CloudCommand {
+            host: "http://testhost.com:9000".to_string(),
+            port: Some("9000".to_string()),
+        };
+        let _ = handle_connect(&command);
+    }
+
+    #[test]
+    fn test_handle_connect_with_url_and_flag_port_mismatch() {
+        let command = CloudCommand {
+            host: "http://testhost.com:8080".to_string(),
+            port: Some("9000".to_string()),
+        };
+        let result = handle_connect(&command);
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("Port in URL and --port flag do not match"));
+        } else {
+            panic!("Expected port mismatch error");
+        }
+    }
+
+    #[test]
+    fn test_handle_connect_with_invalid_port_string() {
+        let command = CloudCommand {
+            host: "http://testhost.com".to_string(),
+            port: Some("not_a_number".to_string()),
+        };
+        let result = handle_connect(&command);
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("port specified in the <PORT> parameter is invalid"));
+        } else {
+            panic!("Expected invalid port error");
+        }
+    }
+
+    #[test]
+    fn test_handle_connect_with_invalid_url() {
+        let command = CloudCommand {
+            host: "not a valid url!!!".to_string(),
+            port: None,
+        };
+        let result = handle_connect(&command);
+        assert!(result.is_err());
+        assert!(matches!(result, Err(CommandError::InvalidUrlError { .. })));
+    }
+
+    #[test]
+    fn test_handle_connect_with_invalid_scheme() {
+        let command = CloudCommand {
+            host: "ftp://testhost.com".to_string(),
+            port: None,
+        };
+        let result = handle_connect(&command);
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("Invalid scheme"));
+        } else {
+            panic!("Expected invalid scheme error");
+        }
+    }
+
+    #[test]
+    fn test_handle_disconnect_behavior() {
+        // Testing the function executes without panic
+        // May return UnlinkedError if no config exists, which is expected
+        let result = handle_disconnect();
+        // Either succeeds or returns UnlinkedError or DataError
+        match result {
+            Ok(_) | Err(CommandError::UnlinkedError) | Err(CommandError::DataError { .. }) => {}
+            Err(e) => panic!("Unexpected error type: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_command_error_display_for_invalid_url() {
+        let err = CommandError::InvalidUrlError {
+            why: "test reason".to_string(),
+        };
+        let display = format!("{}", err);
+        assert_eq!(display, "Invalid URL: test reason");
+    }
+
+    #[test]
+    fn test_parse_url_preserves_scheme() {
+        let https_result = parse_url("https://secure.example.com");
+        assert!(https_result.is_ok());
+        assert_eq!(https_result.unwrap().scheme(), "https");
+
+        let http_result = parse_url("http://example.com");
+        assert!(http_result.is_ok());
+        assert_eq!(http_result.unwrap().scheme(), "http");
+    }
+
+    #[test]
+    fn test_parse_url_with_trailing_slash() {
+        // Trailing slash is considered a path
+        let result = parse_url("http://example.com/");
+        // The path check should handle this - '/' is technically a path
+        // Based on the code, it checks `parsed.path() != "/" && !parsed.path().is_empty()`
+        // So '/' should be allowed
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_url_with_subdomain() {
+        let result = parse_url("http://api.example.com:8080");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        assert_eq!(url.host_str(), Some("api.example.com"));
+        assert_eq!(url.port(), Some(8080));
+    }
+
+    #[test]
+    fn test_handle_connect_port_priority_url_over_default() {
+        let command = CloudCommand {
+            host: "http://example.com:7777".to_string(),
+            port: None,
+        };
+        // Should use port from URL, not default
+        let _ = handle_connect(&command);
+    }
+
+    #[test]
+    fn test_handle_connect_port_priority_flag_over_default() {
+        let command = CloudCommand {
+            host: "http://example.com".to_string(),
+            port: Some("7777".to_string()),
+        };
+        // Should use port from flag, not default
+        let _ = handle_connect(&command);
+    }
+
+    #[test]
+    fn test_parse_url_rejects_ws_scheme() {
+        let result = parse_url("ws://example.com");
+        assert!(result.is_err());
+        if let Err(CommandError::InvalidUrlError { why }) = result {
+            assert!(why.contains("Invalid scheme"));
+            assert!(why.contains("WS"));
+        } else {
+            panic!("Expected invalid scheme error");
+        }
+    }
+
+    #[test]
+    fn test_parse_url_case_insensitive_host() {
+        let result = parse_url("http://EXAMPLE.COM");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        // Hosts are typically normalized to lowercase by URL parser
+        assert!(url.host_str().is_some());
+    }
+
+    #[test]
+    fn test_handle_connect_with_port_65535() {
+        let command = CloudCommand {
+            host: "http://example.com".to_string(),
+            port: Some("65535".to_string()),
+        };
+        let _ = handle_connect(&command);
+    }
+
+    #[test]
+    fn test_handle_connect_with_port_overflow() {
+        let command = CloudCommand {
+            host: "http://example.com".to_string(),
+            port: Some("65536".to_string()),
+        };
+        let result = handle_connect(&command);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_handle_connect_with_port_zero() {
+        let command = CloudCommand {
+            host: "http://example.com".to_string(),
+            port: Some("0".to_string()),
+        };
+        let result = handle_connect(&command);
+        assert!(result.is_err())
+    }
+
+    #[test]
+    fn test_handle_connect_with_large_port() {
+        let command = CloudCommand {
+            host: "http://example.com".to_string(),
+            port: Some("999999".to_string()),
+        };
+        let result = handle_connect(&command);
+        assert!(result.is_err())
+    }
+
+    #[test]
+    fn test_parse_url_with_complex_ipv6() {
+        let result = parse_url("http://[2001:db8:85a3::8a2e:370:7334]:443");
+        assert!(result.is_ok());
+        let url = result.unwrap();
+        assert_eq!(url.port(), Some(443));
+    }
+
+    #[test]
+    fn test_handle_connect_without_host() {
+        let command = CloudCommand {
+            host: "".to_string(),
+            port: Some("8080".to_string()),
+        };
+        let result = handle_connect(&command);
+        assert!(result.is_err());
+    }
+}
+

@@ -21,6 +21,7 @@ yesser-todo-db = "2"
 yesser-todo-api = "2"
 tokio = { version = "1", features = ["full"] }
 thiserror = "2"
+url = "2"
 
 # yesser-todo-db = {path = "../db"}
 # yesser-todo-api = {path = "../api"}
