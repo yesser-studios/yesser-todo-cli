@@ -450,6 +450,12 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
         (None, None) => DEFAULT_PORT,
     };
 
+    if !(1..=65535).contains(&port.parse::<i32>().unwrap()) {
+        return Err(CommandError::InvalidUrlError {
+            why: "The port must be between 1 and 65535!".to_string(),
+        });
+    }
+
     let host = format!(
         "{}://{}",
         url.scheme(),
