@@ -207,5 +207,40 @@ mod tests {
         assert!(display.contains("Unable to save config"));
         assert!(display.contains("access denied"));
     }
-}
 
+    #[test]
+    fn test_invalid_url_error_display() {
+        let err = CommandError::InvalidUrlError {
+            why: "scheme is not http or https".to_string(),
+        };
+        assert_eq!(format!("{}", err), "Invalid URL: scheme is not http or https");
+    }
+
+    #[test]
+    fn test_invalid_url_error_with_empty_reason() {
+        let err = CommandError::InvalidUrlError {
+            why: String::new(),
+        };
+        assert_eq!(format!("{}", err), "Invalid URL: ");
+    }
+
+    #[test]
+    fn test_invalid_url_error_with_multiline_reason() {
+        let err = CommandError::InvalidUrlError {
+            why: "invalid scheme\nHelp: use http or https".to_string(),
+        };
+        let display = format!("{}", err);
+        assert!(display.contains("Invalid URL: invalid scheme"));
+        assert!(display.contains("Help: use http or https"));
+    }
+
+    #[test]
+    fn test_invalid_url_error_debug() {
+        let err = CommandError::InvalidUrlError {
+            why: "test".to_string(),
+        };
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("InvalidUrlError"));
+        assert!(debug_str.contains("test"));
+    }
+}
