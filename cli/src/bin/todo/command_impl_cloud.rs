@@ -396,6 +396,12 @@ pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
         });
     }
 
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err(CommandError::InvalidUrlError {
+            why: "You should not specify credentials!".to_string(),
+        });
+    }
+
     Ok(parsed)
 }
 
@@ -867,3 +873,4 @@ mod tests {
         assert!(result.is_err());
     }
 }
+
