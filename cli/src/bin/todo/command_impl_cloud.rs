@@ -330,10 +330,10 @@ pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Clie
     }
 }
 
-/// Clears completed tasks from the configured cloud backend and prints a deprecation notice.
+/// Clears tasks marked done on the configured cloud backend and emits a deprecation notice.
 ///
-/// This command is deprecated: it prints a short notice advising `clear -d` and then clears tasks
-/// that are marked done on the remote server.
+/// This command is deprecated; it prints a short notice advising `clear -d` before clearing
+/// completed tasks on the remote server.
 ///
 /// # Examples
 ///
@@ -344,15 +344,27 @@ pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Clie
 /// # }
 /// ```
 ///
-/// # Returns
-///
-/// `Ok(())` on success, `Err(CommandError)` if the operation fails.
+/// Returns `Ok(())` on success, or a `CommandError` if the operation fails.
 #[deprecated]
 pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), CommandError> {
     println!("clear-done is deprecated. Use clear -d instead.");
     handle_clear_cloud(&ClearCommand { done: true }, client).await
 }
 
+/// Normalizes and validates a host URL for cloud configuration.
+///
+/// Accepts a string with or without a scheme (defaults to `http` if missing), parses it as a URL,
+/// and enforces that the scheme is `http` or `https`. Rejects URLs that include a path (other than `/`),
+/// a query, a fragment, or embedded credentials. When parsing fails and the input looks like an unbracketed
+/// IPv6 address, the error message includes a hint about wrapping IPv6 addresses with `[]`.
+///
+/// # Examples
+///
+/// ```
+/// let url = parse_url("example.com").unwrap();
+/// assert_eq!(url.scheme(), "http");
+/// assert_eq!(url.host_str().unwrap(), "example.com");
+/// ```
 pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
     let url = if url.contains("://") { url } else { &format!("http://{url}") };
 
@@ -405,14 +417,17 @@ pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
     Ok(parsed)
 }
 
-/// Link the local client to a cloud server by saving the host and port to persistent config.
+/// Link the local client to a cloud server by saving the host and port to persistent configuration.
 ///
-/// Saves the provided host and either the given port or the default port; on success prints a
-/// confirmation message.
+/// Parses and normalizes the provided host, determines the effective port (honoring a provided
+/// `--port` flag when present, and ensuring it does not conflict with a port in the URL), validates
+/// the port range, and saves the resulting host and port to persistent configuration.
 ///
 /// # Returns
 ///
-/// `Ok(())` if the configuration was saved successfully, `CommandError::DataError` if saving fails.
+/// `Ok(())` if the configuration was saved successfully.
+/// `Err(CommandError::InvalidUrlError)` if the host or port are invalid or inconsistent.
+/// `Err(CommandError::DataError)` if saving the configuration fails.
 ///
 /// # Examples
 ///
@@ -420,7 +435,7 @@ pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
 /// use crate::CloudCommand;
 /// use crate::command_impl_cloud::handle_connect;
 ///
-/// let cmd = CloudCommand { host: "example.com".to_string(), port: None };
+/// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
 /// let _ = handle_connect(&cmd).unwrap();
 /// ```
 pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError> {
@@ -475,20 +490,19 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
     }
 }
 
-/// Unlinks the local configuration from the cloud server.
+/// Removes the saved cloud configuration.
 ///
-/// Removes the saved cloud configuration and prints a confirmation on success.
+/// Prints a confirmation message on success.
 ///
 /// # Returns
 ///
-/// `Ok(())` if the configuration was removed.
-/// `Err(CommandError::UnlinkedError)` if no cloud configuration was found.
-/// `Err(CommandError::DataError)` for other errors encountered while removing the configuration.
+/// - `Ok(())` if a configuration was removed.
+/// - `Err(CommandError::UnlinkedError)` if no cloud configuration was found.
+/// - `Err(CommandError::DataError)` for other errors encountered while removing the configuration.
 ///
 /// # Examples
 ///
 /// ```
-/// // Attempt to unlink; succeed when a configuration exists.
 /// let _ = todo_cli::command_impl_cloud::handle_disconnect();
 /// ```
 pub(crate) fn handle_disconnect() -> Result<(), CommandError> {

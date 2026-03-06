@@ -35,7 +35,7 @@ impl CommandError {
 }
 
 impl Display for CommandError {
-    /// Produces a human-readable, user-facing message for each `CommandError` variant.
+    /// Format the error as a concise, user-facing message.
     ///
     /// # Examples
     ///
@@ -46,6 +46,7 @@ impl Display for CommandError {
     ///     format!("{}", CommandError::TaskNotFound { name: "foo".into() }),
     ///     "Task foo not found!"
     /// );
+    ///
     /// assert_eq!(
     ///     format!("{}", CommandError::NoTasksSpecified),
     ///     "No tasks specified!"
