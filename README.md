@@ -35,8 +35,8 @@ On other distributions, you will need to use cargo or build the project from sou
 ## Crates.io
 *Note: Make sure you're logged in with `cargo login`*
 
-Run `cargo install cargo-publish` to install the cargo-publish tool,
-then run `cargo publish <BUMP>` to bump the version and publish. This will automatically create a git commit and tag.
+Run `cargo install cargo-release` to install the cargo-publish tool,
+then run `cargo release <BUMP>` to bump the version and publish. This will automatically create a git commit and tag.
 
 ## Homebrew
 First, create a GitHub release to make a tag for Homebrew to download. 
