@@ -457,7 +457,7 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
     let port: &str = match (url.port(), cmd_port) {
         (Some(url_port), Some(cmd_port)) if url_port.to_string() != cmd_port => {
             return Err(CommandError::InvalidUrlError {
-                why: "Port in URL and --port flag do not match!".to_string(),
+                why: "Port in URL and <PORT> parameter do not match!".to_string(),
             });
         }
         (Some(url_port), _) => &url_port.to_string(),
