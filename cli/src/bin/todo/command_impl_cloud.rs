@@ -705,7 +705,7 @@ mod tests {
         let result = handle_connect(&command);
         assert!(result.is_err());
         if let Err(CommandError::InvalidUrlError { why }) = result {
-            assert!(why.contains("Port in URL and --port flag do not match"));
+            assert!(why.contains("Port in URL and <PORT> parameter do not match"));
         } else {
             panic!("Expected port mismatch error");
         }
@@ -901,4 +901,3 @@ mod tests {
         assert!(result.is_err());
     }
 }
-
