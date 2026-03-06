@@ -12,6 +12,7 @@ pub(crate) enum CommandError {
     DataError { what: String, err: DatabaseError },
     HTTPError { name: String, status_code: u16 },
     ConnectionError { name: String },
+    InvalidUrlError { why: String },
     UnlinkedError,
 }
 
@@ -71,6 +72,9 @@ impl Display for CommandError {
                     write!(f, "Failed to connect to the server for task {name}")
                 }
             }
+            Self::InvalidUrlError { why } => {
+                write!(f, "Invalid URL: {why}")
+            }
             CommandError::UnlinkedError => write!(f, "You're already unlinked!"),
         }
     }
@@ -88,25 +92,19 @@ mod tests {
 
     #[test]
     fn test_task_exists_display() {
-        let err = CommandError::TaskExists {
-            name: "test task".to_string(),
-        };
+        let err = CommandError::TaskExists { name: "test task".to_string() };
         assert_eq!(format!("{}", err), "Task test task already exists!");
     }
 
     #[test]
     fn test_task_not_found_display() {
-        let err = CommandError::TaskNotFound {
-            name: "missing".to_string(),
-        };
+        let err = CommandError::TaskNotFound { name: "missing".to_string() };
         assert_eq!(format!("{}", err), "Task missing not found!");
     }
 
     #[test]
     fn test_duplicate_input_display() {
-        let err = CommandError::DuplicateInput {
-            name: "duplicate".to_string(),
-        };
+        let err = CommandError::DuplicateInput { name: "duplicate".to_string() };
         assert_eq!(format!("{}", err), "Task duplicate was specified multiple times!");
     }
 
@@ -142,9 +140,7 @@ mod tests {
 
     #[test]
     fn test_connection_error_with_name() {
-        let err = CommandError::ConnectionError {
-            name: "test-task".to_string(),
-        };
+        let err = CommandError::ConnectionError { name: "test-task".to_string() };
         assert_eq!(format!("{}", err), "Failed to connect to the server for task test-task");
     }
 
@@ -212,3 +208,4 @@ mod tests {
         assert!(display.contains("access denied"));
     }
 }
+

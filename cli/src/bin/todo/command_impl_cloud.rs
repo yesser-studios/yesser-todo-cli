@@ -1,5 +1,6 @@
 use std::{collections::HashSet, io::ErrorKind};
 
+use url::Url;
 use yesser_todo_api::{Client, DEFAULT_PORT, api_error::ApiError};
 use yesser_todo_db::{SaveData, Task};
 
@@ -352,6 +353,41 @@ pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), C
     handle_clear_cloud(&ClearCommand { done: true }, client).await
 }
 
+pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
+    let parsed = Url::parse(url).map_err(|x| CommandError::InvalidUrlError {
+        why: format!("Invalid URL: {x}"),
+    })?;
+
+    match parsed.scheme() {
+        "http" | "https" => {}
+        s => {
+            return Err(CommandError::InvalidUrlError {
+                why: format!("Invalid scheme: {}", s.to_uppercase()),
+            });
+        }
+    }
+
+    if parsed.path() != "/" && !parsed.path().is_empty() {
+        return Err(CommandError::InvalidUrlError {
+            why: "You should not specify a path!".to_string(),
+        });
+    }
+
+    if parsed.query().is_some() {
+        return Err(CommandError::InvalidUrlError {
+            why: "You should not specify a query!".to_string(),
+        });
+    }
+
+    if parsed.fragment().is_some() {
+        return Err(CommandError::InvalidUrlError {
+            why: "You should not specify a fragment!".to_string(),
+        });
+    }
+
+    Ok(parsed)
+}
+
 /// Link the local client to a cloud server by saving the host and port to persistent config.
 ///
 /// Saves the provided host and either the given port or the default port; on success prints a
@@ -371,16 +407,29 @@ pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), C
 /// let _ = handle_connect(&cmd).unwrap();
 /// ```
 pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError> {
-    let mut host = command.host.clone();
-    if !command.host.contains("://") {
-        host = format!("http://{}", command.host);
-    }
-    let result = match &command.port {
-        None => SaveData::save_cloud_config(&host, DEFAULT_PORT),
-        Some(port) => SaveData::save_cloud_config(&host, port),
+    let url = parse_url(&command.host)?;
+
+    let port: &str = match (url.port(), command.port.as_deref()) {
+        (Some(url_port), Some(cmd_port)) if url_port.to_string() != cmd_port => {
+            return Err(CommandError::InvalidUrlError {
+                why: "Port in URL and --port flag do not match!".to_string(),
+            });
+        }
+        (Some(url_port), _) => &url_port.to_string(),
+        (None, Some(cmd_port)) => cmd_port,
+        (None, None) => DEFAULT_PORT,
     };
 
-    match result {
+    let host = match url.host_str() {
+        Some(h) => h,
+        None => {
+            return Err(CommandError::InvalidUrlError {
+                why: "Unable to parse host!".to_string(),
+            });
+        }
+    };
+
+    match SaveData::save_cloud_config(&host, port) {
         Ok(()) => {
             println!("Successfully linked server.");
             Ok(())

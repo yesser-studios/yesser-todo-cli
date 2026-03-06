@@ -2003,6 +2003,7 @@ dependencies = [
  "console",
  "thiserror 2.0.18",
  "tokio",
+ "url",
  "yesser-todo-api",
  "yesser-todo-db",
 ]
