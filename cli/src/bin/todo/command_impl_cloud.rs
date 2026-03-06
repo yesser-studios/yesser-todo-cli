@@ -412,7 +412,12 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
     let url = parse_url(&command.host)?;
 
     let port: &str = match (url.port(), command.port.as_deref()) {
-        (Some(url_port), Some(cmd_port)) if url_port.to_string() != cmd_port => {
+        (Some(url_port), Some(cmd_port))
+            if url_port
+                != cmd_port.parse::<u16>().map_err(|_| CommandError::InvalidUrlError {
+                    why: "Port specified in --port is invalid!".to_string(),
+                })? =>
+        {
             return Err(CommandError::InvalidUrlError {
                 why: "Port in URL and --port flag do not match!".to_string(),
             });
@@ -422,15 +427,13 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
         (None, None) => DEFAULT_PORT,
     };
 
-    let host = match url.host_str() {
-        Some(h) => h,
-        None => {
-            return Err(CommandError::InvalidUrlError {
-                why: "Unable to parse host!".to_string(),
-            });
-        }
-    };
-
+    let host = format!(
+        "{}://{}",
+        url.scheme(),
+        url.host_str().ok_or_else(|| CommandError::InvalidUrlError {
+            why: "Unable to parse host!".to_string()
+        })?
+    );
     match SaveData::save_cloud_config(&host, port) {
         Ok(()) => {
             println!("Successfully linked server.");
