@@ -356,7 +356,18 @@ pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), C
 pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
     let url = if url.contains("://") { url } else { &format!("http://{url}") };
 
-    let parsed = Url::parse(url).map_err(|x| CommandError::InvalidUrlError { why: x.to_string() })?;
+    let parsed = Url::parse(url).map_err(|x| CommandError::InvalidUrlError {
+        why: format!(
+            "{}{}",
+            x.to_string(),
+            if url.to_string().matches(':').count() >= 3 {
+                // One ':' is before scheme and one before port
+                "\nHelp: Did you mean to wrap IPv6 address with []?"
+            } else {
+                ""
+            }
+        ),
+    })?;
 
     match parsed.scheme() {
         "http" | "https" => {}
