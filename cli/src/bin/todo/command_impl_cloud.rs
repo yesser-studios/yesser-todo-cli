@@ -354,6 +354,8 @@ pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), C
 }
 
 pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
+    let url = if url.contains("://") { url } else { &format!("http://{url}") };
+
     let parsed = Url::parse(url).map_err(|x| CommandError::InvalidUrlError {
         why: format!("Invalid URL: {x}"),
     })?;
