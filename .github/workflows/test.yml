@@ -1,0 +1,71 @@
+name: Test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cli:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: |
+        cd cli
+        cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+
+  db:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: |
+        cd db
+        cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+
+  api:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: |
+        cd api
+        cargo build --verbose
+        cd ../server
+        cargo build --verbose
+    - name: Run tests
+      run: |
+        cd ../server
+        cargo run &
+        cd ../api
+        cargo test --verbose
+        killall yesser-todo-server
+
+  server:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: |
+        cd server
+        cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
