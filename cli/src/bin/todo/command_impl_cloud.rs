@@ -869,8 +869,18 @@ mod tests {
             host: "http://example.com".to_string(),
             port: Some("0".to_string()),
         };
-        // Port 0 is technically valid in u16
-        let _ = handle_connect(&command);
+        let result = handle_connect(&command);
+        assert!(result.is_err())
+    }
+
+    #[test]
+    fn test_handle_connect_with_large_port() {
+        let command = CloudCommand {
+            host: "http://example.com".to_string(),
+            port: Some("999999".to_string()),
+        };
+        let result = handle_connect(&command);
+        assert!(result.is_err())
     }
 
     #[test]
