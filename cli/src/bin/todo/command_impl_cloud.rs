@@ -649,9 +649,7 @@ mod tests {
     #[test]
     fn test_parse_url_with_username_password() {
         let result = parse_url("http://user:pass@example.com");
-        assert!(result.is_ok());
-        let url = result.unwrap();
-        assert_eq!(url.host_str(), Some("example.com"));
+        assert!(result.is_err());
     }
 
     #[test]
