@@ -521,6 +521,19 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
     }
 }
 
+pub(crate) fn handle_view_server() -> Result<(), CommandError> {
+    match SaveData::get_cloud_config() {
+        Ok(data) => match data {
+            Some(data) => Ok(println!("Hostname: {}, port: {}", data.0, data.1)),
+            None => Err(CommandError::UnlinkedError),
+        },
+        Err(e) => Err(CommandError::DataError {
+            what: "configuration".to_string(),
+            err: e,
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
