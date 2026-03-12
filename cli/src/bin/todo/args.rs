@@ -95,7 +95,7 @@ impl Command {
                 Command::List => handle_list(data),
                 Command::Connect(cloud_command) => handle_connect(cloud_command),
                 Command::Disconnect => handle_disconnect(),
-                Command::ViewServer => todo!(),
+                Command::ViewServer => handle_view_server(),
             },
             Some(client) => match self {
                 Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
@@ -107,7 +107,7 @@ impl Command {
                 Command::List => handle_list_cloud(client).await,
                 Command::Connect(cloud_command) => handle_connect(cloud_command),
                 Command::Disconnect => handle_disconnect(),
-                Command::ViewServer => todo!(),
+                Command::ViewServer => handle_view_server(),
             },
         }
     }
