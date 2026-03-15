@@ -490,6 +490,28 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
     }
 }
 
+/// Links the local client to a cloud server and emits a deprecation notice.
+///
+/// This command is deprecated; it prints a short notice advising `cloud connect` before
+/// linking to a cloud server.
+///
+/// # Examples
+///
+/// ```
+/// use crate::CloudCommand;
+/// use crate::command_impl_cloud::handle_connect_old;
+///
+/// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
+/// let _ = handle_connect_old(&cmd).unwrap();
+/// ```
+///
+/// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
+#[deprecated]
+pub(crate) fn handle_connect_old(command: &CloudCommand) -> Result<(), CommandError> {
+    println!("connect is deprecated. Use cloud connect instead.");
+    handle_connect(command)
+}
+
 /// Removes the saved cloud configuration.
 ///
 /// Prints a confirmation message on success.
@@ -499,12 +521,6 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
 /// - `Ok(())` if a configuration was removed.
 /// - `Err(CommandError::UnlinkedError)` if no cloud configuration was found.
 /// - `Err(CommandError::DataError)` for other errors encountered while removing the configuration.
-///
-/// # Examples
-///
-/// ```
-/// let _ = todo_cli::command_impl_cloud::handle_disconnect();
-/// ```
 pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
     match SaveData::remove_cloud_config() {
         Ok(_) => {
@@ -519,6 +535,26 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
             }),
         },
     }
+}
+
+/// Removes the saved cloud configuration and emits a deprecation notice.
+///
+/// This command is deprecated; it prints a short notice advising `cloud disconnect` before
+/// removing the cloud configuration.
+///
+/// # Examples
+///
+/// ```
+/// use crate::command_impl_cloud::handle_disconnect_old;
+///
+/// let _ = handle_disconnect_old().unwrap();
+/// ```
+///
+/// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
+#[deprecated]
+pub(crate) fn handle_disconnect_old() -> Result<(), CommandError> {
+    println!("disconnect is deprecated. Use cloud disconnect instead.");
+    handle_disconnect()
 }
 
 #[cfg(test)]
