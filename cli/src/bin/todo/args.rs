@@ -104,10 +104,7 @@ impl Command {
                 Command::List => handle_list(data),
                 Command::Connect(cloud_command) => handle_connect_old(cloud_command),
                 Command::Disconnect => handle_disconnect_old(),
-                Command::Cloud(cloud_subcommand) => match cloud_subcommand {
-                    CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
-                    CloudSubcommand::Disconnect => handle_disconnect(),
-                },
+                Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),
             },
             Some(client) => match self {
                 Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
@@ -119,11 +116,15 @@ impl Command {
                 Command::List => handle_list_cloud(client).await,
                 Command::Connect(cloud_command) => handle_connect_old(cloud_command),
                 Command::Disconnect => handle_disconnect_old(),
-                Command::Cloud(cloud_subcommand) => match cloud_subcommand {
-                    CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
-                    CloudSubcommand::Disconnect => handle_disconnect(),
-                },
+                Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),
             },
         }
+    }
+}
+
+fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand) -> Result<(), crate::command_error::CommandError> {
+    match cloud_subcommand {
+        CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
+        CloudSubcommand::Disconnect => handle_disconnect(),
     }
 }
