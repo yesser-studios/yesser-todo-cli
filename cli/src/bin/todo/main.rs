@@ -46,6 +46,7 @@ async fn main() {
     match args.command.execute(data.get_tasks(), &mut client).await {
         Ok(()) => match args.command {
             Command::List => {}
+            Command::Cloud(_) | Command::Connect(_) | Command::Disconnect => {}
             _ => {
                 if client.is_none() {
                     match data.save_tasks() {
