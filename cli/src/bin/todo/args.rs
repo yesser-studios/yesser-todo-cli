@@ -33,6 +33,9 @@ pub(crate) enum Command {
     Connect(CloudCommand),
     /// Remove server configuration.
     Disconnect,
+    /// Cloud operations.
+    #[command(subcommand)]
+    Cloud(CloudSubcommand),
 }
 
 #[derive(Debug, Args)]
@@ -53,6 +56,14 @@ pub(crate) struct ClearCommand {
 pub(crate) struct CloudCommand {
     pub host: String,
     pub port: Option<String>,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum CloudSubcommand {
+    /// Connect to a cloud server.
+    Connect(CloudCommand),
+    /// Disconnect from the cloud server.
+    Disconnect,
 }
 
 impl Command {
@@ -91,8 +102,12 @@ impl Command {
                 Command::Clear(clear_command) => handle_clear(clear_command, data),
                 Command::ClearDone => handle_clear_done(data),
                 Command::List => handle_list(data),
-                Command::Connect(cloud_command) => handle_connect(cloud_command),
-                Command::Disconnect => handle_disconnect(),
+                Command::Connect(cloud_command) => handle_connect_old(cloud_command),
+                Command::Disconnect => handle_disconnect_old(),
+                Command::Cloud(cloud_subcommand) => match cloud_subcommand {
+                    CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
+                    CloudSubcommand::Disconnect => handle_disconnect(),
+                },
             },
             Some(client) => match self {
                 Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
@@ -102,8 +117,12 @@ impl Command {
                 Command::Clear(clear_command) => handle_clear_cloud(clear_command, client).await,
                 Command::ClearDone => handle_clear_done_cloud(client).await,
                 Command::List => handle_list_cloud(client).await,
-                Command::Connect(cloud_command) => handle_connect(cloud_command),
-                Command::Disconnect => handle_disconnect(),
+                Command::Connect(cloud_command) => handle_connect_old(cloud_command),
+                Command::Disconnect => handle_disconnect_old(),
+                Command::Cloud(cloud_subcommand) => match cloud_subcommand {
+                    CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
+                    CloudSubcommand::Disconnect => handle_disconnect(),
+                },
             },
         }
     }
