@@ -569,7 +569,7 @@ pub(crate) fn handle_show_server(
         Box<dyn FnOnce() -> Result<Option<(String, String)>, yesser_todo_db::db_error::DatabaseError>>,
     >,
 ) -> Result<(), CommandError> {
-    let get_config: Box<dyn FnOnce() -> Result<Option<(String, String)>, yesser_todo_db::db_error::DatabaseError>> = get_cloud_config_fn.unwrap_or(Box::new(SaveData::get_cloud_config));
+    let get_config = get_cloud_config_fn.unwrap_or_else(|| Box::new(SaveData::get_cloud_config));
     match get_config() {
         Ok(data) => match data {
             Some((hostname, port)) => Ok(println!("Hostname: {}, port: {}", hostname, port)),
