@@ -555,7 +555,7 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
 /// ```
 /// use crate::command_impl_cloud::handle_show_server;
 ///
-/// let result = handle_show_server(None); // Uses default SaveData::get_cloud_config
+/// let result = handle_show_server();
 /// ```
 pub(crate) fn handle_show_server() -> Result<(), CommandError> {
     match SaveData::get_cloud_config() {
