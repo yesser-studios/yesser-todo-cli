@@ -537,6 +537,39 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
     }
 }
 
+/// Displays the current cloud server configuration.
+///
+/// If a cloud server is configured, prints the hostname and port.
+/// If no cloud server is configured, prints a "not connected" message.
+/// Returns an error if retrieving the configuration fails.
+///
+/// # Returns
+///
+/// - `Ok(())` if the configuration was retrieved successfully (either printing
+///   the config or "not connected" message)
+/// - `Err(CommandError::DataError)` if retrieving the configuration failed,
+///   with `what` set to "configuration" and the underlying error wrapped
+///
+/// # Examples
+///
+/// ```
+/// use crate::command_impl_cloud::handle_show_server;
+///
+/// let result = handle_show_server();
+/// ```
+pub(crate) fn handle_show_server() -> Result<(), CommandError> {
+    match SaveData::get_cloud_config() {
+        Ok(data) => match data {
+            Some((hostname, port)) => Ok(println!("Hostname: {}, port: {}", hostname, port)),
+            None => Ok(println!("You're not connected to a server!")),
+        },
+        Err(e) => Err(CommandError::DataError {
+            what: "configuration".to_string(),
+            err: e,
+        }),
+    }
+}
+
 /// Removes the saved cloud configuration and emits a deprecation notice.
 ///
 /// This command is deprecated; it prints a short notice advising `cloud disconnect` before
@@ -935,5 +968,12 @@ mod tests {
         };
         let result = handle_connect(&command);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_handle_show_server() {
+        let result = handle_show_server();
+
+        assert!(result.is_ok());
     }
 }
