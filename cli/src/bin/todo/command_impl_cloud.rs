@@ -543,13 +543,6 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
 /// If no cloud server is configured, prints a "not connected" message.
 /// Returns an error if retrieving the configuration fails.
 ///
-/// # Parameters
-///
-/// - `get_cloud_config_fn`: Optional boxed function that returns the cloud config.
-///   If `None`, uses `SaveData::get_cloud_config`. The function returns
-///   `Ok(Some((hostname, port)))` if configured, `Ok(None)` if not configured,
-///   or `Err(DatabaseError)` on failure.
-///
 /// # Returns
 ///
 /// - `Ok(())` if the configuration was retrieved successfully (either printing
@@ -564,13 +557,8 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
 ///
 /// let result = handle_show_server(None); // Uses default SaveData::get_cloud_config
 /// ```
-pub(crate) fn handle_show_server(
-    get_cloud_config_fn: Option<
-        Box<dyn FnOnce() -> Result<Option<(String, String)>, yesser_todo_db::db_error::DatabaseError>>,
-    >,
-) -> Result<(), CommandError> {
-    let get_config = get_cloud_config_fn.unwrap_or_else(|| Box::new(SaveData::get_cloud_config));
-    match get_config() {
+pub(crate) fn handle_show_server() -> Result<(), CommandError> {
+    match SaveData::get_cloud_config() {
         Ok(data) => match data {
             Some((hostname, port)) => Ok(println!("Hostname: {}, port: {}", hostname, port)),
             None => Ok(println!("You're not connected to a server!")),
@@ -983,65 +971,9 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_show_server_with_config() {
-        use yesser_todo_db::db_error::DatabaseError;
-
-        let mock_config = Box::new(|| Ok(Some(("example.com".to_string(), "8080".to_string())))) as Box<dyn FnOnce() -> Result<Option<(String, String)>, DatabaseError>>;
-
-        let result = handle_show_server(Some(mock_config));
+    fn test_handle_show_server() {
+        let result = handle_show_server();
 
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_handle_show_server_no_config() {
-        use yesser_todo_db::db_error::DatabaseError;
-
-        let mock_config = Box::new(|| Ok(None)) as Box<dyn FnOnce() -> Result<Option<(String, String)>, DatabaseError>>;
-
-        let result = handle_show_server(Some(mock_config));
-
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_handle_show_server_with_error() {
-        use yesser_todo_db::db_error::DatabaseError;
-
-        let io_err = std::io::Error::new(std::io::ErrorKind::Other, "test error");
-        let mock_config = Box::new(move || Err(DatabaseError::IOError(io_err))) as Box<dyn FnOnce() -> Result<Option<(String, String)>, DatabaseError>>;
-
-        let result = handle_show_server(Some(mock_config));
-
-        assert!(result.is_err());
-        if let Err(CommandError::DataError { what, err }) = result {
-            assert_eq!(what, "configuration");
-            let _ = err;
-        } else {
-            panic!("Expected CommandError::DataError");
-        }
-    }
-
-    #[test]
-    fn test_handle_show_server_error_contains_underlying_error() {
-        use yesser_todo_db::db_error::DatabaseError;
-
-        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
-        let mock_config = Box::new(move || Err(DatabaseError::IOError(io_err))) as Box<dyn FnOnce() -> Result<Option<(String, String)>, DatabaseError>>;
-
-        let result = handle_show_server(Some(mock_config));
-
-        assert!(result.is_err());
-        if let Err(CommandError::DataError { what, err }) = &result {
-            assert_eq!(what, "configuration");
-            match err {
-                DatabaseError::IOError(e) => {
-                    assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied);
-                }
-                _ => panic!("Expected IOError"),
-            }
-        } else {
-            panic!("Expected CommandError::DataError");
-        }
     }
 }

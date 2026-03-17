@@ -128,6 +128,6 @@ fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand) -> Result<(), cra
     match cloud_subcommand {
         CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
         CloudSubcommand::Disconnect => handle_disconnect(),
-        CloudSubcommand::Show => handle_show_server(None),
+        CloudSubcommand::Show => handle_show_server(),
     }
 }
