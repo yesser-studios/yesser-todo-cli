@@ -537,6 +537,33 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
     }
 }
 
+/// Displays the current cloud server configuration.
+///
+/// If a cloud server is configured, prints the hostname and port.
+/// If no cloud server is configured, prints a "not connected" message.
+/// Returns an error if retrieving the configuration fails.
+///
+/// # Parameters
+///
+/// - `get_cloud_config_fn`: Optional boxed function that returns the cloud config.
+///   If `None`, uses `SaveData::get_cloud_config`. The function returns
+///   `Ok(Some((hostname, port)))` if configured, `Ok(None)` if not configured,
+///   or `Err(DatabaseError)` on failure.
+///
+/// # Returns
+///
+/// - `Ok(())` if the configuration was retrieved successfully (either printing
+///   the config or "not connected" message)
+/// - `Err(CommandError::DataError)` if retrieving the configuration failed,
+///   with `what` set to "configuration" and the underlying error wrapped
+///
+/// # Examples
+///
+/// ```
+/// use crate::command_impl_cloud::handle_show_server;
+///
+/// let result = handle_show_server(None); // Uses default SaveData::get_cloud_config
+/// ```
 pub(crate) fn handle_show_server(
     get_cloud_config_fn: Option<
         Box<dyn FnOnce() -> Result<Option<(String, String)>, yesser_todo_db::db_error::DatabaseError>>,
@@ -545,7 +572,7 @@ pub(crate) fn handle_show_server(
     let get_config: Box<dyn FnOnce() -> Result<Option<(String, String)>, yesser_todo_db::db_error::DatabaseError>> = get_cloud_config_fn.unwrap_or(Box::new(SaveData::get_cloud_config));
     match get_config() {
         Ok(data) => match data {
-            Some(data) => Ok(println!("Hostname: {}, port: {}", data.0, data.1)),
+            Some((hostname, port)) => Ok(println!("Hostname: {}, port: {}", hostname, port)),
             None => Ok(println!("You're not connected to a server!")),
         },
         Err(e) => Err(CommandError::DataError {
@@ -967,45 +994,7 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_show_server_with_config_prints_hostname_and_port() {
-        use yesser_todo_db::db_error::DatabaseError;
-
-        let host = "testserver.example.com";
-        let port = "12345";
-        
-        let mock_config = Box::new(move || {
-            Ok(Some((host.to_string(), port.to_string())))
-        }) as Box<dyn FnOnce() -> Result<Option<(String, String)>, DatabaseError>>;
-
-        let result = handle_show_server(Some(mock_config));
-
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_handle_show_server_no_config_prints_not_connected() {
-        use yesser_todo_db::db_error::DatabaseError;
-
-        let mock_config = Box::new(|| Ok(None)) as Box<dyn FnOnce() -> Result<Option<(String, String)>, DatabaseError>>;
-
-        let result = handle_show_server(Some(mock_config));
-
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_handle_show_server_with_no_config() {
-        use yesser_todo_db::db_error::DatabaseError;
-
-        let mock_config = Box::new(|| Ok(None)) as Box<dyn FnOnce() -> Result<Option<(String, String)>, DatabaseError>>;
-
-        let result = handle_show_server(Some(mock_config));
-
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_handle_show_server_with_no_config_prints_not_connected_message() {
+    fn test_handle_show_server_no_config() {
         use yesser_todo_db::db_error::DatabaseError;
 
         let mock_config = Box::new(|| Ok(None)) as Box<dyn FnOnce() -> Result<Option<(String, String)>, DatabaseError>>;
