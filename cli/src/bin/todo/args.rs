@@ -33,8 +33,6 @@ pub(crate) enum Command {
     Connect(CloudCommand),
     /// Remove server configuration.
     Disconnect,
-    /// View server configuration.
-    ViewServer,
     /// Cloud operations.
     #[command(subcommand)]
     Cloud(CloudSubcommand),
@@ -66,6 +64,8 @@ pub(crate) enum CloudSubcommand {
     Connect(CloudCommand),
     /// Disconnect from the cloud server.
     Disconnect,
+    /// View server configuration.
+    Show,
 }
 
 impl Command {
@@ -104,7 +104,6 @@ impl Command {
                 Command::Clear(clear_command) => handle_clear(clear_command, data),
                 Command::ClearDone => handle_clear_done(data),
                 Command::List => handle_list(data),
-                Command::ViewServer => handle_view_server(),
                 Command::Connect(cloud_command) => handle_connect_old(cloud_command),
                 Command::Disconnect => handle_disconnect_old(),
                 Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),
@@ -117,7 +116,6 @@ impl Command {
                 Command::Clear(clear_command) => handle_clear_cloud(clear_command, client).await,
                 Command::ClearDone => handle_clear_done_cloud(client).await,
                 Command::List => handle_list_cloud(client).await,
-                Command::ViewServer => handle_view_server(),
                 Command::Connect(cloud_command) => handle_connect_old(cloud_command),
                 Command::Disconnect => handle_disconnect_old(),
                 Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),
@@ -130,5 +128,6 @@ fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand) -> Result<(), cra
     match cloud_subcommand {
         CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
         CloudSubcommand::Disconnect => handle_disconnect(),
+        CloudSubcommand::Show => handle_show_server(),
     }
 }

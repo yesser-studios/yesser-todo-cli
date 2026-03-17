@@ -537,11 +537,11 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
     }
 }
 
-pub(crate) fn handle_view_server() -> Result<(), CommandError> {
+pub(crate) fn handle_show_server() -> Result<(), CommandError> {
     match SaveData::get_cloud_config() {
         Ok(data) => match data {
             Some(data) => Ok(println!("Hostname: {}, port: {}", data.0, data.1)),
-            None => Err(CommandError::UnlinkedError),
+            None => Ok(println!("You're not connected to a server!")),
         },
         Err(e) => Err(CommandError::DataError {
             what: "configuration".to_string(),
