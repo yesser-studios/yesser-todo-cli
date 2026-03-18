@@ -2,7 +2,7 @@
 name = "yesser-todo-server"
 version = "1.0.0"
 edition = "2024"
-license = "MIT"
+license = "AGPL-3.0"
 description = "A server for yesser-todo-cli written in Rust"
 readme = "../README.md"
 categories = ["web-programming::http-server"]
