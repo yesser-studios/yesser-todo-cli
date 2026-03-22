@@ -23,13 +23,12 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          cd cli
           TAG="${{ github.ref_name }}"
           VERSION="\"${TAG#*-v}\""
-          cargo build --verbose --release --config package.version="$VERSION"
+          cargo build --verbose --release --config package.version="$VERSION" --bin todo
 
       - name: Zip up
-        run: 7z a windows-x64.zip .\cli\target\release\todo.exe
+        run: 7z a windows-x64.zip .\target\release\todo.exe
 
       - name: Add to release
         uses: svenstaro/upload-release-action@v2
