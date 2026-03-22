@@ -28,10 +28,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Build
+        run: cargo build
       - name: Run tests
         run: |
-          cargo build
           cargo run --bin yesser-todo-server &
-          sleep 1000
+          sleep 1s
           cargo test --verbose
           killall yesser-todo-server
