@@ -2,14 +2,14 @@ name: Test
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
     paths:
       - cli/**
       - api/**
       - db/**
       - server/**
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
     paths:
       - cli/**
       - api/**
@@ -21,49 +21,46 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  cli:
-
+  test:
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Run tests
-      run: |
-        cd cli
-        cargo test --verbose
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: |
+          cargo run --bin yesser-todo-server &
+          cargo test --verbose
+          killall yesser-todo-server
 
-  db:
-
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: Run tests
-      run: |
-        cd db
-        cargo test --verbose
-
-  api:
-
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: Run tests
-      run: |
-        cd server
-        cargo run &
-        cd ../api
-        cargo test --verbose
-        killall yesser-todo-server
-
-  server:
-
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: Run tests
-      run: |
-        cd server
-        cargo test --verbose
+  # db:
+  #   runs-on: blacksmith-4vcpu-ubuntu-2404
+  #
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Run tests
+  #       run: |
+  #         cd db
+  #         cargo test --verbose
+  #
+  # api:
+  #   runs-on: blacksmith-4vcpu-ubuntu-2404
+  #
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Run tests
+  #       run: |
+  #         cd server
+  #         cargo run &
+  #         cd ../api
+  #         cargo test --verbose
+  #         killall yesser-todo-server
+  #
+  # server:
+  #   runs-on: blacksmith-4vcpu-ubuntu-2404
+  #
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Run tests
+  #       run: |
+  #         cd server
+  #         cargo test --verbose
