@@ -3,8 +3,11 @@ use std::fmt::Display;
 use reqwest::StatusCode;
 use thiserror::Error;
 
+use crate::server_error::ServerError;
+
 #[derive(Debug, Error)]
 pub enum ApiError {
+    ServerError(ServerError),
     HTTPError(StatusCode),
     RequestError(reqwest::Error),
 }
@@ -19,7 +22,7 @@ impl Display for ApiError {
     ///
     /// ```
     /// use reqwest::StatusCode;
-    /// use yesser_todo_api::api_error::ApiError;
+    /// use yesser_todo_errors::api_error::ApiError;
     /// // `ApiError` is defined in the current crate module where this formatter lives.
     /// let err = ApiError::HTTPError(StatusCode::BAD_REQUEST);
     /// assert_eq!(format!("{}", err), format!("Server returned HTTP error code {}",
@@ -27,16 +30,15 @@ impl Display for ApiError {
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ApiError::HTTPError(status_code) => write!(f, "Server returned HTTP error code {status_code}"),
-            ApiError::RequestError(_) => write!(f, "Failed to connect to server"),
+            Self::ServerError(err) => err.fmt(f),
+            Self::HTTPError(status_code) => write!(f, "Server returned HTTP error code {status_code}"),
+            Self::RequestError(_) => write!(f, "Failed to connect to server"),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::Client;
-
     use super::*;
 
     #[test]
@@ -61,19 +63,6 @@ mod tests {
     fn test_http_error_display_unauthorized() {
         let err = ApiError::HTTPError(StatusCode::UNAUTHORIZED);
         assert_eq!(format!("{}", err), "Server returned HTTP error code 401 Unauthorized");
-    }
-
-    #[tokio::test]
-    async fn test_request_error_display() {
-        let client = Client::new("http://example.invalid".to_string(), None);
-        let result = client.get().await;
-        assert!(result.is_err());
-        let req_err = result.unwrap_err();
-        if let ApiError::RequestError(_) = req_err {
-            assert_eq!(format!("{}", req_err), "Failed to connect to server");
-        } else {
-            panic!("API error is not a RequestError");
-        }
     }
 
     #[test]
@@ -104,5 +93,24 @@ mod tests {
             assert_eq!(format!("{}", err), expected);
         }
     }
-}
 
+    #[test]
+    fn test_server_error_display_not_found() {
+        use crate::server_error::TaskSelector;
+        let err = ApiError::ServerError(ServerError::NotFound(TaskSelector::Name("test task".into())));
+        assert_eq!(format!("{}", err), "Task test task not found!");
+    }
+
+    #[test]
+    fn test_server_error_display_conflict() {
+        use crate::server_error::TaskSelector;
+        let err = ApiError::ServerError(ServerError::Conflict(TaskSelector::Index(1)));
+        assert_eq!(format!("{}", err), "Task of index 1 already exists!");
+    }
+
+    #[test]
+    fn test_server_error_display_io_error() {
+        let err = ApiError::ServerError(ServerError::IOError("database connection failed".into()));
+        assert_eq!(format!("{}", err), "IO error: database connection failed");
+    }
+}

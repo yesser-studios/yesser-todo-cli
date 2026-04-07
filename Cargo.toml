@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["cli", "api", "db", "server"]
+members = ["cli", "api", "db", "server", "errors"]
 
 [profile.release]
 strip = true

@@ -1,6 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use yesser_todo_api::Client;
 use yesser_todo_db::Task;
+use yesser_todo_errors::command_error::CommandError;
 
 use crate::command_impl::*;
 use crate::command_impl_cloud::*;
@@ -78,7 +79,7 @@ impl Command {
     ///
     /// # Returns
     ///
-    /// `Ok(())` on success, or a `crate::command_error::CommandError` on failure.
+    /// `Ok(())` on success, or a `yesser_todo_errors::command_error::CommandError` on failure.
     ///
     /// # Examples
     ///
@@ -94,7 +95,7 @@ impl Command {
     /// cmd.execute(&mut tasks, &mut client).await?;
     /// # Ok(()) }
     /// ```
-    pub(crate) async fn execute(&self, data: &mut Vec<Task>, client: &mut Option<Client>) -> Result<(), crate::command_error::CommandError> {
+    pub(crate) async fn execute(&self, data: &mut Vec<Task>, client: &mut Option<Client>) -> Result<(), CommandError> {
         match client {
             None => match self {
                 Command::Add(tasks_command) => handle_add(tasks_command, data),
@@ -124,7 +125,7 @@ impl Command {
     }
 }
 
-fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand) -> Result<(), crate::command_error::CommandError> {
+fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand) -> Result<(), CommandError> {
     match cloud_subcommand {
         CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
         CloudSubcommand::Disconnect => handle_disconnect(),

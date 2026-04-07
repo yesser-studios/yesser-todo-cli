@@ -14,6 +14,7 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 reqwest = { version = "0", features = ["json"] }
 thiserror = "2.0.18"
 yesser-todo-db = "2"
+yesser-todo-errors = { version = "0.1", path = "../errors" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
