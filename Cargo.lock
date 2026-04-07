@@ -2228,7 +2228,7 @@ dependencies = [
  "reqwest",
  "thiserror 2.0.18",
  "tokio",
- "yesser-todo-db 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yesser-todo-db 2.0.0",
  "yesser-todo-errors",
 ]
 
@@ -2242,18 +2242,7 @@ dependencies = [
  "tokio",
  "url",
  "yesser-todo-api",
- "yesser-todo-db 2.0.0",
- "yesser-todo-errors",
-]
-
-[[package]]
-name = "yesser-todo-db"
-version = "2.0.0"
-dependencies = [
- "platform-dirs",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
+ "yesser-todo-db 3.0.0",
  "yesser-todo-errors",
 ]
 
@@ -2267,6 +2256,17 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "yesser-todo-db"
+version = "3.0.0"
+dependencies = [
+ "platform-dirs",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "yesser-todo-errors",
 ]
 
 [[package]]
@@ -2289,7 +2289,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
- "yesser-todo-db 2.0.0",
+ "yesser-todo-db 3.0.0",
  "yesser-todo-errors",
 ]
 
