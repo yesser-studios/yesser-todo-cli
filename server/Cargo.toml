@@ -17,3 +17,4 @@ serde_json = "1.0.149"
 thiserror = "2.0.18"
 tokio = { version = "1.47.1", features = ["full"] }
 yesser-todo-db = { version = "2", path = "../db" }
+yesser-todo-errors = { version = "0.1", path = "../errors" }

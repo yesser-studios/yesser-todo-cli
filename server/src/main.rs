@@ -1,5 +1,4 @@
 mod functions;
-mod server_error;
 
 use crate::functions::{add_task, clear_done_tasks, clear_tasks, done_task, get_index, get_tasks, remove_task, undone_task};
 use axum::routing::delete;
@@ -35,4 +34,3 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:6982").await.unwrap();
     axum::serve(listener, router).await.unwrap();
 }
-

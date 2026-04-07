@@ -1,5 +1,4 @@
 mod args;
-mod command_error;
 mod command_impl;
 mod command_impl_cloud;
 mod utils;

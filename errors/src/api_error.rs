@@ -19,7 +19,7 @@ impl Display for ApiError {
     ///
     /// ```
     /// use reqwest::StatusCode;
-    /// use yesser_todo_api::api_error::ApiError;
+    /// use yesser_todo_errors::api_error::ApiError;
     /// // `ApiError` is defined in the current crate module where this formatter lives.
     /// let err = ApiError::HTTPError(StatusCode::BAD_REQUEST);
     /// assert_eq!(format!("{}", err), format!("Server returned HTTP error code {}",
@@ -35,8 +35,6 @@ impl Display for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use crate::Client;
-
     use super::*;
 
     #[test]
@@ -61,19 +59,6 @@ mod tests {
     fn test_http_error_display_unauthorized() {
         let err = ApiError::HTTPError(StatusCode::UNAUTHORIZED);
         assert_eq!(format!("{}", err), "Server returned HTTP error code 401 Unauthorized");
-    }
-
-    #[tokio::test]
-    async fn test_request_error_display() {
-        let client = Client::new("http://example.invalid".to_string(), None);
-        let result = client.get().await;
-        assert!(result.is_err());
-        let req_err = result.unwrap_err();
-        if let ApiError::RequestError(_) = req_err {
-            assert_eq!(format!("{}", req_err), "Failed to connect to server");
-        } else {
-            panic!("API error is not a RequestError");
-        }
     }
 
     #[test]
@@ -105,4 +90,3 @@ mod tests {
         }
     }
 }
-

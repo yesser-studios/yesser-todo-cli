@@ -1,9 +1,10 @@
 use std::collections::HashSet;
+use yesser_todo_errors::command_error::CommandError;
 
 use crate::{args::ClearCommand, utils::DONE_STYLE};
 use yesser_todo_db::{Task, get_index};
 
-use crate::{args::TasksCommand, command_error::CommandError};
+use crate::args::TasksCommand;
 
 /// Adds each task named in `command.tasks` to `data` after validating input.
 ///
@@ -551,3 +552,4 @@ mod tests {
         assert_eq!(data.len(), 0);
     }
 }
+

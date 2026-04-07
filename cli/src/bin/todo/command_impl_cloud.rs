@@ -1,12 +1,12 @@
 use std::{collections::HashSet, io::ErrorKind};
 
 use url::Url;
-use yesser_todo_api::{Client, DEFAULT_PORT, api_error::ApiError};
-use yesser_todo_db::{SaveData, Task};
+use yesser_todo_api::{ApiError, Client, DEFAULT_PORT};
+use yesser_todo_db::{DatabaseError, SaveData, Task};
+use yesser_todo_errors::command_error::CommandError;
 
 use crate::{
     args::{ClearCommand, CloudCommand, TasksCommand},
-    command_error::CommandError,
     utils::DONE_STYLE,
 };
 
@@ -73,13 +73,13 @@ pub(crate) async fn get_tasks_cloud(client: &Client) -> Result<Vec<Task>, Comman
             };
         }
     };
-    return Ok(current_tasks
+    Ok(current_tasks
         .iter()
         .map(|t| Task {
             name: t.name.clone(),
             done: t.done,
         })
-        .collect());
+        .collect())
 }
 
 /// Adds one or more tasks to the cloud after validating input and existence.
@@ -102,7 +102,7 @@ pub(crate) async fn get_tasks_cloud(client: &Client) -> Result<Vec<Task>, Comman
 /// // block_on(handle_add_cloud(&command, &mut client)).unwrap();
 /// ```
 pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
-    if command.tasks.len() <= 0 {
+    if command.tasks.is_empty() {
         return Err(CommandError::NoTasksSpecified);
     }
 
@@ -119,8 +119,8 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
 
     let results = command.tasks.iter().map(|task| (client.add(task), task));
     for (result, task) in results {
-        match result.await {
-            Err(err) => match err {
+        if let Err(err) = result.await {
+            match err {
                 ApiError::HTTPError(status_code) => {
                     return Err(CommandError::HTTPError {
                         name: task.clone(),
@@ -128,8 +128,7 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
                     });
                 }
                 ApiError::RequestError(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
-            },
-            Ok(_) => {}
+            }
         };
     }
     Ok(())
@@ -155,7 +154,7 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
 /// # Ok(()) }
 /// ```
 pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
-    if command.tasks.len() <= 0 {
+    if command.tasks.is_empty() {
         return Err(CommandError::NoTasksSpecified);
     }
 
@@ -172,8 +171,8 @@ pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Cli
 
     let results = command.tasks.iter().map(|task| (client.remove(task), task));
     for (result, task) in results {
-        match result.await {
-            Err(err) => match err {
+        if let Err(err) = result.await {
+            match err {
                 ApiError::HTTPError(status_code) => {
                     return Err(CommandError::HTTPError {
                         name: task.clone(),
@@ -181,8 +180,7 @@ pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Cli
                     });
                 }
                 ApiError::RequestError(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
-            },
-            Ok(_) => {}
+            }
         }
     }
 
@@ -257,7 +255,7 @@ pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandErro
 ///
 /// `Ok(())` on success; `Err(CommandError)` on validation failures or API/connection errors.
 pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mut Client, done: bool) -> Result<(), CommandError> {
-    if command.tasks.len() <= 0 {
+    if command.tasks.is_empty() {
         return Err(CommandError::NoTasksSpecified);
     }
 
@@ -312,12 +310,7 @@ pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mu
 /// # }
 /// ```
 pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Client) -> Result<(), CommandError> {
-    let result;
-    if command.done {
-        result = client.clear_done().await;
-    } else {
-        result = client.clear().await;
-    }
+    let result = if command.done { client.clear_done().await } else { client.clear().await };
     match result {
         Ok(_) => Ok(()),
         Err(err) => match err {
@@ -371,7 +364,7 @@ pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
     let parsed = Url::parse(url).map_err(|x| CommandError::InvalidUrlError {
         why: format!(
             "{}{}",
-            x.to_string(),
+            x,
             if url.to_string().matches(':').count() >= 3 {
                 // One ':' is before scheme and one before port
                 "\nHelp: Did you mean to wrap IPv6 address with []?"
@@ -528,10 +521,10 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
             Ok(())
         }
         Err(err) => match err {
-            yesser_todo_db::db_error::DatabaseError::IOError(io_err) if io_err.kind() == ErrorKind::NotFound => Err(CommandError::UnlinkedError),
+            DatabaseError::IOError(io_err) if io_err.kind() == ErrorKind::NotFound => Err(CommandError::UnlinkedError),
             _ => Err(CommandError::DataError {
-                what: format!("configuration"),
-                err: err,
+                what: "configuration".to_string(),
+                err,
             }),
         },
     }
@@ -560,8 +553,14 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
 pub(crate) fn handle_show_server() -> Result<(), CommandError> {
     match SaveData::get_cloud_config() {
         Ok(data) => match data {
-            Some((hostname, port)) => Ok(println!("Hostname: {}, port: {}", hostname, port)),
-            None => Ok(println!("You're not connected to a server!")),
+            Some((hostname, port)) => {
+                println!("Hostname: {}, port: {}", hostname, port);
+                Ok(())
+            }
+            None => {
+                println!("You're not connected to a server!");
+                Ok(())
+            }
         },
         Err(e) => Err(CommandError::DataError {
             what: "configuration".to_string(),

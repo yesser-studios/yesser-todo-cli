@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use axum::{Json, debug_handler};
 use yesser_todo_db::{SaveData, Task};
 
-use crate::server_error::ServerError;
+use yesser_todo_errors::server_error::ServerError;
 
 /// Returns the current list of stored tasks as JSON.
 ///

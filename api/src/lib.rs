@@ -1,9 +1,7 @@
-pub mod api_error;
-
 use reqwest::StatusCode;
 use yesser_todo_db::Task;
 
-use crate::api_error::ApiError;
+pub use yesser_todo_errors::api_error::ApiError;
 
 pub const DEFAULT_PORT: &str = "6982";
 

@@ -4,7 +4,8 @@ use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
-use yesser_todo_db::db_error::DatabaseError;
+
+use crate::db_error::DatabaseError;
 
 #[derive(Debug, Error, Serialize, Deserialize)]
 pub enum ServerError {

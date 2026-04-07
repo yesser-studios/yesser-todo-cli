@@ -1,10 +1,11 @@
 use std::fmt::{self, Display, Formatter};
 
 use thiserror::Error;
-use yesser_todo_db::db_error::DatabaseError;
+
+use crate::db_error::DatabaseError;
 
 #[derive(Debug, Error)]
-pub(crate) enum CommandError {
+pub enum CommandError {
     NoTasksSpecified,
     TaskExists { name: String },
     TaskNotFound { name: String },
@@ -24,12 +25,12 @@ impl CommandError {
     /// # Examples
     ///
     /// ```
-    /// use crate::CommandError;
+    /// use yesser_todo_errors::command_error::CommandError;
     ///
     /// let err = CommandError::NoTasksSpecified;
     /// err.handle(); // prints "No tasks specified!" to stderr
     /// ```
-    pub(crate) fn handle(&self) {
+    pub fn handle(&self) {
         eprintln!("{self}")
     }
 }
@@ -40,7 +41,7 @@ impl Display for CommandError {
     /// # Examples
     ///
     /// ```
-    /// use crate::CommandError;
+    /// use yesser_todo_errors::command_error::CommandError;
     ///
     /// assert_eq!(
     ///     format!("{}", CommandError::TaskNotFound { name: "foo".into() }),
@@ -219,9 +220,7 @@ mod tests {
 
     #[test]
     fn test_invalid_url_error_with_empty_reason() {
-        let err = CommandError::InvalidUrlError {
-            why: String::new(),
-        };
+        let err = CommandError::InvalidUrlError { why: String::new() };
         assert_eq!(format!("{}", err), "Invalid URL: ");
     }
 
@@ -237,9 +236,7 @@ mod tests {
 
     #[test]
     fn test_invalid_url_error_debug() {
-        let err = CommandError::InvalidUrlError {
-            why: "test".to_string(),
-        };
+        let err = CommandError::InvalidUrlError { why: "test".to_string() };
         let debug_str = format!("{:?}", err);
         assert!(debug_str.contains("InvalidUrlError"));
         assert!(debug_str.contains("test"));

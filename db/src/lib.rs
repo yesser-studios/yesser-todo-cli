@@ -1,5 +1,3 @@
-pub mod db_error;
-
 use std::{
     fs::{self, File},
     path::PathBuf,
@@ -9,7 +7,7 @@ use platform_dirs::AppDirs;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_reader, to_writer};
 
-use crate::db_error::DatabaseError;
+pub use yesser_todo_errors::db_error::DatabaseError;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Task {
@@ -798,3 +796,4 @@ mod tests {
         assert_eq!(save_data.tasks[1].name, "task3");
     }
 }
+
