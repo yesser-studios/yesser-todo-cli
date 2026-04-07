@@ -1,11 +1,11 @@
-FROM rust:1.90.0-slim as build
+FROM rust:1.94.1-slim as build
 RUN rustup target add x86_64-unknown-linux-musl && \
 	apt update && \
 	apt install -y musl-tools musl-dev openssl libssl-dev && \
 	update-ca-certificates
 
-COPY ./server .
-RUN cargo build --target x86_64-unknown-linux-musl --release
+COPY . .
+RUN cargo build --package yesser-todo-server --target x86_64-unknown-linux-musl --release
 
 FROM rust:1.90-alpine3.22
 COPY --from=build /etc/passwd /etc/passwd
