@@ -2223,7 +2223,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "yesser-todo-api"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "reqwest",
  "thiserror 2.0.18",

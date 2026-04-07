@@ -18,7 +18,7 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 clap = { version = "4", features = ["derive"] }
 console = "0"
 yesser-todo-db = { version = "3", path = "../db" }
-yesser-todo-api = { version = "2", path = "../api" }
+yesser-todo-api = { version = "3", path = "../api" }
 tokio = { version = "1", features = ["full"] }
 thiserror = "2"
 url = "2"
