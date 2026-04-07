@@ -2,6 +2,7 @@ use reqwest::StatusCode;
 use yesser_todo_db::Task;
 
 pub use yesser_todo_errors::api_error::ApiError;
+use yesser_todo_errors::server_error::ServerError;
 
 pub const DEFAULT_PORT: &str = "6982";
 
@@ -72,7 +73,10 @@ impl Client {
                         Err(err) => Err(ApiError::RequestError(err)),
                     }
                 } else {
-                    Err(ApiError::HTTPError(status_code))
+                    match result.json::<ServerError>().await {
+                        Ok(err) => Err(ApiError::ServerError(err)),
+                        Err(_) => Err(ApiError::HTTPError(status_code)),
+                    }
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
@@ -116,7 +120,10 @@ impl Client {
                         Err(err) => Err(ApiError::RequestError(err)),
                     }
                 } else {
-                    Err(ApiError::HTTPError(status_code))
+                    match result.json::<ServerError>().await {
+                        Ok(err) => Err(ApiError::ServerError(err)),
+                        Err(_) => Err(ApiError::HTTPError(status_code)),
+                    }
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
@@ -155,7 +162,10 @@ impl Client {
                         Err(err) => Err(ApiError::RequestError(err)),
                     }
                 } else {
-                    Err(ApiError::HTTPError(status_code))
+                    match result.json::<ServerError>().await {
+                        Ok(err) => Err(ApiError::ServerError(err)),
+                        Err(_) => Err(ApiError::HTTPError(status_code)),
+                    }
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
@@ -183,13 +193,11 @@ impl Client {
     /// ```
     pub async fn remove(&self, task_name: &str) -> Result<StatusCode, ApiError> {
         let index_result = self.get_index(task_name).await;
-        let index: usize;
-        match index_result {
-            Ok((_, result)) => {
-                index = result;
-            }
+        let index = match index_result {
+            Ok((_, result)) => result,
             Err(err) => return Err(err),
-        }
+        };
+
         let result = self
             .client
             .delete(format!("{}:{}/remove", self.hostname, self.port).as_str())
@@ -201,7 +209,11 @@ impl Client {
                 if result.status().is_success() {
                     Ok(result.status())
                 } else {
-                    Err(ApiError::HTTPError(result.status()))
+                    let status_code = result.status();
+                    match result.json::<ServerError>().await {
+                        Ok(err) => Err(ApiError::ServerError(err)),
+                        Err(_) => Err(ApiError::HTTPError(status_code)),
+                    }
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
@@ -257,7 +269,11 @@ impl Client {
                         Err(err) => Err(ApiError::RequestError(err)),
                     }
                 } else {
-                    Err(ApiError::HTTPError(status_code))
+                    let status_code = result.status();
+                    match result.json::<ServerError>().await {
+                        Ok(err) => Err(ApiError::ServerError(err)),
+                        Err(_) => Err(ApiError::HTTPError(status_code)),
+                    }
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
@@ -285,16 +301,16 @@ impl Client {
     /// ```
     pub async fn undone(&self, task_name: &str) -> Result<(StatusCode, Task), ApiError> {
         let index_result = self.get_index(task_name).await;
-        let index: usize;
-        match index_result {
+        let index = match index_result {
             Ok((status_code, result)) => {
                 if !status_code.is_success() {
                     return Err(ApiError::HTTPError(status_code));
                 }
-                index = result;
+                result
             }
             Err(err) => return Err(err),
-        }
+        };
+
         let result = self
             .client
             .post(format!("{}:{}/undone", self.hostname, self.port).as_str())
@@ -311,7 +327,11 @@ impl Client {
                         Err(err) => Err(ApiError::RequestError(err)),
                     }
                 } else {
-                    Err(ApiError::HTTPError(status_code))
+                    let status_code = result.status();
+                    match result.json::<ServerError>().await {
+                        Ok(err) => Err(ApiError::ServerError(err)),
+                        Err(_) => Err(ApiError::HTTPError(status_code)),
+                    }
                 }
             }
             Err(err) => Err(ApiError::RequestError(err)),
