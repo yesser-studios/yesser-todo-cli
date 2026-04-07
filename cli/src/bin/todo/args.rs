@@ -79,7 +79,7 @@ impl Command {
     ///
     /// # Returns
     ///
-    /// `Ok(())` on success, or a `crate::command_error::CommandError` on failure.
+    /// `Ok(())` on success, or a `yesser_todo_errors::command_error::CommandError` on failure.
     ///
     /// # Examples
     ///

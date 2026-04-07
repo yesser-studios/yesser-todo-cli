@@ -77,11 +77,16 @@ pub(crate) async fn get_tasks_cloud(client: &Client) -> Result<Vec<Task>, Comman
                     });
                 }
                 ApiError::RequestError(_) => Err(CommandError::ConnectionError { name: "".into() }),
-                ApiError::ServerError(server_error) => {
-                    return Err(CommandError::HTTPError {
-                        name: "".into(),
-                        status_code: server_error.to_status_code().as_u16(),
-                    });
+                ApiError::ServerError(server_error) => match server_error {
+                    yesser_todo_errors::server_error::ServerError::NotFound(_) => {
+                        return Err(CommandError::TaskNotFound { name: "".into() });
+                    }
+                    other => {
+                        return Err(CommandError::HTTPError {
+                            name: "".into(),
+                            status_code: other.to_status_code().as_u16(),
+                        });
+                    }
                 }
             };
         }

@@ -42,7 +42,8 @@ impl Display for ServerError {
 
 impl IntoResponse for ServerError {
     fn into_response(self) -> axum::response::Response {
-        (self.to_status_code(), Json(json!({"error": &self}))).into_response()
+        let status = self.to_status_code();
+        (status, Json(self)).into_response()
     }
 }
 
