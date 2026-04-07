@@ -1,8 +1,12 @@
 mod functions;
+mod server_error;
 
 use crate::functions::{add_task, clear_done_tasks, clear_tasks, done_task, get_index, get_tasks, remove_task, undone_task};
 use axum::routing::delete;
-use axum::{routing::{get, post}, Router};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 
 /// Binary entry point that configures HTTP routes and starts the Axum server.
 ///
@@ -31,3 +35,4 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:6982").await.unwrap();
     axum::serve(listener, router).await.unwrap();
 }
+

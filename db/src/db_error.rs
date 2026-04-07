@@ -135,3 +135,4 @@ mod tests {
         assert!(matches!(db_err, DatabaseError::JsonError(_)));
     }
 }
+

@@ -234,17 +234,15 @@ impl Client {
     /// # }
     /// ```
     pub async fn done(&self, task_name: &str) -> Result<(StatusCode, Task), ApiError> {
-        let index_result = self.get_index(task_name).await;
-        let index: usize;
-        match index_result {
+        let index = match self.get_index(task_name).await {
             Ok((status_code, result)) => {
                 if !status_code.is_success() {
                     return Err(ApiError::HTTPError(status_code));
                 }
-                index = result;
+                result
             }
             Err(err) => return Err(err),
-        }
+        };
         let result = self
             .client
             .post(format!("{}:{}/done", self.hostname, self.port).as_str())

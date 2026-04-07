@@ -2257,6 +2257,9 @@ name = "yesser-todo-server"
 version = "1.0.0"
 dependencies = [
  "axum",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
  "tokio",
  "yesser-todo-db 2.0.0",
 ]

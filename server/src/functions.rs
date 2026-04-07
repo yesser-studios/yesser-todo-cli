@@ -2,6 +2,8 @@ use axum::http::StatusCode;
 use axum::{Json, debug_handler};
 use yesser_todo_db::{SaveData, Task};
 
+use crate::server_error::ServerError;
+
 /// Returns the current list of stored tasks as JSON.
 ///
 /// # Examples
@@ -11,11 +13,10 @@ use yesser_todo_db::{SaveData, Task};
 /// let tasks = json.0; // Vec<Task>
 /// ```
 #[debug_handler]
-pub async fn get_tasks() -> Json<Vec<Task>> {
+pub async fn get_tasks() -> Result<(StatusCode, Json<Vec<Task>>), ServerError> {
     let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    let tasks = save_data.get_tasks().clone();
-    Json(tasks)
+    save_data.load_tasks()?;
+    Ok((StatusCode::OK, Json(save_data.get_tasks().clone())))
 }
 
 /// Creates and persists a new task with the given name.
@@ -35,14 +36,18 @@ pub async fn get_tasks() -> Json<Vec<Task>> {
 /// # }
 /// ```
 #[debug_handler]
-pub async fn add_task(Json(name): Json<String>) -> Json<Task> {
+pub async fn add_task(Json(name): Json<String>) -> Result<(StatusCode, Json<Task>), ServerError> {
     println!("Adding task {}", name);
     let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
+    save_data.load_tasks()?;
+    if save_data.get_tasks().iter().any(|t| t.name == name) {
+        return Err(ServerError::Conflict(name.into()));
+    }
+
     let task = Task { name, done: false };
     save_data.add_task(task.clone());
-    save_data.save_tasks().unwrap();
-    Json(task)
+    save_data.save_tasks()?;
+    Ok((StatusCode::OK, Json(task)))
 }
 
 /// Remove the task at the given zero-based index.
@@ -65,16 +70,17 @@ pub async fn add_task(Json(name): Json<String>) -> Json<Task> {
 /// // assert!(resp == StatusCode::OK || resp == StatusCode::NOT_FOUND);
 /// ```
 #[debug_handler]
-pub async fn remove_task(Json(index): Json<usize>) -> StatusCode {
+pub async fn remove_task(Json(index): Json<usize>) -> Result<StatusCode, ServerError> {
     let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    if save_data.get_tasks().len() <= index {
-        return StatusCode::NOT_FOUND;
-    }
+    save_data.load_tasks()?;
+
+    save_data.get_tasks().get(index).ok_or(ServerError::NotFound(index.into()))?;
+
     println!("Removing task with index {}: {}", index, save_data.get_tasks()[index].name);
     save_data.remove_task(index);
-    save_data.save_tasks().unwrap();
-    StatusCode::OK
+
+    save_data.save_tasks()?;
+    Ok(StatusCode::OK)
 }
 
 /// Mark the task at the given index as done.
@@ -95,22 +101,16 @@ pub async fn remove_task(Json(index): Json<usize>) -> StatusCode {
 /// # }
 /// ```
 #[debug_handler]
-pub async fn done_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
+pub async fn done_task(Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
     let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    if save_data.get_tasks().len() <= index {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(Task {
-                name: "Could not find specified index".to_string(),
-                done: false,
-            }),
-        );
-    }
+    save_data.load_tasks()?;
+
+    save_data.get_tasks().get(index).ok_or(ServerError::NotFound(index.into()))?;
+
     println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_done(index);
-    save_data.save_tasks().unwrap();
-    (StatusCode::OK, Json(save_data.get_tasks()[index].clone()))
+    save_data.save_tasks()?;
+    Ok((StatusCode::OK, Json(save_data.get_tasks()[index].clone())))
 }
 
 /// Mark the task at the given index as not completed and persist the change.
@@ -134,22 +134,16 @@ pub async fn done_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
 /// # }
 /// ```
 #[debug_handler]
-pub async fn undone_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
+pub async fn undone_task(Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
     let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    if save_data.get_tasks().len() <= index {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(Task {
-                name: "Could not find specified index".to_string(),
-                done: false,
-            }),
-        );
-    }
+    save_data.load_tasks()?;
+
+    save_data.get_tasks().get(index).ok_or(ServerError::NotFound(index.into()))?;
+
     println!("Marking task with index {} as undone: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_undone(index);
-    save_data.save_tasks().unwrap();
-    (StatusCode::OK, Json(save_data.get_tasks()[index].clone()))
+    save_data.save_tasks()?;
+    Ok((StatusCode::OK, Json(save_data.get_tasks()[index].clone())))
 }
 
 /// Clears all tasks from persistent storage and persists the empty task list.
@@ -161,16 +155,17 @@ pub async fn undone_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
 /// ```
 /// # use server::functions::clear_tasks;
 /// # tokio_test::block_on(async {
-/// clear_tasks().await;
+/// clear_tasks().await.unwrap();
 /// # });
 /// ```
 #[debug_handler]
-pub async fn clear_tasks() {
+pub async fn clear_tasks() -> Result<StatusCode, ServerError> {
     let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
+    save_data.load_tasks()?;
     println!("Clearing tasks");
     save_data.clear_tasks();
-    save_data.save_tasks().unwrap();
+    save_data.save_tasks()?;
+    Ok(StatusCode::OK)
 }
 
 /// Remove all tasks that are marked as done and persist the updated task list.
@@ -185,12 +180,14 @@ pub async fn clear_tasks() {
 /// clear_done_tasks().await;
 /// ```
 #[debug_handler]
-pub async fn clear_done_tasks() {
+pub async fn clear_done_tasks() -> Result<StatusCode, ServerError> {
     let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
+    save_data.load_tasks()?;
+
     println!("Clearing done tasks");
     save_data.clear_done_tasks();
-    save_data.save_tasks().unwrap();
+    save_data.save_tasks()?;
+    Ok(StatusCode::OK)
 }
 
 /// Finds the index of a task by name and returns it as a JSON response.
@@ -217,13 +214,12 @@ pub async fn clear_done_tasks() {
 /// }
 /// ```
 #[debug_handler]
-pub async fn get_index(Json(name): Json<String>) -> (StatusCode, Json<usize>) {
+pub async fn get_index(Json(name): Json<String>) -> Result<(StatusCode, Json<usize>), ServerError> {
     let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    let result = yesser_todo_db::get_index(save_data.get_tasks(), &name);
-    match result {
-        None => (StatusCode::NOT_FOUND, Json(0)),
-        Some(result) => (StatusCode::OK, Json(result)),
+    save_data.load_tasks()?;
+    match yesser_todo_db::get_index(save_data.get_tasks(), &name) {
+        None => Err(ServerError::NotFound(name.into())),
+        Some(result) => Ok((StatusCode::OK, Json(result))),
     }
 }
 
@@ -233,257 +229,268 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_tasks_empty() {
-        clear_tasks().await;
-        let Json(tasks) = get_tasks().await;
+        clear_tasks().await.unwrap();
+        let (status, Json(tasks)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks.len(), 0);
     }
 
     #[tokio::test]
     async fn test_add_task() {
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
         let task_name = "Test task".to_string();
-        let Json(task) = add_task(Json(task_name.clone())).await;
+        let (status, Json(task)) = add_task(Json(task_name.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(task.name, task_name);
         assert!(!task.done);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_add_multiple_tasks() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        add_task(Json("Task 2".to_string())).await;
-        add_task(Json("Task 3".to_string())).await;
-        let Json(tasks) = get_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(Json("Task 2".to_string())).await.unwrap();
+        _ = add_task(Json("Task 3".to_string())).await.unwrap();
+        let (status, Json(tasks)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks.len(), 3);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_remove_task_success() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        add_task(Json("Task 2".to_string())).await;
-        let status = remove_task(Json(0)).await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(Json("Task 2".to_string())).await.unwrap();
+        let status = remove_task(Json(0)).await.unwrap();
         assert_eq!(status, StatusCode::OK);
-        let Json(tasks) = get_tasks().await;
+        let (status, Json(tasks)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].name, "Task 2");
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_remove_task_not_found() {
-        clear_tasks().await;
-        let status = remove_task(Json(0)).await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
+        clear_tasks().await.unwrap();
+        let err = remove_task(Json(0)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
     }
 
     #[tokio::test]
     async fn test_remove_task_out_of_bounds() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        let status = remove_task(Json(10)).await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        let err = remove_task(Json(99)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_done_task_success() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        let (status, Json(task)) = done_task(Json(0)).await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        let (status, Json(task)) = done_task(Json(0)).await.unwrap();
         assert_eq!(status, StatusCode::OK);
         assert!(task.done);
         assert_eq!(task.name, "Task 1");
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_done_task_not_found() {
-        clear_tasks().await;
-        let (status, Json(task)) = done_task(Json(0)).await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert_eq!(task.name, "Could not find specified index");
-        assert!(!task.done);
+        clear_tasks().await.unwrap();
+        let err = done_task(Json(0)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)))
     }
 
     #[tokio::test]
     async fn test_done_task_out_of_bounds() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        let (status, Json(task)) = done_task(Json(5)).await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert_eq!(task.name, "Could not find specified index");
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        let err = done_task(Json(5)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
     }
 
     #[tokio::test]
     async fn test_undone_task_success() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        done_task(Json(0)).await;
-        let (status, Json(task)) = undone_task(Json(0)).await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        _ = done_task(Json(0)).await.unwrap();
+        let (status, Json(task)) = undone_task(Json(0)).await.unwrap();
         assert_eq!(status, StatusCode::OK);
         assert!(!task.done);
         assert_eq!(task.name, "Task 1");
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_undone_task_not_found() {
-        clear_tasks().await;
-        let (status, Json(task)) = undone_task(Json(0)).await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert_eq!(task.name, "Could not find specified index");
-        assert!(!task.done);
+        clear_tasks().await.unwrap();
+        let err = undone_task(Json(0)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_undone_task_out_of_bounds() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        let (status, Json(task)) = undone_task(Json(10)).await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        let err = undone_task(Json(10)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_clear_tasks() {
-        add_task(Json("Task 1".to_string())).await;
-        add_task(Json("Task 2".to_string())).await;
-        add_task(Json("Task 3".to_string())).await;
-        clear_tasks().await;
-        let Json(tasks) = get_tasks().await;
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(Json("Task 2".to_string())).await.unwrap();
+        _ = add_task(Json("Task 3".to_string())).await.unwrap();
+        clear_tasks().await.unwrap();
+        let (status, Json(tasks)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks.len(), 0);
     }
 
     #[tokio::test]
     async fn test_clear_done_tasks() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        add_task(Json("Task 2".to_string())).await;
-        add_task(Json("Task 3".to_string())).await;
-        done_task(Json(0)).await;
-        done_task(Json(2)).await;
-        clear_done_tasks().await;
-        let Json(tasks) = get_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(Json("Task 2".to_string())).await.unwrap();
+        _ = add_task(Json("Task 3".to_string())).await.unwrap();
+        _ = done_task(Json(0)).await.unwrap();
+        _ = done_task(Json(2)).await.unwrap();
+        _ = clear_done_tasks().await.unwrap();
+        let (status, Json(tasks)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].name, "Task 2");
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_clear_done_tasks_none_done() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        add_task(Json("Task 2".to_string())).await;
-        clear_done_tasks().await;
-        let Json(tasks) = get_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(Json("Task 2".to_string())).await.unwrap();
+        _ = clear_done_tasks().await.unwrap();
+        let (status, Json(tasks)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks.len(), 2);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_clear_done_tasks_all_done() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        add_task(Json("Task 2".to_string())).await;
-        done_task(Json(0)).await;
-        done_task(Json(1)).await;
-        clear_done_tasks().await;
-        let Json(tasks) = get_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(Json("Task 2".to_string())).await.unwrap();
+        _ = done_task(Json(0)).await.unwrap();
+        _ = done_task(Json(1)).await.unwrap();
+        clear_done_tasks().await.unwrap();
+        let (status, Json(tasks)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks.len(), 0);
     }
 
     #[tokio::test]
     async fn test_get_index_found() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        add_task(Json("Task 2".to_string())).await;
-        add_task(Json("Task 3".to_string())).await;
-        let (status, Json(index)) = get_index(Json("Task 2".to_string())).await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(Json("Task 2".to_string())).await.unwrap();
+        _ = add_task(Json("Task 3".to_string())).await.unwrap();
+        let (status, Json(index)) = get_index(Json("Task 2".to_string())).await.unwrap();
         assert_eq!(status, StatusCode::OK);
         assert_eq!(index, 1);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_get_index_not_found() {
-        clear_tasks().await;
-        add_task(Json("Task 1".to_string())).await;
-        let (status, Json(index)) = get_index(Json("Nonexistent".to_string())).await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert_eq!(index, 0);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Task 1".to_string())).await.unwrap();
+        let err = get_index(Json("Nonexistent".to_string())).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_get_index_empty_list() {
-        clear_tasks().await;
-        let (status, Json(index)) = get_index(Json("Any task".to_string())).await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert_eq!(index, 0);
+        clear_tasks().await.unwrap();
+        let err = get_index(Json("Any task".to_string())).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)))
     }
 
     #[tokio::test]
     async fn test_done_undone_cycle() {
-        clear_tasks().await;
-        add_task(Json("Cycle task".to_string())).await;
-        let (status, Json(task)) = done_task(Json(0)).await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Cycle task".to_string())).await.unwrap();
+        let (status, Json(task)) = done_task(Json(0)).await.unwrap();
         assert_eq!(status, StatusCode::OK);
         assert!(task.done);
-        let (status, Json(task)) = undone_task(Json(0)).await;
+
+        let (status, Json(task)) = undone_task(Json(0)).await.unwrap();
         assert_eq!(status, StatusCode::OK);
         assert!(!task.done);
-        let (status, Json(task)) = done_task(Json(0)).await;
+        let (status, Json(task)) = done_task(Json(0)).await.unwrap();
         assert_eq!(status, StatusCode::OK);
         assert!(task.done);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_workflow_add_done_clear() {
-        clear_tasks().await;
-        add_task(Json("Workflow task 1".to_string())).await;
-        add_task(Json("Workflow task 2".to_string())).await;
-        add_task(Json("Workflow task 3".to_string())).await;
-        done_task(Json(1)).await;
-        let Json(tasks) = get_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Workflow task 1".to_string())).await.unwrap();
+        _ = add_task(Json("Workflow task 2".to_string())).await.unwrap();
+        _ = add_task(Json("Workflow task 3".to_string())).await.unwrap();
+        _ = done_task(Json(1)).await;
+
+        let (status, Json(tasks)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks.len(), 3);
         assert!(!tasks[0].done);
         assert!(tasks[1].done);
         assert!(!tasks[2].done);
-        clear_done_tasks().await;
-        let Json(tasks) = get_tasks().await;
+        _ = clear_done_tasks().await.unwrap();
+
+        let (status, Json(tasks)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks.len(), 2);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_add_task_with_special_characters() {
-        clear_tasks().await;
-        let special_name = "Task with spaces & symbols! @#$%".to_string();
-        let Json(task) = add_task(Json(special_name.clone())).await;
+        clear_tasks().await.unwrap();
+        let special_name = "Task with spaces & symbols! @#$%ᕚ( Ŧคภςץ )ᕘ".to_string();
+
+        let (status, Json(task)) = add_task(Json(special_name.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(task.name, special_name);
-        let (status, Json(index)) = get_index(Json(special_name)).await;
+
+        let (status, Json(index)) = get_index(Json(special_name)).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(status, StatusCode::OK);
         assert_eq!(index, 0);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_persistence_across_operations() {
-        clear_tasks().await;
-        add_task(Json("Persist 1".to_string())).await;
-        add_task(Json("Persist 2".to_string())).await;
-        let Json(tasks_before) = get_tasks().await;
+        clear_tasks().await.unwrap();
+        _ = add_task(Json("Persist 1".to_string())).await.unwrap();
+        _ = add_task(Json("Persist 2".to_string())).await.unwrap();
+        let (status, Json(tasks_before)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks_before.len(), 2);
-        let Json(tasks_after) = get_tasks().await;
+        let (status, Json(tasks_after)) = get_tasks().await.unwrap();
+        assert_eq!(status, StatusCode::OK);
         assert_eq!(tasks_after.len(), 2);
         assert_eq!(tasks_before[0].name, tasks_after[0].name);
         assert_eq!(tasks_before[1].name, tasks_after[1].name);
-        clear_tasks().await;
+        clear_tasks().await.unwrap();
     }
 }
-
