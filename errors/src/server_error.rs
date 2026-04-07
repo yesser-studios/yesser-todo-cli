@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use axum::{Json, http::StatusCode, response::IntoResponse};
+use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
@@ -12,6 +12,16 @@ pub enum ServerError {
     NotFound(TaskSelector),
     Conflict(TaskSelector),
     IOError(String),
+}
+
+impl ServerError {
+    pub fn to_status_code(&self) -> StatusCode {
+        match self {
+            ServerError::NotFound(_) => StatusCode::NOT_FOUND,
+            ServerError::Conflict(_) => StatusCode::CONFLICT,
+            ServerError::IOError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }
 
 impl From<DatabaseError> for ServerError {
@@ -32,12 +42,7 @@ impl Display for ServerError {
 
 impl IntoResponse for ServerError {
     fn into_response(self) -> axum::response::Response {
-        let status = match &self {
-            ServerError::NotFound(_) => StatusCode::NOT_FOUND,
-            ServerError::Conflict(_) => StatusCode::CONFLICT,
-            ServerError::IOError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        };
-        (status, Json(json!({"error": &self}))).into_response()
+        (self.to_status_code(), Json(json!({"error": &self}))).into_response()
     }
 }
 
@@ -81,5 +86,58 @@ impl From<usize> for TaskSelector {
 impl From<String> for TaskSelector {
     fn from(value: String) -> Self {
         Self::Name(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_status_code_not_found() {
+        let err = ServerError::NotFound(TaskSelector::Name("test".into()));
+        assert_eq!(err.to_status_code(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_to_status_code_conflict() {
+        let err = ServerError::Conflict(TaskSelector::Index(1));
+        assert_eq!(err.to_status_code(), StatusCode::CONFLICT);
+    }
+
+    #[test]
+    fn test_to_status_code_io_error() {
+        let err = ServerError::IOError("test error".into());
+        assert_eq!(err.to_status_code(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_display_not_found() {
+        let err = ServerError::NotFound(TaskSelector::Name("my task".into()));
+        assert_eq!(format!("{}", err), "Task my task not found!");
+    }
+
+    #[test]
+    fn test_display_conflict_index() {
+        let err = ServerError::Conflict(TaskSelector::Index(5));
+        assert_eq!(format!("{}", err), "Task of index 5 already exists!");
+    }
+
+    #[test]
+    fn test_display_io_error() {
+        let err = ServerError::IOError("disk full".into());
+        assert_eq!(format!("{}", err), "IO error: disk full");
+    }
+
+    #[test]
+    fn test_task_selector_display_index() {
+        let selector = TaskSelector::Index(42);
+        assert_eq!(format!("{}", selector), "Task of index 42");
+    }
+
+    #[test]
+    fn test_task_selector_display_name() {
+        let selector = TaskSelector::Name("buy milk".into());
+        assert_eq!(format!("{}", selector), "Task buy milk");
     }
 }

@@ -54,6 +54,13 @@ pub(crate) async fn check_exists_cloud(task: &str, client: &Client) -> Result<bo
                 }
             }
             ApiError::RequestError(_) => Err(CommandError::ConnectionError { name: task.to_string() }),
+            ApiError::ServerError(server_error) => match server_error {
+                yesser_todo_errors::server_error::ServerError::NotFound(_) => Ok(false),
+                _ => Err(CommandError::HTTPError {
+                    name: task.to_string(),
+                    status_code: server_error.to_status_code().as_u16(),
+                }),
+            },
         },
     }
 }
@@ -70,6 +77,12 @@ pub(crate) async fn get_tasks_cloud(client: &Client) -> Result<Vec<Task>, Comman
                     });
                 }
                 ApiError::RequestError(_) => Err(CommandError::ConnectionError { name: "".into() }),
+                ApiError::ServerError(server_error) => {
+                    return Err(CommandError::HTTPError {
+                        name: "".into(),
+                        status_code: server_error.to_status_code().as_u16(),
+                    });
+                }
             };
         }
     };
@@ -128,6 +141,12 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
                     });
                 }
                 ApiError::RequestError(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
+                ApiError::ServerError(server_error) => {
+                    return Err(CommandError::HTTPError {
+                        name: task.clone(),
+                        status_code: server_error.to_status_code().as_u16(),
+                    });
+                }
             }
         };
     }
@@ -180,6 +199,12 @@ pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Cli
                     });
                 }
                 ApiError::RequestError(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
+                ApiError::ServerError(server_error) => {
+                    return Err(CommandError::HTTPError {
+                        name: task.clone(),
+                        status_code: server_error.to_status_code().as_u16(),
+                    });
+                }
             }
         }
     }
@@ -226,6 +251,12 @@ pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandErro
             }
             ApiError::RequestError(_) => {
                 return Err(CommandError::ConnectionError { name: "".to_string() });
+            }
+            ApiError::ServerError(server_error) => {
+                return Err(CommandError::HTTPError {
+                    name: "".to_string(),
+                    status_code: server_error.to_status_code().as_u16(),
+                });
             }
         },
     }
@@ -287,6 +318,12 @@ pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mu
                 }
 
                 ApiError::RequestError(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
+                ApiError::ServerError(server_error) => {
+                    return Err(CommandError::HTTPError {
+                        name: task.clone(),
+                        status_code: server_error.to_status_code().as_u16(),
+                    });
+                }
             },
         }
     }
@@ -319,6 +356,10 @@ pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Clie
                 status_code: status_code.as_u16(),
             }),
             ApiError::RequestError(_) => Err(CommandError::ConnectionError { name: "".to_string() }),
+            ApiError::ServerError(server_error) => Err(CommandError::HTTPError {
+                name: "".to_string(),
+                status_code: server_error.to_status_code().as_u16(),
+            }),
         },
     }
 }

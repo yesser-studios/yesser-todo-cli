@@ -3,8 +3,11 @@ use std::fmt::Display;
 use reqwest::StatusCode;
 use thiserror::Error;
 
+use crate::server_error::ServerError;
+
 #[derive(Debug, Error)]
 pub enum ApiError {
+    ServerError(ServerError),
     HTTPError(StatusCode),
     RequestError(reqwest::Error),
 }
@@ -27,8 +30,9 @@ impl Display for ApiError {
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ApiError::HTTPError(status_code) => write!(f, "Server returned HTTP error code {status_code}"),
-            ApiError::RequestError(_) => write!(f, "Failed to connect to server"),
+            Self::ServerError(err) => err.fmt(f),
+            Self::HTTPError(status_code) => write!(f, "Server returned HTTP error code {status_code}"),
+            Self::RequestError(_) => write!(f, "Failed to connect to server"),
         }
     }
 }
@@ -88,5 +92,25 @@ mod tests {
             let err = ApiError::HTTPError(status);
             assert_eq!(format!("{}", err), expected);
         }
+    }
+
+    #[test]
+    fn test_server_error_display_not_found() {
+        use crate::server_error::TaskSelector;
+        let err = ApiError::ServerError(ServerError::NotFound(TaskSelector::Name("test task".into())));
+        assert_eq!(format!("{}", err), "Task test task not found!");
+    }
+
+    #[test]
+    fn test_server_error_display_conflict() {
+        use crate::server_error::TaskSelector;
+        let err = ApiError::ServerError(ServerError::Conflict(TaskSelector::Index(1)));
+        assert_eq!(format!("{}", err), "Task of index 1 already exists!");
+    }
+
+    #[test]
+    fn test_server_error_display_io_error() {
+        let err = ApiError::ServerError(ServerError::IOError("database connection failed".into()));
+        assert_eq!(format!("{}", err), "IO error: database connection failed");
     }
 }
