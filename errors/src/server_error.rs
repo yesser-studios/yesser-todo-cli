@@ -2,15 +2,17 @@ use std::fmt::Display;
 
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use thiserror::Error;
 
 use crate::db_error::DatabaseError;
 
 #[derive(Debug, Error, Serialize, Deserialize)]
 pub enum ServerError {
+    #[error("{0} not found!")]
     NotFound(TaskSelector),
+    #[error("{0} already exists!")]
     Conflict(TaskSelector),
+    #[error("IO error: {0}")]
     IOError(String),
 }
 
@@ -27,16 +29,6 @@ impl ServerError {
 impl From<DatabaseError> for ServerError {
     fn from(value: DatabaseError) -> Self {
         Self::IOError(format!("{value}"))
-    }
-}
-
-impl Display for ServerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ServerError::NotFound(selector) => write!(f, "{selector} not found!"),
-            ServerError::Conflict(selector) => write!(f, "{selector} already exists!"),
-            ServerError::IOError(error) => write!(f, "IO error: {error}"),
-        }
     }
 }
 
