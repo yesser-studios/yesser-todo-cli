@@ -2,6 +2,14 @@
 name = "yesser-todo-errors"
 version = "0.1.0"
 edition = "2024"
+authors = ["Yesser Studios <yesseruseryt@gmail.com>"]
+license = "AGPL-3.0"
+description = "Error library for yesser-todo"
+readme = "../README.md"
+categories = ["development-tools"]
+keywords = ["todo", "tasks", "tasklist", "todolist", "cli"]
+homepage = "https://github.com/Yesser-Studios/yesser-todo-cli"
+repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 
 [dependencies]
 axum = { version = "0.8.8", features = ["macros"] }
