@@ -30,7 +30,7 @@ async fn main() {
     match save_data.load_tasks() {
         Ok(()) => {}
         Err(err) => {
-            eprintln!("An error occured while loading tasks: {err}");
+            eprintln!("An error occurred while loading tasks: {err}");
             exit(1)
         }
     }
