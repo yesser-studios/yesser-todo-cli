@@ -56,9 +56,6 @@ Next, upload the generated `.msi` file to the GitHub release.
 2. Commit and push the changes. COPR should build the new commit automatically.
 
 # Server
-> [!CAUTION]
-> **Server functionality is not yet production-ready.**  
-> Accessing the server multiple times at the same time *will* cause race conditions and potentially edit incorrect tasks and/or crash the server.
 ## Usage guide:
 Run the `yesser-todo-server` crate. This will open port 6982 and listen for HTTP traffic.
 ## Endpoints
