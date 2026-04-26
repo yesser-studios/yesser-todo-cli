@@ -9,6 +9,7 @@ on:
       - db/**
       - server/**
       - .github/**
+      - *[Cc]argo*
   pull_request:
     branches: ["master"]
     paths:
@@ -17,6 +18,7 @@ on:
       - db/**
       - server/**
       - .github/**
+      - *[Cc]argo*
   workflow_dispatch:
 
 env:
