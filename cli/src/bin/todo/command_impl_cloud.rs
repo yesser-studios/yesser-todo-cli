@@ -235,7 +235,7 @@ pub(crate) fn handle_list_cloud(client: &Client) -> Result<(), CommandError> {
             println!("\nCurrent tasks:");
             for task in tasks {
                 if task.done {
-                    println!("{}", DONE_STYLE.apply_to(&task.name))
+                    println!("{}", yansi::Paint::paint(&task.name, DONE_STYLE))
                 } else {
                     println!("{}", task.name)
                 }

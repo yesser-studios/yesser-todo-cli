@@ -1,7 +1,7 @@
-use console::Style;
+use yansi::{Color::Green, Style};
 use yesser_todo_db::SaveData;
 
-pub(crate) const DONE_STYLE: Style = Style::new().strikethrough().green();
+pub(crate) const DONE_STYLE: Style = Green.strike();
 
 /// Return the saved cloud server host and port when available.
 ///
@@ -29,12 +29,13 @@ pub(crate) fn process_cloud_config() -> Option<(String, String)> {
 
 #[cfg(test)]
 mod tests {
+    use yansi::Paint;
+
     use super::*;
 
     #[test]
     fn test_done_style_exists() {
-        let style = DONE_STYLE;
-        let styled = style.apply_to("test");
+        let styled = "test".paint(DONE_STYLE);
         let styled_str = format!("{}", styled);
         assert!(styled_str.contains("test"));
     }
@@ -55,9 +56,8 @@ mod tests {
 
     #[test]
     fn test_done_style_properties() {
-        let style = DONE_STYLE;
         let test_text = "completed task";
-        let styled = style.apply_to(test_text);
+        let styled = test_text.paint(DONE_STYLE);
         let output = format!("{}", styled);
         assert!(output.len() >= test_text.len());
     }
