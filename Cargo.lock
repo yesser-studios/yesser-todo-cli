@@ -1849,7 +1849,6 @@ name = "yesser-todo-api"
 version = "3.0.0"
 dependencies = [
  "thiserror 2.0.18",
- "tokio",
  "ureq",
  "yesser-todo-db 2.0.0",
  "yesser-todo-errors",

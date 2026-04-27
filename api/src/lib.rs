@@ -56,7 +56,7 @@ impl Client {
     /// use yesser_todo_api::Client;
     /// use yesser_todo_db::Task;
     ///
-    /// # async fn example() -> Option<Vec<Task>> {
+    /// # fn example() -> Option<Vec<Task>> {
     /// let client = Client::new("http://127.0.0.1".into(), None);
     /// let (status, tasks) = client.get().ok()?;
     /// // `tasks` is a Vec<yesser_todo_db::Task>
@@ -89,21 +89,17 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
-    /// use yesser_todo_api::Client;
+    /// use yesser_todo_api::{ Client, helpers::is_success };
     ///
-    /// #[tokio::test]
-    /// async fn example_add() {
+    /// fn example_add() {
     ///     let client = Client::new("http://127.0.0.1".to_string(), None);
     ///     let (status, task) = client.add("example task").unwrap();
-    ///     assert!(status.is_success());
+    ///     assert!(is_success(status));
     ///     assert_eq!(task.name, "example task");
     /// }
     /// ```
     pub fn add(&self, task_name: &str) -> Result<(u16, Task), ApiError> {
-        let mut result = self
-            .client
-            .post(format!("{}:{}/add", self.hostname, self.port).as_str())
-            .send_json(&task_name)?;
+        let mut result = self.client.post(format!("{}:{}/add", self.hostname, self.port).as_str()).send_json(task_name)?;
 
         let status_code = result.status();
         if status_code.is_success() {
@@ -129,7 +125,7 @@ impl Client {
     /// ```no_run
     /// use yesser_todo_api::Client;
     ///
-    /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Client::new("http://127.0.0.1".into(), None);
     /// let (status, index) = client.get_index("example-task")?;
     /// println!("status: {}, index: {}", status, index);
@@ -139,7 +135,7 @@ impl Client {
         let mut result = self
             .client
             .get(format!("{}:{}/index", self.hostname, self.port).as_str())
-            .query("name", &task_name)
+            .query("name", task_name)
             .call()?;
         let status_code = result.status();
         if status_code.is_success() {
@@ -168,9 +164,7 @@ impl Client {
     ///
     /// ```no_run
     /// # use yesser_todo_api::Client;
-    /// # use tokio;
-    /// #[tokio::main]
-    /// async fn main() {
+    /// fn main() {
     ///     let client = Client::new("http://127.0.0.1".to_string(), None);
     ///     let _status = client.remove("example-task");
     /// }
@@ -208,7 +202,7 @@ impl Client {
     /// ```no_run
     /// # use yesser_todo_api::Client;
     /// # use yesser_todo_db::Task;
-    /// # async fn _example() {
+    /// # fn _example() {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
     /// let res = client.done("test");
     /// match res {
@@ -257,7 +251,7 @@ impl Client {
     /// ```no_run
     /// use yesser_todo_api::Client;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
     /// let res = client.undone("example")?;
     /// # Ok(())
@@ -304,7 +298,7 @@ impl Client {
     ///
     /// ```no_run
     /// # use yesser_todo_api::Client;
-    /// # async fn example() {
+    /// # fn example() {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
     /// let status = client.clear().unwrap();
     /// assert_eq!(status, 200);
@@ -351,16 +345,16 @@ impl Client {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn get() {
+    #[test]
+    fn get() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         let result = client.get();
         println!("{:?}", result);
         assert!(result.is_ok() && is_success(result.unwrap().0));
     }
 
-    #[tokio::test]
-    async fn add_get_index_done_undone_remove() {
+    #[test]
+    fn add_get_index_done_undone_remove() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         // add
         let result = client.add("test");
@@ -389,29 +383,8 @@ mod tests {
         assert!(result.is_ok() && is_success(result.unwrap()));
     }
 
-    /// Verifies that clearing removes all tasks and leaves the task list empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use crate::Client;
-    ///
-    /// #[tokio::test]
-    /// async fn clear() {
-    ///     let client = Client::new("http://127.0.0.1".to_string(), None);
-    ///     let _ = client.add("test");
-    ///     let _ = client.add("test");
-    ///     let _ = client.add("test");
-    ///     let result = client.clear();
-    ///     assert!(result.is_ok());
-    ///     let result = client.get();
-    ///     assert!(result.is_ok());
-    ///     let unwrapped = result.unwrap();
-    ///     assert!(unwrapped.0.is_success() && unwrapped.1.is_empty());
-    /// }
-    /// ```
-    #[tokio::test]
-    async fn clear() {
+    #[test]
+    fn clear() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         let _ = client.add("test");
         let _ = client.add("test");
@@ -426,8 +399,8 @@ mod tests {
         assert!(is_success(unwrapped.0) && unwrapped.1.is_empty());
     }
 
-    #[tokio::test]
-    async fn clear_done() {
+    #[test]
+    fn clear_done() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         let _ = client.add("test1");
         let _ = client.add("test2");
