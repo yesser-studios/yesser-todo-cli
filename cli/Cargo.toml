@@ -22,7 +22,7 @@ yesser-todo-api = { version = "3", path = "../api" }
 tokio = { version = "1", features = ["full"] }
 thiserror = "2"
 url = "2"
-yesser-todo-errors = { version = "0.1", path = "../errors" }
+yesser-todo-errors = { version = "0.1", path = "../errors", features = ["client"] }
 
 # yesser-todo-db = {path = "../db"}
 # yesser-todo-api = {path = "../api"}
