@@ -23,8 +23,7 @@ use crate::utils::process_cloud_config;
 /// // Run the CLI binary (example):
 /// // $ todo add "Buy milk"
 /// ```
-#[tokio::main]
-async fn main() {
+fn main() {
     let args = TodoArgs::parse();
     let mut data = SaveData::new();
 
@@ -42,7 +41,7 @@ async fn main() {
         client = Some(Client::new(hostname, Some(port)));
     }
 
-    match args.command.execute(data.get_tasks(), &mut client).await {
+    match args.command.execute(data.get_tasks(), &mut client) {
         Ok(()) => match args.command {
             Command::List => {}
             Command::Cloud(_) | Command::Connect(_) | Command::Disconnect => {}
@@ -57,7 +56,7 @@ async fn main() {
                     }
                 }
 
-                match Command::List.execute(data.get_tasks(), &mut client).await {
+                match Command::List.execute(data.get_tasks(), &mut client) {
                     Ok(()) => {}
                     Err(err) => err.handle(),
                 }

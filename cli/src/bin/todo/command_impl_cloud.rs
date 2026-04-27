@@ -38,8 +38,8 @@ use crate::{
 ///     println!("Task not found");
 /// }
 /// ```
-pub(crate) async fn check_exists_cloud(task: &str, client: &Client) -> Result<bool, CommandError> {
-    let result = client.get_index(task).await;
+pub(crate) fn check_exists_cloud(task: &str, client: &Client) -> Result<bool, CommandError> {
+    let result = client.get_index(task);
     match result {
         Ok(_) => Ok(true),
         Err(err) => match err {
@@ -49,7 +49,7 @@ pub(crate) async fn check_exists_cloud(task: &str, client: &Client) -> Result<bo
                 } else {
                     Err(CommandError::HTTPError {
                         name: task.to_string(),
-                        status_code: status_code.as_u16(),
+                        status_code,
                     })
                 }
             }
@@ -65,32 +65,23 @@ pub(crate) async fn check_exists_cloud(task: &str, client: &Client) -> Result<bo
     }
 }
 
-pub(crate) async fn get_tasks_cloud(client: &Client) -> Result<Vec<Task>, CommandError> {
-    let (_, current_tasks) = match client.get().await {
+pub(crate) fn get_tasks_cloud(client: &Client) -> Result<Vec<Task>, CommandError> {
+    let (_, current_tasks) = match client.get() {
         Ok(t) => t,
         Err(err) => {
             return match err {
-                ApiError::HTTPError(status_code) => {
-                    Err(CommandError::HTTPError {
-                        name: "".into(),
-                        status_code: status_code.as_u16(),
-                    })
-                }
+                ApiError::HTTPError(status_code) => Err(CommandError::HTTPError { name: "".into(), status_code }),
                 ApiError::RequestError(_) => Err(CommandError::ConnectionError { name: "".into() }),
                 ApiError::ServerError(server_error) => match server_error {
-                    yesser_todo_errors::server_error::ServerError::NotFound(_) => {
-                        Err(CommandError::HTTPError {
-                            name: "".into(),
-                            status_code: 404,
-                        })
-                    }
-                    other => {
-                        Err(CommandError::HTTPError {
-                            name: "".into(),
-                            status_code: other.to_status_code().as_u16(),
-                        })
-                    }
-                }
+                    yesser_todo_errors::server_error::ServerError::NotFound(_) => Err(CommandError::HTTPError {
+                        name: "".into(),
+                        status_code: 404,
+                    }),
+                    other => Err(CommandError::HTTPError {
+                        name: "".into(),
+                        status_code: other.to_status_code().as_u16(),
+                    }),
+                },
             };
         }
     };
@@ -122,12 +113,12 @@ pub(crate) async fn get_tasks_cloud(client: &Client) -> Result<Vec<Task>, Comman
 ///
 /// // block_on(handle_add_cloud(&command, &mut client)).unwrap();
 /// ```
-pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
+pub(crate) fn handle_add_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
     if command.tasks.is_empty() {
         return Err(CommandError::NoTasksSpecified);
     }
 
-    let current_tasks = get_tasks_cloud(client).await?;
+    let current_tasks = get_tasks_cloud(client)?;
     let mut seen = HashSet::new();
     for task in &command.tasks {
         if !seen.insert(task.as_str()) {
@@ -140,12 +131,12 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
 
     let results = command.tasks.iter().map(|task| (client.add(task), task));
     for (result, task) in results {
-        if let Err(err) = result.await {
+        if let Err(err) = result {
             match err {
                 ApiError::HTTPError(status_code) => {
                     return Err(CommandError::HTTPError {
                         name: task.clone(),
-                        status_code: status_code.as_u16(),
+                        status_code,
                     });
                 }
                 ApiError::RequestError(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
@@ -173,19 +164,19 @@ pub(crate) async fn handle_add_cloud(command: &TasksCommand, client: &mut Client
 /// # Examples
 ///
 /// ```
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Assume `client` implements the cloud API client and `TasksCommand` wraps task names.
 /// // let mut client = Client::new("http://api")?;
 /// // let cmd = TasksCommand { tasks: vec!["buy milk".into()] };
-/// // handle_remove_cloud(&cmd, &mut client).await?;
+/// // handle_remove_cloud(&cmd, &mut client)?;
 /// # Ok(()) }
 /// ```
-pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
+pub(crate) fn handle_remove_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
     if command.tasks.is_empty() {
         return Err(CommandError::NoTasksSpecified);
     }
 
-    let current_tasks = get_tasks_cloud(client).await?;
+    let current_tasks = get_tasks_cloud(client)?;
     let mut seen = HashSet::new();
     for task in &command.tasks {
         if !seen.insert(task.as_str()) {
@@ -198,12 +189,12 @@ pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Cli
 
     let results = command.tasks.iter().map(|task| (client.remove(task), task));
     for (result, task) in results {
-        if let Err(err) = result.await {
+        if let Err(err) = result {
             match err {
                 ApiError::HTTPError(status_code) => {
                     return Err(CommandError::HTTPError {
                         name: task.clone(),
-                        status_code: status_code.as_u16(),
+                        status_code,
                     });
                 }
                 ApiError::RequestError(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
@@ -232,13 +223,13 @@ pub(crate) async fn handle_remove_cloud(command: &TasksCommand, client: &mut Cli
 /// ```
 /// # use todo_cli::cloud::Client;
 /// # use todo_cli::command_impl_cloud::handle_list_cloud;
-/// # tokio_test::block_on(async {
+/// # tokio_test::block_on({
 /// let client = Client::example(); // construct a client connected to a test server
-/// let _ = handle_list_cloud(&client).await;
+/// let _ = handle_list_cloud(&client);
 /// # });
 /// ```
-pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandError> {
-    let result = client.get().await;
+pub(crate) fn handle_list_cloud(client: &Client) -> Result<(), CommandError> {
+    let result = client.get();
     match result {
         Ok((_, tasks)) => {
             println!("\nCurrent tasks:");
@@ -254,7 +245,7 @@ pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandErro
             ApiError::HTTPError(status_code) => {
                 return Err(CommandError::HTTPError {
                     name: "".to_string(),
-                    status_code: status_code.as_u16(),
+                    status_code,
                 });
             }
             ApiError::RequestError(_) => {
@@ -282,10 +273,10 @@ pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandErro
 ///
 /// ```
 /// # use todo_cli::{Client, TasksCommand, CommandError};
-/// # async fn _example(mut client: Client) -> Result<(), CommandError> {
+/// # fn _example(mut client: Client) -> Result<(), CommandError> {
 /// let cmd = TasksCommand { tasks: vec!["task1".into(), "task2".into()] };
 /// // mark tasks as done
-/// handle_done_undone_cloud(&cmd, &mut client, true).await?;
+/// handle_done_undone_cloud(&cmd, &mut client, true)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -293,12 +284,12 @@ pub(crate) async fn handle_list_cloud(client: &Client) -> Result<(), CommandErro
 /// # Returns
 ///
 /// `Ok(())` on success; `Err(CommandError)` on validation failures or API/connection errors.
-pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mut Client, done: bool) -> Result<(), CommandError> {
+pub(crate) fn handle_done_undone_cloud(command: &TasksCommand, client: &mut Client, done: bool) -> Result<(), CommandError> {
     if command.tasks.is_empty() {
         return Err(CommandError::NoTasksSpecified);
     }
 
-    let current_tasks = get_tasks_cloud(client).await?;
+    let current_tasks = get_tasks_cloud(client)?;
     let mut seen = HashSet::new();
     for task in &command.tasks {
         if !seen.insert(task.as_str()) {
@@ -310,17 +301,17 @@ pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mu
     }
 
     for task in &command.tasks {
-        let result = if done { client.done(task).await } else { client.undone(task).await };
+        let result = if done { client.done(task) } else { client.undone(task) };
         match result {
             Ok(_) => {}
             Err(err) => match err {
                 ApiError::HTTPError(status_code) => {
-                    if status_code.as_u16() == 404 {
+                    if status_code == 404 {
                         return Err(CommandError::TaskNotFound { name: task.clone() });
                     } else {
                         return Err(CommandError::HTTPError {
                             name: task.clone(),
-                            status_code: status_code.as_u16(),
+                            status_code,
                         });
                     }
                 }
@@ -348,20 +339,20 @@ pub(crate) async fn handle_done_undone_cloud(command: &TasksCommand, client: &mu
 ///
 /// ```no_run
 /// # use todo_cli::command_impl_cloud::{handle_clear_cloud, ClearCommand, Client};
-/// # async fn run_example(mut client: Client) -> Result<(), Box<dyn std::error::Error>> {
+/// # fn run_example(mut client: Client) -> Result<(), Box<dyn std::error::Error>> {
 /// let cmd = ClearCommand { done: true };
-/// handle_clear_cloud(&cmd, &mut client).await?;
+/// handle_clear_cloud(&cmd, &mut client)?;
 /// # Ok(())
 /// # }
 /// ```
-pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Client) -> Result<(), CommandError> {
-    let result = if command.done { client.clear_done().await } else { client.clear().await };
+pub(crate) fn handle_clear_cloud(command: &ClearCommand, client: &mut Client) -> Result<(), CommandError> {
+    let result = if command.done { client.clear_done() } else { client.clear() };
     match result {
         Ok(_) => Ok(()),
         Err(err) => match err {
             ApiError::HTTPError(status_code) => Err(CommandError::HTTPError {
                 name: "".to_string(),
-                status_code: status_code.as_u16(),
+                status_code,
             }),
             ApiError::RequestError(_) => Err(CommandError::ConnectionError { name: "".to_string() }),
             ApiError::ServerError(server_error) => Err(CommandError::HTTPError {
@@ -380,17 +371,17 @@ pub(crate) async fn handle_clear_cloud(command: &ClearCommand, client: &mut Clie
 /// # Examples
 ///
 /// ```no_run
-/// # async fn example(mut client: Client) -> Result<(), CommandError> {
-/// handle_clear_done_cloud(&mut client).await?;
+/// # fn example(mut client: Client) -> Result<(), CommandError> {
+/// handle_clear_done_cloud(&mut client)?;
 /// # Ok(())
 /// # }
 /// ```
 ///
 /// Returns `Ok(())` on success, or a `CommandError` if the operation fails.
 #[deprecated]
-pub(crate) async fn handle_clear_done_cloud(client: &mut Client) -> Result<(), CommandError> {
+pub(crate) fn handle_clear_done_cloud(client: &mut Client) -> Result<(), CommandError> {
     println!("clear-done is deprecated. Use clear -d instead.");
-    handle_clear_cloud(&ClearCommand { done: true }, client).await
+    handle_clear_cloud(&ClearCommand { done: true }, client)
 }
 
 /// Normalizes and validates a host URL for cloud configuration.
