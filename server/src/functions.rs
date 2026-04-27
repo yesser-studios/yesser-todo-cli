@@ -11,13 +11,6 @@ use yesser_todo_errors::server_error::ServerError;
 use crate::queries::{IndexQuery, NameQuery};
 
 /// Returns the current list of stored tasks as JSON.
-///
-/// # Examples
-///
-/// ```no_run
-/// let json = get_tasks().await;
-/// let tasks = json.0; // Vec<Task>
-/// ```
 #[debug_handler]
 pub async fn get_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<(StatusCode, Json<Vec<Task>>), ServerError> {
     let tasks = {
@@ -30,19 +23,6 @@ pub async fn get_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<
 /// Creates and persists a new task with the given name.
 ///
 /// The task is created with `done = false`, saved to persistent storage, and returned as `Json<Task>`.
-///
-/// # Examples
-///
-/// ```
-/// use axum::Json;
-/// use yesser_todo_db::Task;
-///
-/// # async fn example() {
-/// let Json(task) = crate::functions::add_task(Json("Buy milk".to_string())).await;
-/// assert_eq!(task.name, "Buy milk");
-/// assert_eq!(task.done, false);
-/// # }
-/// ```
 #[debug_handler]
 pub async fn add_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(name): Json<String>) -> Result<(StatusCode, Json<Task>), ServerError> {
     println!("Adding task {}", name);
@@ -65,17 +45,6 @@ pub async fn add_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(name):
 /// # Returns
 ///
 /// `StatusCode::OK` if the task was removed, `StatusCode::NOT_FOUND` if the index is out of bounds.
-///
-/// # Examples
-///
-/// ```
-/// use axum::Json;
-/// use axum::http::StatusCode;
-///
-/// // In an async test or runtime:
-/// // let resp = remove_task(Json(0)).await;
-/// // assert!(resp == StatusCode::OK || resp == StatusCode::NOT_FOUND);
-/// ```
 #[debug_handler]
 pub async fn remove_task(State(save_data): State<Arc<Mutex<SaveData>>>, Query(query): Query<IndexQuery>) -> Result<StatusCode, ServerError> {
     let index = query.index;
@@ -95,18 +64,6 @@ pub async fn remove_task(State(save_data): State<Arc<Mutex<SaveData>>>, Query(qu
 /// Returns `StatusCode::OK` and the updated `Task` when the index is valid. If the index is out of bounds,
 /// returns `StatusCode::NOT_FOUND` and a `Task` with `name` set to `"Could not find specified index"` and
 /// `done` set to `false`.
-///
-/// # Examples
-///
-/// ```
-/// # use axum::Json;
-/// # use http::StatusCode;
-/// # use yesser_todo_db::Task;
-/// # async fn run_example() {
-/// let (status, Json(task)) = crate::done_task(Json(0usize)).await;
-/// assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND);
-/// # }
-/// ```
 #[debug_handler]
 pub async fn done_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
     let mut save_data = save_data.lock().await;
@@ -124,21 +81,6 @@ pub async fn done_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(index
 /// On success returns `StatusCode::OK` and the updated `Task`. If the index is out of bounds
 /// returns `StatusCode::NOT_FOUND` and a `Task` with `name` set to `"Could not find specified index"`
 /// and `done` set to `false`.
-///
-/// # Examples
-///
-/// ```
-/// use axum::Json;
-/// use axum::http::StatusCode;
-/// use yesser_todo_db::Task;
-///
-/// // This example demonstrates the call shape; in real use the function runs inside an async runtime.
-/// # async fn doc_example() {
-/// let index = Json(0usize);
-/// let (status, Json(task)) = crate::functions::undone_task(index).await;
-/// assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND);
-/// # }
-/// ```
 #[debug_handler]
 pub async fn undone_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
     let mut save_data = save_data.lock().await;
@@ -154,15 +96,6 @@ pub async fn undone_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(ind
 /// Clears all tasks from persistent storage and persists the empty task list.
 ///
 /// This loads the current tasks, removes every task, and saves the resulting empty list.
-///
-/// # Examples
-///
-/// ```
-/// # use server::functions::clear_tasks;
-/// # tokio_test::block_on(async {
-/// clear_tasks().await.unwrap();
-/// # });
-/// ```
 #[debug_handler]
 pub async fn clear_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<StatusCode, ServerError> {
     let mut save_data = save_data.lock().await;
@@ -177,13 +110,6 @@ pub async fn clear_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Resul
 ///
 /// This loads the current tasks, removes any entries where `done == true`,
 /// and saves the resulting task list back to storage.
-///
-/// # Examples
-///
-/// ```no_run
-/// // Call from an async context
-/// clear_done_tasks().await;
-/// ```
 #[debug_handler]
 pub async fn clear_done_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<StatusCode, ServerError> {
     let mut save_data = save_data.lock().await;
@@ -203,21 +129,6 @@ pub async fn clear_done_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> 
 ///
 /// `(StatusCode::OK, Json(index))` when a task with the given name is found.
 /// `(StatusCode::NOT_FOUND, Json(0))` when no matching task name exists.
-///
-/// # Examples
-///
-/// ```
-/// use axum::Json;
-/// use axum::http::StatusCode;
-/// use axum::Query;
-///
-/// #[tokio::test]
-/// async fn example_get_index_not_found() {
-///     let (status, Json(idx)) = crate::get_index(Json(Query("no such task".to_string()))).await;
-///     assert_eq!(status, StatusCode::NOT_FOUND);
-///     assert_eq!(idx, 0);
-/// }
-/// ```
 #[debug_handler]
 pub async fn get_index(State(save_data): State<Arc<Mutex<SaveData>>>, Query(params): Query<NameQuery>) -> Result<(StatusCode, Json<usize>), ServerError> {
     let name = params.name;
