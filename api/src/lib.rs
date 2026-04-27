@@ -30,17 +30,10 @@ impl Client {
     /// # assert_eq!(c.port, DEFAULT_PORT);
     /// ```
     pub fn new(hostname: String, port: Option<String>) -> Client {
-        match port {
-            None => Client {
-                hostname,
-                port: DEFAULT_PORT.to_string(),
-                client: ureq::Agent::new_with_defaults(),
-            },
-            Some(port) => Client {
-                hostname,
-                port,
-                client: ureq::Agent::new_with_defaults(),
-            },
+        Client {
+            hostname,
+            port: port.unwrap_or_else(|| DEFAULT_PORT.to_string()),
+            client: ureq::Agent::config_builder().http_status_as_error(false).build().into(),
         }
     }
 
