@@ -192,17 +192,24 @@ pub(crate) fn handle_remove_cloud(command: &TasksCommand, client: &mut Client) -
         if let Err(err) = result {
             match err {
                 ApiError::HTTPError(status_code) => {
-                    return Err(CommandError::HTTPError {
-                        name: task.clone(),
-                        status_code,
-                    });
+                    return if status_code == 404 {
+                        Err(CommandError::TaskNotFound { name: task.clone() })
+                    } else {
+                        Err(CommandError::HTTPError {
+                            name: task.clone(),
+                            status_code,
+                        })
+                    };
                 }
                 ApiError::RequestError(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
                 ApiError::ServerError(server_error) => {
-                    return Err(CommandError::HTTPError {
-                        name: task.clone(),
-                        status_code: server_error.to_status_code().as_u16(),
-                    });
+                    return match server_error {
+                        yesser_todo_errors::server_error::ServerError::NotFound(name) => Err(CommandError::TaskNotFound { name: name.to_string() }),
+                        _ => Err(CommandError::HTTPError {
+                            name: task.clone(),
+                            status_code: server_error.to_status_code().as_u16(),
+                        }),
+                    };
                 }
             }
         }
@@ -306,22 +313,25 @@ pub(crate) fn handle_done_undone_cloud(command: &TasksCommand, client: &mut Clie
             Ok(_) => {}
             Err(err) => match err {
                 ApiError::HTTPError(status_code) => {
-                    if status_code == 404 {
-                        return Err(CommandError::TaskNotFound { name: task.clone() });
+                    return if status_code == 404 {
+                        Err(CommandError::TaskNotFound { name: task.clone() })
                     } else {
-                        return Err(CommandError::HTTPError {
+                        Err(CommandError::HTTPError {
                             name: task.clone(),
                             status_code,
-                        });
-                    }
+                        })
+                    };
                 }
 
                 ApiError::RequestError(_) => return Err(CommandError::ConnectionError { name: task.clone() }),
                 ApiError::ServerError(server_error) => {
-                    return Err(CommandError::HTTPError {
-                        name: task.clone(),
-                        status_code: server_error.to_status_code().as_u16(),
-                    });
+                    return match server_error {
+                        yesser_todo_errors::server_error::ServerError::NotFound(name) => Err(CommandError::TaskNotFound { name: name.to_string() }),
+                        _ => Err(CommandError::HTTPError {
+                            name: task.clone(),
+                            status_code: server_error.to_status_code().as_u16(),
+                        }),
+                    };
                 }
             },
         }
