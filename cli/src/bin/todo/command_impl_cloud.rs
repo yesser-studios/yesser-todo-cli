@@ -228,12 +228,10 @@ pub(crate) fn handle_remove_cloud(command: &TasksCommand, client: &mut Client) -
 /// # Examples
 ///
 /// ```
-/// # use todo_cli::cloud::Client;
-/// # use todo_cli::command_impl_cloud::handle_list_cloud;
-/// # tokio_test::block_on({
+/// use todo_cli::cloud::Client;
+/// use todo_cli::command_impl_cloud::handle_list_cloud;
 /// let client = Client::example(); // construct a client connected to a test server
 /// let _ = handle_list_cloud(&client);
-/// # });
 /// ```
 pub(crate) fn handle_list_cloud(client: &Client) -> Result<(), CommandError> {
     let result = client.get();
@@ -279,13 +277,13 @@ pub(crate) fn handle_list_cloud(client: &Client) -> Result<(), CommandError> {
 /// # Examples
 ///
 /// ```
-/// # use todo_cli::{Client, TasksCommand, CommandError};
-/// # fn _example(mut client: Client) -> Result<(), CommandError> {
+/// use todo_cli::{Client, TasksCommand, CommandError};
+/// fn _example(mut client: Client) -> Result<(), CommandError> {
 /// let cmd = TasksCommand { tasks: vec!["task1".into(), "task2".into()] };
 /// // mark tasks as done
 /// handle_done_undone_cloud(&cmd, &mut client, true)?;
-/// # Ok(())
-/// # }
+/// Ok(())
+/// }
 /// ```
 ///
 /// # Returns
@@ -348,12 +346,12 @@ pub(crate) fn handle_done_undone_cloud(command: &TasksCommand, client: &mut Clie
 /// # Examples
 ///
 /// ```no_run
-/// # use todo_cli::command_impl_cloud::{handle_clear_cloud, ClearCommand, Client};
-/// # fn run_example(mut client: Client) -> Result<(), Box<dyn std::error::Error>> {
+/// use todo_cli::command_impl_cloud::{handle_clear_cloud, ClearCommand, Client};
+/// fn run_example(mut client: Client) -> Result<(), Box<dyn std::error::Error>> {
 /// let cmd = ClearCommand { done: true };
 /// handle_clear_cloud(&cmd, &mut client)?;
-/// # Ok(())
-/// # }
+/// Ok(())
+/// }
 /// ```
 pub(crate) fn handle_clear_cloud(command: &ClearCommand, client: &mut Client) -> Result<(), CommandError> {
     let result = if command.done { client.clear_done() } else { client.clear() };
@@ -381,10 +379,10 @@ pub(crate) fn handle_clear_cloud(command: &ClearCommand, client: &mut Client) ->
 /// # Examples
 ///
 /// ```no_run
-/// # fn example(mut client: Client) -> Result<(), CommandError> {
+/// fn example(mut client: Client) -> Result<(), CommandError> {
 /// handle_clear_done_cloud(&mut client)?;
-/// # Ok(())
-/// # }
+/// Ok(())
+/// }
 /// ```
 ///
 /// Returns `Ok(())` on success, or a `CommandError` if the operation fails.
