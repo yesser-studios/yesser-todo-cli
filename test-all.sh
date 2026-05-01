@@ -13,4 +13,4 @@ for _ in {1..30}; do
   sleep 1
 done
 
-cargo test --all-features
+cargo test --verbose --all-features

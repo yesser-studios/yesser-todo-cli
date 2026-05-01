@@ -35,8 +35,4 @@ jobs:
       - name: Build
         run: cargo build
       - name: Run tests
-        run: |
-          cargo run --bin yesser-todo-server &
-          sleep 1s
-          cargo test --verbose --all-features
-          killall yesser-todo-server
+        run: ./test-all.sh
