@@ -88,14 +88,14 @@ impl Command {
     /// # use yesser_todo_api::Client;
     /// # use crate::cli::args::Command;
     /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let mut tasks: Vec<Task> = Vec::new();
     /// let mut client: Option<Client> = None;
     /// let cmd = Command::List;
-    /// cmd.execute(&mut tasks, &mut client).await?;
+    /// cmd.execute(&mut tasks, &mut client)?;
     /// # Ok(()) }
     /// ```
-    pub(crate) async fn execute(&self, data: &mut Vec<Task>, client: &mut Option<Client>) -> Result<(), CommandError> {
+    pub(crate) fn execute(&self, data: &mut Vec<Task>, client: &mut Option<Client>) -> Result<(), CommandError> {
         match client {
             None => match self {
                 Command::Add(tasks_command) => handle_add(tasks_command, data),
@@ -110,13 +110,13 @@ impl Command {
                 Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),
             },
             Some(client) => match self {
-                Command::Add(tasks_command) => handle_add_cloud(tasks_command, client).await,
-                Command::Remove(tasks_command) => handle_remove_cloud(tasks_command, client).await,
-                Command::Done(tasks_command) => handle_done_undone_cloud(tasks_command, client, true).await,
-                Command::Undone(tasks_command) => handle_done_undone_cloud(tasks_command, client, false).await,
-                Command::Clear(clear_command) => handle_clear_cloud(clear_command, client).await,
-                Command::ClearDone => handle_clear_done_cloud(client).await,
-                Command::List => handle_list_cloud(client).await,
+                Command::Add(tasks_command) => handle_add_cloud(tasks_command, client),
+                Command::Remove(tasks_command) => handle_remove_cloud(tasks_command, client),
+                Command::Done(tasks_command) => handle_done_undone_cloud(tasks_command, client, true),
+                Command::Undone(tasks_command) => handle_done_undone_cloud(tasks_command, client, false),
+                Command::Clear(clear_command) => handle_clear_cloud(clear_command, client),
+                Command::ClearDone => handle_clear_done_cloud(client),
+                Command::List => handle_list_cloud(client),
                 Command::Connect(cloud_command) => handle_connect_old(cloud_command),
                 Command::Disconnect => handle_disconnect_old(),
                 Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),

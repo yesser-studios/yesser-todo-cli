@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use axum::{http::StatusCode, response::IntoResponse, Json};
+#[cfg(feature = "server")]
+use axum::{Json, response::IntoResponse};
+
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -32,6 +35,7 @@ impl From<DatabaseError> for ServerError {
     }
 }
 
+#[cfg(feature = "server")]
 impl IntoResponse for ServerError {
     fn into_response(self) -> axum::response::Response {
         let status = self.to_status_code();
@@ -82,6 +86,7 @@ impl From<String> for TaskSelector {
     }
 }
 
+#[cfg(feature = "server")]
 #[cfg(test)]
 mod tests {
     use super::*;

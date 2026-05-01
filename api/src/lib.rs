@@ -1,15 +1,18 @@
-use reqwest::StatusCode;
+pub mod helpers;
+
 use yesser_todo_db::Task;
 
 pub use yesser_todo_errors::api_error::ApiError;
 use yesser_todo_errors::server_error::ServerError;
+
+use crate::helpers::is_success;
 
 pub const DEFAULT_PORT: &str = "6982";
 
 pub struct Client {
     pub hostname: String,
     pub port: String,
-    client: reqwest::Client,
+    client: ureq::Agent,
 }
 
 impl Client {
@@ -27,17 +30,10 @@ impl Client {
     /// # assert_eq!(c.port, DEFAULT_PORT);
     /// ```
     pub fn new(hostname: String, port: Option<String>) -> Client {
-        match port {
-            None => Client {
-                hostname,
-                port: DEFAULT_PORT.to_string(),
-                client: reqwest::Client::new(),
-            },
-            Some(port) => Client {
-                hostname,
-                port,
-                client: reqwest::Client::new(),
-            },
+        Client {
+            hostname,
+            port: port.unwrap_or_else(|| DEFAULT_PORT.to_string()),
+            client: ureq::Agent::config_builder().http_status_as_error(false).build().into(),
         }
     }
 
@@ -45,7 +41,7 @@ impl Client {
     ///
     /// # Returns
     ///
-    /// A tuple `(StatusCode, Vec<Task>)` where `StatusCode` is the HTTP response status and `Vec<Task>` is the list of tasks.
+    /// A tuple `(u16, Vec<Task>)` where `u16` is the HTTP response status and `Vec<Task>` is the list of tasks.
     ///
     /// # Examples
     ///
@@ -53,33 +49,28 @@ impl Client {
     /// use yesser_todo_api::Client;
     /// use yesser_todo_db::Task;
     ///
-    /// # async fn example() -> Option<Vec<Task>> {
+    /// # fn example() -> Option<Vec<Task>> {
     /// let client = Client::new("http://127.0.0.1".into(), None);
-    /// let (status, tasks) = client.get().await.ok()?;
+    /// let (status, tasks) = client.get().ok()?;
     /// // `tasks` is a Vec<yesser_todo_db::Task>
     /// # Some(tasks)
     /// # }
     /// ```
-    pub async fn get(&self) -> Result<(StatusCode, Vec<Task>), ApiError> {
-        let result = self.client.get(format!("{}:{}/tasks", self.hostname, self.port).as_str()).send().await;
+    pub fn get(&self) -> Result<(u16, Vec<Task>), ApiError> {
+        let mut result = self.client.get(format!("{}:{}/tasks", self.hostname, self.port).as_str()).call()?;
 
-        match result {
-            Ok(result) => {
-                let status_code = result.status();
-                if status_code.is_success() {
-                    let result = result.json::<Vec<Task>>().await;
-                    match result {
-                        Ok(result) => Ok((status_code, result)),
-                        Err(err) => Err(ApiError::RequestError(err)),
-                    }
-                } else {
-                    match result.json::<ServerError>().await {
-                        Ok(err) => Err(ApiError::ServerError(err)),
-                        Err(_) => Err(ApiError::HTTPError(status_code)),
-                    }
-                }
+        let status_code = result.status();
+        if status_code.is_success() {
+            let result = result.body_mut().read_json::<Vec<Task>>();
+            match result {
+                Ok(result) => Ok((status_code.as_u16(), result)),
+                Err(err) => Err(ApiError::RequestError(err)),
             }
-            Err(err) => Err(ApiError::RequestError(err)),
+        } else {
+            match result.body_mut().read_json::<ServerError>() {
+                Ok(err) => Err(ApiError::ServerError(err)),
+                Err(_) => Err(ApiError::HTTPError(status_code.as_u16())),
+            }
         }
     }
 
@@ -91,42 +82,30 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
-    /// use yesser_todo_api::Client;
-    /// use reqwest::StatusCode;
+    /// use yesser_todo_api::{ Client, helpers::is_success };
     ///
-    /// #[tokio::test]
-    /// async fn example_add() {
+    /// fn example_add() {
     ///     let client = Client::new("http://127.0.0.1".to_string(), None);
-    ///     let (status, task) = client.add("example task").await.unwrap();
-    ///     assert!(status.is_success());
+    ///     let (status, task) = client.add("example task").unwrap();
+    ///     assert!(is_success(status));
     ///     assert_eq!(task.name, "example task");
     /// }
     /// ```
-    pub async fn add(&self, task_name: &str) -> Result<(StatusCode, Task), ApiError> {
-        let result = self
-            .client
-            .post(format!("{}:{}/add", self.hostname, self.port).as_str())
-            .json(&task_name)
-            .send()
-            .await;
+    pub fn add(&self, task_name: &str) -> Result<(u16, Task), ApiError> {
+        let mut result = self.client.post(format!("{}:{}/add", self.hostname, self.port).as_str()).send_json(task_name)?;
 
-        match result {
-            Ok(result) => {
-                let status_code = result.status();
-                if status_code.is_success() {
-                    let result = result.json::<Task>().await;
-                    match result {
-                        Ok(result) => Ok((status_code, result)),
-                        Err(err) => Err(ApiError::RequestError(err)),
-                    }
-                } else {
-                    match result.json::<ServerError>().await {
-                        Ok(err) => Err(ApiError::ServerError(err)),
-                        Err(_) => Err(ApiError::HTTPError(status_code)),
-                    }
-                }
+        let status_code = result.status();
+        if status_code.is_success() {
+            let result = result.body_mut().read_json::<Task>();
+            match result {
+                Ok(result) => Ok((status_code.as_u16(), result)),
+                Err(err) => Err(ApiError::RequestError(err)),
             }
-            Err(err) => Err(ApiError::RequestError(err)),
+        } else {
+            match result.body_mut().read_json::<ServerError>() {
+                Ok(err) => Err(ApiError::ServerError(err)),
+                Err(_) => Err(ApiError::HTTPError(status_code.as_u16())),
+            }
         }
     }
 
@@ -139,36 +118,30 @@ impl Client {
     /// ```no_run
     /// use yesser_todo_api::Client;
     ///
-    /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Client::new("http://127.0.0.1".into(), None);
-    /// let (status, index) = client.get_index("example-task").await?;
+    /// let (status, index) = client.get_index("example-task")?;
     /// println!("status: {}, index: {}", status, index);
     /// # Ok(()) }
     /// ```
-    pub async fn get_index(&self, task_name: &str) -> Result<(StatusCode, usize), ApiError> {
-        let result = self
+    pub fn get_index(&self, task_name: &str) -> Result<(u16, usize), ApiError> {
+        let mut result = self
             .client
             .get(format!("{}:{}/index", self.hostname, self.port).as_str())
-            .json(&task_name)
-            .send()
-            .await;
-        match result {
-            Ok(result) => {
-                let status_code = result.status();
-                if status_code.is_success() {
-                    let result = result.json::<usize>().await;
-                    match result {
-                        Ok(result) => Ok((status_code, result)),
-                        Err(err) => Err(ApiError::RequestError(err)),
-                    }
-                } else {
-                    match result.json::<ServerError>().await {
-                        Ok(err) => Err(ApiError::ServerError(err)),
-                        Err(_) => Err(ApiError::HTTPError(status_code)),
-                    }
-                }
+            .query("name", task_name)
+            .call()?;
+        let status_code = result.status();
+        if status_code.is_success() {
+            let result = result.body_mut().read_json::<usize>();
+            match result {
+                Ok(result) => Ok((status_code.as_u16(), result)),
+                Err(err) => Err(ApiError::RequestError(err)),
             }
-            Err(err) => Err(ApiError::RequestError(err)),
+        } else {
+            match result.body_mut().read_json::<ServerError>() {
+                Ok(err) => Err(ApiError::ServerError(err)),
+                Err(_) => Err(ApiError::HTTPError(status_code.as_u16())),
+            }
         }
     }
 
@@ -178,51 +151,43 @@ impl Client {
     ///
     /// # Returns
     ///
-    /// `Ok(StatusCode)` if the server responded with a success status for the delete request, `Err(ApiError)` on transport or HTTP error.
+    /// `Ok(u16)` if the server responded with a success status for the delete request, `Err(ApiError)` on transport or HTTP error.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// # use yesser_todo_api::Client;
-    /// # use tokio;
-    /// #[tokio::main]
-    /// async fn main() {
+    /// fn main() {
     ///     let client = Client::new("http://127.0.0.1".to_string(), None);
-    ///     let _status = client.remove("example-task").await;
+    ///     let _status = client.remove("example-task");
     /// }
     /// ```
-    pub async fn remove(&self, task_name: &str) -> Result<StatusCode, ApiError> {
-        let index_result = self.get_index(task_name).await;
+    pub fn remove(&self, task_name: &str) -> Result<u16, ApiError> {
+        let index_result = self.get_index(task_name);
         let index = match index_result {
             Ok((_, result)) => result,
             Err(err) => return Err(err),
         };
 
-        let result = self
+        let mut result = self
             .client
             .delete(format!("{}:{}/remove", self.hostname, self.port).as_str())
-            .json(&index)
-            .send()
-            .await;
-        match result {
-            Ok(result) => {
-                if result.status().is_success() {
-                    Ok(result.status())
-                } else {
-                    let status_code = result.status();
-                    match result.json::<ServerError>().await {
-                        Ok(err) => Err(ApiError::ServerError(err)),
-                        Err(_) => Err(ApiError::HTTPError(status_code)),
-                    }
-                }
+            .query("index", index.to_string())
+            .call()?;
+        if result.status().is_success() {
+            Ok(result.status().as_u16())
+        } else {
+            let status_code = result.status();
+            match result.body_mut().read_json::<ServerError>() {
+                Ok(err) => Err(ApiError::ServerError(err)),
+                Err(_) => Err(ApiError::HTTPError(status_code.as_u16())),
             }
-            Err(err) => Err(ApiError::RequestError(err)),
         }
     }
 
     /// Mark the task with the given name as done and return the server status and the updated task.
     ///
-    /// On success returns a tuple containing the response `StatusCode` and the `Task` as returned by the server.
+    /// On success returns a tuple containing the response `u16` status code and the `Task` as returned by the server.
     /// On failure returns an `Err(ApiError)`.
     ///
     /// # Examples
@@ -230,53 +195,41 @@ impl Client {
     /// ```no_run
     /// # use yesser_todo_api::Client;
     /// # use yesser_todo_db::Task;
-    /// # use reqwest::StatusCode;
-    /// # async fn _example() {
+    /// # fn _example() {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
-    /// let res = client.done("test").await;
+    /// let res = client.done("test");
     /// match res {
     ///     Ok((status, task)) => {
-    ///         assert!(status.is_success() || status.is_client_error() || status.is_server_error());
     ///         let _ = task.name;
     ///     }
     ///     Err(e) => panic!("request failed: {:?}", e),
     /// }
     /// # }
     /// ```
-    pub async fn done(&self, task_name: &str) -> Result<(StatusCode, Task), ApiError> {
-        let index = match self.get_index(task_name).await {
+    pub fn done(&self, task_name: &str) -> Result<(u16, Task), ApiError> {
+        let index = match self.get_index(task_name) {
             Ok((status_code, result)) => {
-                if !status_code.is_success() {
+                if !is_success(status_code) {
                     return Err(ApiError::HTTPError(status_code));
                 }
                 result
             }
             Err(err) => return Err(err),
         };
-        let result = self
-            .client
-            .post(format!("{}:{}/done", self.hostname, self.port).as_str())
-            .json(&index)
-            .send()
-            .await;
-        match result {
-            Ok(result) => {
-                let status_code = result.status();
-                if status_code.is_success() {
-                    let result = result.json::<Task>().await;
-                    match result {
-                        Ok(result) => Ok((status_code, result)),
-                        Err(err) => Err(ApiError::RequestError(err)),
-                    }
-                } else {
-                    let status_code = result.status();
-                    match result.json::<ServerError>().await {
-                        Ok(err) => Err(ApiError::ServerError(err)),
-                        Err(_) => Err(ApiError::HTTPError(status_code)),
-                    }
-                }
+        let mut result = self.client.post(format!("{}:{}/done", self.hostname, self.port).as_str()).send_json(index)?;
+        let status_code = result.status();
+        if status_code.is_success() {
+            let result = result.body_mut().read_json::<Task>();
+            match result {
+                Ok(result) => Ok((status_code.as_u16(), result)),
+                Err(err) => Err(ApiError::RequestError(err)),
             }
-            Err(err) => Err(ApiError::RequestError(err)),
+        } else {
+            let status_code = result.status();
+            match result.body_mut().read_json::<ServerError>() {
+                Ok(err) => Err(ApiError::ServerError(err)),
+                Err(_) => Err(ApiError::HTTPError(status_code.as_u16())),
+            }
         }
     }
 
@@ -284,26 +237,24 @@ impl Client {
     ///
     /// # Returns
     ///
-    /// `Ok((StatusCode, Task))` with the HTTP response status and the updated task on success, `Err(ApiError)` on failure.
+    /// `Ok((u16, Task))` with the HTTP response status and the updated task on success, `Err(ApiError)` on failure.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// use yesser_todo_api::Client;
-    /// use reqwest::StatusCode;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
-    /// let res = client.undone("example").await?;
-    /// assert!(matches!(res.0, StatusCode::OK) || res.0.is_client_error() || res.0.is_server_error());
+    /// let res = client.undone("example")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn undone(&self, task_name: &str) -> Result<(StatusCode, Task), ApiError> {
-        let index_result = self.get_index(task_name).await;
+    pub fn undone(&self, task_name: &str) -> Result<(u16, Task), ApiError> {
+        let index_result = self.get_index(task_name);
         let index = match index_result {
             Ok((status_code, result)) => {
-                if !status_code.is_success() {
+                if !is_success(status_code) {
                     return Err(ApiError::HTTPError(status_code));
                 }
                 result
@@ -311,30 +262,20 @@ impl Client {
             Err(err) => return Err(err),
         };
 
-        let result = self
-            .client
-            .post(format!("{}:{}/undone", self.hostname, self.port).as_str())
-            .json(&index)
-            .send()
-            .await;
-        match result {
-            Ok(result) => {
-                let status_code = result.status();
-                if status_code.is_success() {
-                    let result = result.json::<Task>().await;
-                    match result {
-                        Ok(result) => Ok((status_code, result)),
-                        Err(err) => Err(ApiError::RequestError(err)),
-                    }
-                } else {
-                    let status_code = result.status();
-                    match result.json::<ServerError>().await {
-                        Ok(err) => Err(ApiError::ServerError(err)),
-                        Err(_) => Err(ApiError::HTTPError(status_code)),
-                    }
-                }
+        let mut result = self.client.post(format!("{}:{}/undone", self.hostname, self.port).as_str()).send_json(index)?;
+        let status_code = result.status();
+        if status_code.is_success() {
+            let result = result.body_mut().read_json::<Task>();
+            match result {
+                Ok(result) => Ok((status_code.as_u16(), result)),
+                Err(err) => Err(ApiError::RequestError(err)),
             }
-            Err(err) => Err(ApiError::RequestError(err)),
+        } else {
+            let status_code = result.status();
+            match result.body_mut().read_json::<ServerError>() {
+                Ok(err) => Err(ApiError::ServerError(err)),
+                Err(_) => Err(ApiError::HTTPError(status_code.as_u16())),
+            }
         }
     }
 
@@ -343,30 +284,25 @@ impl Client {
     /// Sends a DELETE request to the configured `/clear` endpoint and returns the HTTP status code.
     ///
     /// # Returns
-    /// - `StatusCode` of the request;
+    /// - status code of the request;
     /// - on failure returns `Err(ApiError)`
     ///
     /// # Examples
     ///
     /// ```no_run
     /// # use yesser_todo_api::Client;
-    /// # async fn example() {
+    /// # fn example() {
     /// let client = Client::new("http://127.0.0.1".to_string(), None);
-    /// let status = client.clear().await.unwrap();
-    /// assert_eq!(status, reqwest::StatusCode::OK);
+    /// let status = client.clear().unwrap();
+    /// assert_eq!(status, 200);
     /// # }
     /// ```
-    pub async fn clear(&self) -> Result<StatusCode, ApiError> {
-        let result = self.client.delete(format!("{}:{}/clear", self.hostname, self.port).as_str()).send().await;
-        match result {
-            Ok(result) => {
-                if result.status().is_success() {
-                    Ok(result.status())
-                } else {
-                    Err(ApiError::HTTPError(result.status()))
-                }
-            }
-            Err(err) => Err(ApiError::RequestError(err)),
+    pub fn clear(&self) -> Result<u16, ApiError> {
+        let result = self.client.delete(format!("{}:{}/clear", self.hostname, self.port).as_str()).call()?;
+        if result.status().is_success() {
+            Ok(result.status().as_u16())
+        } else {
+            Err(ApiError::HTTPError(result.status().as_u16()))
         }
     }
 
@@ -376,31 +312,24 @@ impl Client {
     ///
     /// # Returns
     ///
-    /// `Ok(StatusCode)` with the HTTP response status when the request succeeds, `Err(ApiError)` otherwise.
+    /// `Ok(u16)` with the HTTP response status when the request succeeds, `Err(ApiError)` otherwise.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// use yesser_todo_api::Client;
+    /// use yesser_todo_api::helpers::is_success;
     ///
     /// let client = Client::new("http://127.0.0.1".into(), None);
-    /// let status = tokio::runtime::Runtime::new()
-    ///     .unwrap()
-    ///     .block_on(client.clear_done())
-    ///     .unwrap();
-    /// assert!(status.is_success());
+    /// let status = client.clear_done().unwrap();
+    /// # assert!(is_success(status));
     /// ```
-    pub async fn clear_done(&self) -> Result<StatusCode, ApiError> {
-        let result = self.client.delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str()).send().await;
-        match result {
-            Ok(result) => {
-                if result.status().is_success() {
-                    Ok(result.status())
-                } else {
-                    Err(ApiError::HTTPError(result.status()))
-                }
-            }
-            Err(err) => Err(ApiError::RequestError(err)),
+    pub fn clear_done(&self) -> Result<u16, ApiError> {
+        let result = self.client.delete(format!("{}:{}/cleardone", self.hostname, self.port).as_str()).call()?;
+        if result.status().is_success() {
+            Ok(result.status().as_u16())
+        } else {
+            Err(ApiError::HTTPError(result.status().as_u16()))
         }
     }
 }
@@ -409,101 +338,80 @@ impl Client {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn get() {
+    #[test]
+    fn get() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
-        let result = client.get().await;
+        let result = client.get();
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0.is_success());
+        assert!(result.is_ok() && is_success(result.unwrap().0));
     }
 
-    #[tokio::test]
-    async fn add_get_index_done_undone_remove() {
+    #[test]
+    fn add_get_index_done_undone_remove() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
         // add
-        let result = client.add("test").await;
+        let result = client.add("test");
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0.is_success());
+        assert!(result.is_ok() && is_success(result.unwrap().0));
         // get_index
-        let result = client.get_index("test").await;
+        let result = client.get_index("test");
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0.is_success());
+        assert!(result.is_ok() && is_success(result.unwrap().0));
         // done
-        let result = client.done("test").await;
+        let result = client.done("test");
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0.is_success());
+        assert!(result.is_ok() && is_success(result.unwrap().0));
         // undone
-        let result = client.undone("test").await;
+        let result = client.undone("test");
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().0.is_success());
+        assert!(result.is_ok() && is_success(result.unwrap().0));
         // remove
-        let result = client.remove("test").await;
+        let result = client.remove("test");
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().is_success());
+        assert!(result.is_ok() && is_success(result.unwrap()));
 
         // cleanup
-        let result = client.clear().await;
+        let result = client.clear();
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().is_success());
+        assert!(result.is_ok() && is_success(result.unwrap()));
     }
 
-    /// Verifies that clearing removes all tasks and leaves the task list empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use crate::Client;
-    ///
-    /// #[tokio::test]
-    /// async fn clear() {
-    ///     let client = Client::new("http://127.0.0.1".to_string(), None);
-    ///     let _ = client.add("test").await;
-    ///     let _ = client.add("test").await;
-    ///     let _ = client.add("test").await;
-    ///     let result = client.clear().await;
-    ///     assert!(result.is_ok());
-    ///     let result = client.get().await;
-    ///     assert!(result.is_ok());
-    ///     let unwrapped = result.unwrap();
-    ///     assert!(unwrapped.0.is_success() && unwrapped.1.is_empty());
-    /// }
-    /// ```
-    #[tokio::test]
-    async fn clear() {
+    #[test]
+    fn clear() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
-        let _ = client.add("test").await;
-        let _ = client.add("test").await;
-        let _ = client.add("test").await;
-        let result = client.clear().await;
+        let _ = client.add("test");
+        let _ = client.add("test");
+        let _ = client.add("test");
+        let result = client.clear();
         println!("{:?}", result);
         assert!(result.is_ok());
-        let result = client.get().await;
+        let result = client.get();
         println!("{:?}", result);
         assert!(result.is_ok());
         let unwrapped = result.unwrap();
-        assert!(unwrapped.0.is_success() && unwrapped.1.is_empty());
+        assert!(is_success(unwrapped.0) && unwrapped.1.is_empty());
     }
 
-    #[tokio::test]
-    async fn clear_done() {
+    #[test]
+    fn clear_done() {
         let client = Client::new("http://127.0.0.1".to_string(), None);
-        let _ = client.add("test1").await;
-        let _ = client.add("test2").await;
-        let _ = client.add("test3").await;
-        let _ = client.done("test1").await;
-        let _ = client.done("test3").await;
-        let result = client.clear_done().await;
+        let _ = client.add("test1");
+        let _ = client.add("test2");
+        let _ = client.add("test3");
+        let _ = client.done("test1");
+        let _ = client.done("test3");
+        let result = client.clear_done();
         println!("{:?}", result);
         assert!(result.is_ok());
-        let result = client.get().await;
+        let result = client.get();
         println!("{:?}", result);
         assert!(result.is_ok());
         let unwrapped = result.unwrap();
-        assert!(unwrapped.0.is_success() && unwrapped.1.len() == 1 && unwrapped.1[0].name == "test2");
+        assert!(is_success(unwrapped.0) && unwrapped.1.len() == 1 && unwrapped.1[0].name == "test2");
 
         // cleanup
-        let result = client.clear().await;
+        let result = client.clear();
         println!("{:?}", result);
-        assert!(result.is_ok() && result.unwrap().is_success());
+        assert!(result.is_ok() && is_success(result.unwrap()));
     }
 }

@@ -12,8 +12,13 @@ homepage = "https://github.com/Yesser-Studios/yesser-todo-cli"
 repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 
 [dependencies]
-axum = { version = "0.8.8", features = ["macros"] }
-reqwest = { version = "0.13.2", features = ["json"] }
+axum = { version = "0.8.8", default-features = false, features = ["macros", "json"], optional = true }
+ureq = { version = "3", default-features = false, features = ["json"], optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-thiserror = "2.0.18"
+serde_json = "1"
+thiserror = "2"
+http = "1"
+
+[features]
+server = ["dep:axum"]
+client = ["dep:ureq"]

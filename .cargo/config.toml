@@ -1,2 +1,5 @@
 [env]
 RUST_TEST_THREADS = "1"
+
+[rust-analyzer]
+cargo.features = "all"

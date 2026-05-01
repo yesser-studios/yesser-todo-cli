@@ -1,4 +1,5 @@
 mod functions;
+mod queries;
 
 use std::process::exit;
 use std::sync::Arc;

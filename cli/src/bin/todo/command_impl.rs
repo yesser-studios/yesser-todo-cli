@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use yansi::Paint;
 use yesser_todo_errors::command_error::CommandError;
 
 use crate::{args::ClearCommand, utils::DONE_STYLE};
@@ -112,7 +113,7 @@ pub(crate) fn handle_list(data: &[Task]) -> Result<(), CommandError> {
     println!("\nCurrent tasks:");
     for task in data {
         if task.done {
-            println!("{}", DONE_STYLE.apply_to(task.name.as_str()));
+            println!("{}", task.name.as_str().paint(DONE_STYLE));
         } else {
             println!("{}", task.name);
         }
@@ -552,4 +553,3 @@ mod tests {
         assert_eq!(data.len(), 0);
     }
 }
-
