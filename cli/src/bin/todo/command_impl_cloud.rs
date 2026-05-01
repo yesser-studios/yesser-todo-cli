@@ -7,6 +7,7 @@ use yesser_todo_errors::command_error::CommandError;
 
 use crate::{
     args::{ClearCommand, CloudCommand, TasksCommand},
+    db_error_wrap::DatabaseErrorWrapper,
     utils::DONE_STYLE,
 };
 
@@ -526,7 +527,7 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
         }
         Err(err) => Err(CommandError::DataError {
             what: "server configuration".to_string(),
-            err,
+            err: DatabaseErrorWrapper::from(err).error,
         }),
     }
 }
@@ -572,7 +573,7 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
             DatabaseError::IOError(io_err) if io_err.kind() == ErrorKind::NotFound => Err(CommandError::UnlinkedError),
             _ => Err(CommandError::DataError {
                 what: "configuration".to_string(),
-                err,
+                err: DatabaseErrorWrapper::from(err).error,
             }),
         },
     }
@@ -610,9 +611,9 @@ pub(crate) fn handle_show_server() -> Result<(), CommandError> {
                 Ok(())
             }
         },
-        Err(e) => Err(CommandError::DataError {
+        Err(err) => Err(CommandError::DataError {
             what: "configuration".to_string(),
-            err: e,
+            err: DatabaseErrorWrapper::from(err).error,
         }),
     }
 }

@@ -21,9 +21,7 @@ yesser-todo-api = { version = "4", path = "../api" }
 url = "2"
 yesser-todo-errors = { version = "0.2", path = "../errors", features = ["client"] }
 yansi = {version = "1", features = ["detect-env", "detect-tty"], default-features = false}
-
-# yesser-todo-db = {path = "../db"}
-# yesser-todo-api = {path = "../api"}
+thiserror = "2"
 
 [[bin]]
 name = "todo"

@@ -1,6 +1,7 @@
 mod args;
 mod command_impl;
 mod command_impl_cloud;
+mod db_error_wrap;
 mod utils;
 
 use args::{Command, TodoArgs};
