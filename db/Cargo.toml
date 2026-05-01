@@ -18,4 +18,4 @@ serde_json = "1"
 platform-dirs = "0.3"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
-yesser-todo-errors = { version = "0.1", path = "../errors" }
+yesser-todo-errors = { version = "0.2", path = "../errors" }
