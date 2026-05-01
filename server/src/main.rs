@@ -1,3 +1,4 @@
+mod db_error_wrap;
 mod functions;
 mod queries;
 

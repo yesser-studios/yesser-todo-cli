@@ -8,6 +8,7 @@ use yesser_todo_db::{SaveData, Task};
 
 use yesser_todo_errors::server_error::ServerError;
 
+use crate::db_error_wrap::DatabaseErrorWrapper;
 use crate::queries::{IndexQuery, NameQuery};
 
 /// Returns the current list of stored tasks as JSON.
@@ -33,7 +34,7 @@ pub async fn add_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(name):
 
     let task = Task { name, done: false };
     save_data.add_task(task.clone());
-    save_data.save_tasks()?;
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
     Ok((StatusCode::OK, Json(task)))
 }
 
@@ -55,7 +56,7 @@ pub async fn remove_task(State(save_data): State<Arc<Mutex<SaveData>>>, Query(qu
     println!("Removing task with index {}: {}", index, save_data.get_tasks()[index].name);
     save_data.remove_task(index);
 
-    save_data.save_tasks()?;
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
     Ok(StatusCode::OK)
 }
 
@@ -72,7 +73,7 @@ pub async fn done_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(index
 
     println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_done(index);
-    save_data.save_tasks()?;
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
     Ok((StatusCode::OK, Json(save_data.get_tasks()[index].clone())))
 }
 
@@ -89,7 +90,7 @@ pub async fn undone_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(ind
 
     println!("Marking task with index {} as undone: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_undone(index);
-    save_data.save_tasks()?;
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
     Ok((StatusCode::OK, Json(save_data.get_tasks()[index].clone())))
 }
 
@@ -102,7 +103,7 @@ pub async fn clear_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Resul
 
     println!("Clearing tasks");
     save_data.clear_tasks();
-    save_data.save_tasks()?;
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
     Ok(StatusCode::OK)
 }
 
@@ -116,7 +117,7 @@ pub async fn clear_done_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> 
 
     println!("Clearing done tasks");
     save_data.clear_done_tasks();
-    save_data.save_tasks()?;
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
     Ok(StatusCode::OK)
 }
 
