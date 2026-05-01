@@ -17,7 +17,7 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 yesser-todo-db = { version = "3", path = "../db" }
-yesser-todo-api = { version = "3", path = "../api" }
+yesser-todo-api = { version = "4", path = "../api" }
 url = "2"
 yesser-todo-errors = { version = "0.2", path = "../errors", features = ["client"] }
 yansi = {version = "1", features = ["detect-env", "detect-tty"], default-features = false}
