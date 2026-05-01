@@ -1870,7 +1870,7 @@ version = "3.0.0"
 dependencies = [
  "thiserror 2.0.18",
  "ureq",
- "yesser-todo-db 2.0.0",
+ "yesser-todo-db",
  "yesser-todo-errors",
 ]
 
@@ -1882,20 +1882,8 @@ dependencies = [
  "url",
  "yansi",
  "yesser-todo-api",
- "yesser-todo-db 3.0.0",
+ "yesser-todo-db",
  "yesser-todo-errors",
-]
-
-[[package]]
-name = "yesser-todo-db"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c8e59020d20b166005c064ed4c5f5ffda2a74178885f0017c04546d9f555f8d"
-dependencies = [
- "platform-dirs",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1930,7 +1918,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
- "yesser-todo-db 3.0.0",
+ "yesser-todo-db",
  "yesser-todo-errors",
 ]
 
