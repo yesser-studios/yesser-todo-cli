@@ -1,0 +1,27 @@
+[package]
+name = "yesser-todo-cli"
+authors = ["Yesser Studios <yesseruseryt@gmail.com>"]
+version = "1.3.0-rc.2"
+edition = "2024"
+license = "AGPL-3.0"
+description = "A to-do CLI written in Rust"
+readme = "../README.md"
+categories = ["command-line-utilities"]
+keywords = ["todo", "tasks", "tasklist", "todolist", "cli"]
+exclude = ["/wix/"]
+homepage = "https://github.com/Yesser-Studios/yesser-todo-cli"
+repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+yesser-todo-db = { version = "3", path = "../db" }
+yesser-todo-api = { version = "4", path = "../api" }
+url = "2"
+yesser-todo-errors = { version = "0.2", path = "../errors", features = ["client"] }
+yansi = {version = "1", features = ["detect-env", "detect-tty"], default-features = false}
+thiserror = "2"
+
+[[bin]]
+name = "todo"

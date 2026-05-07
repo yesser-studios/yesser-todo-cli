@@ -1,31 +1,10 @@
-[package]
-name = "yesser-todo-cli"
-authors = ["Yesser Studios <yesseruseryt@gmail.com>"]
-version = "1.2.1"
-edition = "2024"
-license = "MIT"
-description = "A to-do CLI written in Rust"
-readme = "README.md"
-categories = ["command-line-utilities"]
-keywords = ["todo", "tasks", "tasklist", "todolist", "cli"]
-exclude = ["/wix/"]
-homepage = "https://github.com/Yesser-Studios/yesser-todo-cli"
-repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-clap = { version = "4", features = ["derive"] }
-console = "0"
-yesser-todo-db = "1"
-yesser-todo-api = "1"
-tokio = { version = "1.47.1", features = ["full"] }
-
-[[bin]]
-name = "todo"
+[workspace]
+resolver = "3"
+members = ["cli", "api", "db", "server", "errors"]
 
 [profile.release]
 strip = true
 opt-level = "z"
 lto = true
 codegen-units = 1
+panic = "abort"

@@ -1,18 +1,17 @@
 [package]
 name = "yesser-todo-api"
-version = "1.0.0"
+version = "4.0.0"
 edition = "2024"
-license = "MIT"
+license = "Apache-2.0"
 description = "A wrapper for yesser-todo-server written in Rust"
 readme = "../README.md"
-categories = ["web-programming::http-client"]
+categories = ["api-bindings"]
 keywords = ["todo", "tasks", "tasklist", "todolist", "wrapper"]
 homepage = "https://github.com/Yesser-Studios/yesser-todo-cli"
 repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 
 [dependencies]
-reqwest = { version = "0", features = ["json"] }
-yesser-todo-db = "1"
-
-[dev-dependencies]
-tokio = { version = "1", features = ["full"] }
+ureq = { version = "3", default-features = false, features = ["json", "native-tls"] }
+thiserror = "2.0.18"
+yesser-todo-db = { version = "3", path = "../db" }
+yesser-todo-errors = { version = "0.2", path = "../errors", features = ["client"] }

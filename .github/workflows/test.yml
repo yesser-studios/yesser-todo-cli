@@ -1,0 +1,38 @@
+name: Test
+
+on:
+  push:
+    branches: ["master"]
+    paths:
+      - cli/**
+      - api/**
+      - db/**
+      - server/**
+      - .github/**
+      - .cargo/
+      - Cargo.*
+  pull_request:
+    branches: ["master"]
+    paths:
+      - cli/**
+      - api/**
+      - db/**
+      - server/**
+      - .github/**
+      - .cargo/
+      - Cargo.*
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+
+    steps:
+      - uses: actions/checkout@main
+      - name: Build
+        run: cargo build
+      - name: Run tests
+        run: ./test-all.sh

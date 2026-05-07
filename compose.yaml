@@ -1,0 +1,12 @@
+name: yesser-todo
+
+services:
+  server:
+    image: "docker.io/yesseruser/yesser-todo-server:latest"
+    ports:
+      - "6982:6982"
+    volumes:
+      - yesser-todo_data:/root/.local/share/todo
+
+volumes:
+  yesser-todo_data:

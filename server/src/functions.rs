@@ -1,49 +1,41 @@
-use axum::{debug_handler, Json};
+use std::sync::Arc;
+
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
+use axum::{Json, debug_handler};
+use tokio::sync::Mutex;
 use yesser_todo_db::{SaveData, Task};
 
+use yesser_todo_errors::server_error::ServerError;
+
+use crate::db_error_wrap::DatabaseErrorWrapper;
+use crate::queries::{IndexQuery, NameQuery};
+
 /// Returns the current list of stored tasks as JSON.
-///
-/// # Examples
-///
-/// ```no_run
-/// let json = get_tasks().await;
-/// let tasks = json.0; // Vec<Task>
-/// ```
 #[debug_handler]
-pub async fn get_tasks() -> Json<Vec<Task>> {
-    let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    let tasks = save_data.get_tasks().clone();
-    Json(tasks)
+pub async fn get_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<(StatusCode, Json<Vec<Task>>), ServerError> {
+    let tasks = {
+        let mut save_data = save_data.lock().await;
+        save_data.get_tasks().clone()
+    };
+    Ok((StatusCode::OK, Json(tasks)))
 }
 
-/// Create and persist a new task with the given name.
+/// Creates and persists a new task with the given name.
 ///
-/// The task is created with `done = false`, saved to persistent storage, and returned wrapped in JSON.
-///
-/// # Examples
-///
-/// ```
-/// use axum::Json;
-/// use yesser_todo_db::Task;
-///
-/// // Example usage in an async context:
-/// # async fn example() {
-/// let Json(task) = crate::functions::add_task(Json("Buy milk".to_string())).await;
-/// assert_eq!(task.name, "Buy milk");
-/// assert_eq!(task.done, false);
-/// # }
-/// ```
+/// The task is created with `done = false`, saved to persistent storage, and returned as `Json<Task>`.
 #[debug_handler]
-pub async fn add_task(Json(name): Json<String>) -> Json<Task> {
+pub async fn add_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(name): Json<String>) -> Result<(StatusCode, Json<Task>), ServerError> {
     println!("Adding task {}", name);
-    let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    let task = Task{name, done: false};
+    let mut save_data = save_data.lock().await;
+    if save_data.get_tasks().iter().any(|t| t.name == name) {
+        return Err(ServerError::Conflict(name.into()));
+    }
+
+    let task = Task { name, done: false };
     save_data.add_task(task.clone());
-    save_data.save_tasks().unwrap();
-    Json(task)
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
+    Ok((StatusCode::OK, Json(task)))
 }
 
 /// Remove the task at the given zero-based index.
@@ -54,65 +46,35 @@ pub async fn add_task(Json(name): Json<String>) -> Json<Task> {
 /// # Returns
 ///
 /// `StatusCode::OK` if the task was removed, `StatusCode::NOT_FOUND` if the index is out of bounds.
-///
-/// # Examples
-///
-/// ```
-/// use axum::Json;
-/// use axum::http::StatusCode;
-///
-/// // In an async test or runtime:
-/// // let resp = remove_task(Json(0)).await;
-/// // assert!(resp == StatusCode::OK || resp == StatusCode::NOT_FOUND);
-/// ```
 #[debug_handler]
-pub async fn remove_task(Json(index): Json<usize>) -> StatusCode {
-    let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    if save_data.get_tasks().len() <= index {
-        return StatusCode::NOT_FOUND;
-    }
+pub async fn remove_task(State(save_data): State<Arc<Mutex<SaveData>>>, Query(query): Query<IndexQuery>) -> Result<StatusCode, ServerError> {
+    let index = query.index;
+    let mut save_data = save_data.lock().await;
+
+    save_data.get_tasks().get(index).ok_or(ServerError::NotFound(index.into()))?;
+
     println!("Removing task with index {}: {}", index, save_data.get_tasks()[index].name);
     save_data.remove_task(index);
-    save_data.save_tasks().unwrap();
-    StatusCode::OK
+
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
+    Ok(StatusCode::OK)
 }
 
-/// Marks the task at the provided index as done.
+/// Mark the task at the given index as done.
 ///
-/// If the index is within bounds, returns `StatusCode::OK` and a JSON-serialized copy of the updated `Task`.
-/// If the index is out of bounds, returns `StatusCode::NOT_FOUND` and a `Task` with `name` set to
-/// `"Could not find specified index"` and `done` set to `false`.
-///
-/// # Examples
-///
-/// ```
-/// # use axum::Json;
-/// # use http::StatusCode;
-/// # use yesser_todo_db::Task;
-/// # async fn run_example() {
-/// let (status, Json(task)) = crate::done_task(Json(0usize)).await;
-/// if status == StatusCode::OK {
-///     // task is the updated task marked done
-///     assert!(task.done);
-/// } else {
-///     // index was not found
-///     assert_eq!(status, StatusCode::NOT_FOUND);
-///     assert_eq!(task.name, "Could not find specified index");
-/// }
-/// # }
-/// ```
+/// Returns `StatusCode::OK` and the updated `Task` when the index is valid. If the index is out of bounds,
+/// returns `StatusCode::NOT_FOUND` and a `Task` with `name` set to `"Could not find specified index"` and
+/// `done` set to `false`.
 #[debug_handler]
-pub async fn done_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
-    let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    if save_data.get_tasks().len() <= index {
-        return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
-    }
+pub async fn done_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
+    let mut save_data = save_data.lock().await;
+
+    save_data.get_tasks().get(index).ok_or(ServerError::NotFound(index.into()))?;
+
     println!("Marking task with index {} as done: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_done(index);
-    save_data.save_tasks().unwrap();
-    (StatusCode::OK, Json(save_data.get_tasks()[index].clone()))
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
+    Ok((StatusCode::OK, Json(save_data.get_tasks()[index].clone())))
 }
 
 /// Mark the task at the given index as not completed and persist the change.
@@ -120,105 +82,424 @@ pub async fn done_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
 /// On success returns `StatusCode::OK` and the updated `Task`. If the index is out of bounds
 /// returns `StatusCode::NOT_FOUND` and a `Task` with `name` set to `"Could not find specified index"`
 /// and `done` set to `false`.
-///
-/// # Examples
-///
-/// ```
-/// use axum::Json;
-/// use axum::http::StatusCode;
-/// use yesser_todo_db::Task;
-///
-/// // This example demonstrates the call shape; in real use the function runs inside an async runtime.
-/// # async fn doc_example() {
-/// let index = Json(0usize);
-/// let (status, Json(task)) = crate::functions::undone_task(index).await;
-/// assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND);
-/// # }
-/// ```
 #[debug_handler]
-pub async fn undone_task(Json(index): Json<usize>) -> (StatusCode, Json<Task>) {
-    let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    if save_data.get_tasks().len() <= index {
-        return (StatusCode::NOT_FOUND, Json(Task{name: "Could not find specified index".to_string(), done: false}));
-    }
+pub async fn undone_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
+    let mut save_data = save_data.lock().await;
+
+    save_data.get_tasks().get(index).ok_or(ServerError::NotFound(index.into()))?;
+
     println!("Marking task with index {} as undone: {}", index, save_data.get_tasks()[index].name);
     save_data.mark_task_undone(index);
-    save_data.save_tasks().unwrap();
-    (StatusCode::OK, Json(save_data.get_tasks()[index].clone()))
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
+    Ok((StatusCode::OK, Json(save_data.get_tasks()[index].clone())))
 }
 
 /// Clears all tasks from persistent storage and persists the empty task list.
 ///
 /// This loads the current tasks, removes every task, and saves the resulting empty list.
-///
-/// # Examples
-///
-/// ```
-/// # use server::functions::clear_tasks;
-/// # tokio_test::block_on(async {
-/// clear_tasks().await;
-/// # });
-/// ```
 #[debug_handler]
-pub async fn clear_tasks() {
-    let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
+pub async fn clear_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<StatusCode, ServerError> {
+    let mut save_data = save_data.lock().await;
+
     println!("Clearing tasks");
     save_data.clear_tasks();
-    save_data.save_tasks().unwrap();
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
+    Ok(StatusCode::OK)
 }
 
 /// Remove all tasks that are marked as done and persist the updated task list.
 ///
 /// This loads the current tasks, removes any entries where `done == true`,
 /// and saves the resulting task list back to storage.
-///
-/// # Examples
-///
-/// ```no_run
-/// // Call from an async context
-/// clear_done_tasks().await;
-/// ```
 #[debug_handler]
-pub async fn clear_done_tasks() {
-    let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
+pub async fn clear_done_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<StatusCode, ServerError> {
+    let mut save_data = save_data.lock().await;
+
     println!("Clearing done tasks");
     save_data.clear_done_tasks();
-    save_data.save_tasks().unwrap();
+    save_data.save_tasks().map_err(DatabaseErrorWrapper::from)?;
+    Ok(StatusCode::OK)
 }
 
-/// Looks up the numeric index of a task by its name and returns it as a JSON response.
+/// Finds the index of a task by name and returns it as a JSON response.
 ///
-/// Looks up `name` in persisted tasks and persists the storage state after the lookup.
+/// If a matching task name is found, returns `StatusCode::OK` with the task's index.
+/// If no match is found, returns `StatusCode::NOT_FOUND` with `0`.
 ///
 /// # Returns
 ///
-/// - `(StatusCode::OK, Json(index))` when a task with the given name is found.
-/// - `(StatusCode::NOT_FOUND, Json(0))` when no matching task name exists.
-///
-/// # Examples
-///
-/// ```
-/// use axum::Json;
-/// use axum::http::StatusCode;
-///
-/// #[tokio::test]
-/// async fn example_get_index_not_found() {
-///     let (status, Json(idx)) = crate::get_index(Json("no such task".to_string())).await;
-///     assert_eq!(status, StatusCode::NOT_FOUND);
-///     assert_eq!(idx, 0);
-/// }
-/// ```
+/// `(StatusCode::OK, Json(index))` when a task with the given name is found.
+/// `(StatusCode::NOT_FOUND, Json(0))` when no matching task name exists.
 #[debug_handler]
-pub async fn get_index(Json(name): Json<String>) -> (StatusCode, Json<usize>) {
-    let mut save_data = SaveData::new();
-    let _ = save_data.load_tasks();
-    let result = yesser_todo_db::get_index(save_data.get_tasks(), &name);
-    save_data.save_tasks().unwrap();
-    match result {
-        None => {(StatusCode::NOT_FOUND, Json(0))}
-        Some(result) => {(StatusCode::OK, Json(result))}
+pub async fn get_index(State(save_data): State<Arc<Mutex<SaveData>>>, Query(params): Query<NameQuery>) -> Result<(StatusCode, Json<usize>), ServerError> {
+    let name = params.name;
+    let mut save_data = save_data.lock().await;
+    match yesser_todo_db::get_index(save_data.get_tasks(), &name) {
+        None => Err(ServerError::NotFound(name.into())),
+        Some(result) => Ok((StatusCode::OK, Json(result))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_tasks_empty() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_add_task() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        let task_name = "Test task".to_string();
+        let (status, Json(task)) = add_task(State(save_data.clone()), Json(task_name.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(task.name, task_name);
+        assert!(!task.done);
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_add_multiple_tasks() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 2".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 3".to_string())).await.unwrap();
+        let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks.len(), 3);
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_remove_task_success() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 2".to_string())).await.unwrap();
+        let status = remove_task(State(save_data.clone()), Query(0.into())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].name, "Task 2");
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_remove_task_not_found() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        let err = remove_task(State(save_data.clone()), Query(0.into())).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn test_remove_task_out_of_bounds() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        let err = remove_task(State(save_data.clone()), Query(99.into())).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_done_task_success() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        let (status, Json(task)) = done_task(State(save_data.clone()), Json(0)).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert!(task.done);
+        assert_eq!(task.name, "Task 1");
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_done_task_not_found() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        let err = done_task(State(save_data.clone()), Json(0)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)))
+    }
+
+    #[tokio::test]
+    async fn test_done_task_out_of_bounds() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        let err = done_task(State(save_data.clone()), Json(5)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn test_undone_task_success() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        _ = done_task(State(save_data.clone()), Json(0)).await.unwrap();
+        let (status, Json(task)) = undone_task(State(save_data.clone()), Json(0)).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert!(!task.done);
+        assert_eq!(task.name, "Task 1");
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_undone_task_not_found() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        let err = undone_task(State(save_data.clone()), Json(0)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_undone_task_out_of_bounds() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        let err = undone_task(State(save_data.clone()), Json(10)).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_clear_tasks() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 2".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 3".to_string())).await.unwrap();
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_clear_done_tasks() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 2".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 3".to_string())).await.unwrap();
+        _ = done_task(State(save_data.clone()), Json(0)).await.unwrap();
+        _ = done_task(State(save_data.clone()), Json(2)).await.unwrap();
+        _ = clear_done_tasks(State(save_data.clone())).await.unwrap();
+        let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].name, "Task 2");
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_clear_done_tasks_none_done() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 2".to_string())).await.unwrap();
+        _ = clear_done_tasks(State(save_data.clone())).await.unwrap();
+        let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks.len(), 2);
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_clear_done_tasks_all_done() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 2".to_string())).await.unwrap();
+        _ = done_task(State(save_data.clone()), Json(0)).await.unwrap();
+        _ = done_task(State(save_data.clone()), Json(1)).await.unwrap();
+        clear_done_tasks(State(save_data.clone())).await.unwrap();
+        let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_index_found() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 2".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 3".to_string())).await.unwrap();
+        let (status, Json(index)) = get_index(State(save_data.clone()), Query("Task 2".to_string().into())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(index, 1);
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_get_index_not_found() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
+        let err = get_index(State(save_data.clone()), Query("Nonexistent".to_string().into())).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)));
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_get_index_empty_list() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        let err = get_index(State(save_data.clone()), Query("Any task".to_string().into())).await.unwrap_err();
+        assert!(matches!(err, ServerError::NotFound(_)))
+    }
+
+    #[tokio::test]
+    async fn test_done_undone_cycle() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Cycle task".to_string())).await.unwrap();
+        let (status, Json(task)) = done_task(State(save_data.clone()), Json(0)).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert!(task.done);
+
+        let (status, Json(task)) = undone_task(State(save_data.clone()), Json(0)).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert!(!task.done);
+        let (status, Json(task)) = done_task(State(save_data.clone()), Json(0)).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert!(task.done);
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_workflow_add_done_clear() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Workflow task 1".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Workflow task 2".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Workflow task 3".to_string())).await.unwrap();
+        _ = done_task(State(save_data.clone()), Json(1)).await;
+
+        let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks.len(), 3);
+        assert!(!tasks[0].done);
+        assert!(tasks[1].done);
+        assert!(!tasks[2].done);
+        _ = clear_done_tasks(State(save_data.clone())).await.unwrap();
+
+        let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks.len(), 2);
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_add_task_with_special_characters() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        let special_name = "Task with spaces & symbols! @#$%ᕚ( Ŧคภςץ )ᕘ".to_string();
+
+        let (status, Json(task)) = add_task(State(save_data.clone()), Json(special_name.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(task.name, special_name);
+
+        let (status, Json(index)) = get_index(State(save_data.clone()), Query(special_name.into())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(index, 0);
+        clear_tasks(State(save_data.clone())).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_persistence_across_operations() {
+        let mut save_data = SaveData::new();
+        save_data.load_tasks().unwrap();
+        let save_data = Arc::new(Mutex::new(save_data));
+
+        clear_tasks(State(save_data.clone())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Persist 1".to_string())).await.unwrap();
+        _ = add_task(State(save_data.clone()), Json("Persist 2".to_string())).await.unwrap();
+        let (status, Json(tasks_before)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks_before.len(), 2);
+        let (status, Json(tasks_after)) = get_tasks(State(save_data.clone())).await.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(tasks_after.len(), 2);
+        assert_eq!(tasks_before[0].name, tasks_after[0].name);
+        assert_eq!(tasks_before[1].name, tasks_after[1].name);
+        clear_tasks(State(save_data.clone())).await.unwrap();
     }
 }

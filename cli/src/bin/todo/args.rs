@@ -1,0 +1,134 @@
+use clap::{Args, Parser, Subcommand};
+use yesser_todo_api::Client;
+use yesser_todo_db::Task;
+use yesser_todo_errors::command_error::CommandError;
+
+use crate::command_impl::*;
+use crate::command_impl_cloud::*;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub(crate) struct TodoArgs {
+    /// The operation to do in the task list.
+    #[clap(subcommand)]
+    pub(crate) command: Command,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum Command {
+    /// Add tasks to the task list. Separate tasks with spaces.
+    Add(TasksCommand),
+    /// Remove tasks from the task list. Separate tasks with spaces.
+    Remove(TasksCommand),
+    /// Mark tasks in the task list as done.
+    Done(TasksCommand),
+    /// Mark tasks in the list as undone.
+    Undone(TasksCommand),
+    /// Remove all tasks (or specify --done to clear only done tasks). Please note that this is irreversible.
+    Clear(ClearCommand),
+    /// Remove all done tasks. Please note that this is irreversible.
+    ClearDone,
+    /// List all tasks. Tasks marked done are shown with a strike-through.
+    List,
+    /// Add connection configuration to a server.
+    Connect(CloudCommand),
+    /// Remove server configuration.
+    Disconnect,
+    /// Cloud operations.
+    #[command(subcommand)]
+    Cloud(CloudSubcommand),
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct TasksCommand {
+    /// The tasks to add/remove/mark done
+    #[arg(num_args = 1..)]
+    pub tasks: Vec<String>,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct ClearCommand {
+    /// Only clear done tasks
+    #[arg(short, long)]
+    pub done: bool,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct CloudCommand {
+    pub host: String,
+    pub port: Option<String>,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum CloudSubcommand {
+    /// Connect to a cloud server.
+    Connect(CloudCommand),
+    /// Disconnect from the cloud server.
+    Disconnect,
+    /// View server configuration.
+    Show,
+}
+
+impl Command {
+    /// Execute the command against either a local task list or a connected cloud client.
+    ///
+    /// When `client` is `None`, the command operates on the provided mutable `data` (local handlers).
+    /// When `client` is `Some`, the command is routed to the cloud client (cloud handlers). Connect and
+    /// Connect and Disconnect are handled without requiring an active client; Disconnect delegates to
+    /// `handle_disconnect()` and returns `UnlinkedError` when no saved cloud configuration exists.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or a `yesser_todo_errors::command_error::CommandError` on failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use yesser_todo_db::Task;
+    /// # use yesser_todo_api::Client;
+    /// # use crate::cli::args::Command;
+    /// # #[tokio::main]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut tasks: Vec<Task> = Vec::new();
+    /// let mut client: Option<Client> = None;
+    /// let cmd = Command::List;
+    /// cmd.execute(&mut tasks, &mut client)?;
+    /// # Ok(()) }
+    /// ```
+    pub(crate) fn execute(&self, data: &mut Vec<Task>, client: &mut Option<Client>) -> Result<(), CommandError> {
+        match client {
+            None => match self {
+                Command::Add(tasks_command) => handle_add(tasks_command, data),
+                Command::Remove(tasks_command) => handle_remove(tasks_command, data),
+                Command::Done(tasks_command) => handle_done_undone(tasks_command, data, true),
+                Command::Undone(tasks_command) => handle_done_undone(tasks_command, data, false),
+                Command::Clear(clear_command) => handle_clear(clear_command, data),
+                Command::ClearDone => handle_clear_done(data),
+                Command::List => handle_list(data),
+                Command::Connect(cloud_command) => handle_connect_old(cloud_command),
+                Command::Disconnect => handle_disconnect_old(),
+                Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),
+            },
+            Some(client) => match self {
+                Command::Add(tasks_command) => handle_add_cloud(tasks_command, client),
+                Command::Remove(tasks_command) => handle_remove_cloud(tasks_command, client),
+                Command::Done(tasks_command) => handle_done_undone_cloud(tasks_command, client, true),
+                Command::Undone(tasks_command) => handle_done_undone_cloud(tasks_command, client, false),
+                Command::Clear(clear_command) => handle_clear_cloud(clear_command, client),
+                Command::ClearDone => handle_clear_done_cloud(client),
+                Command::List => handle_list_cloud(client),
+                Command::Connect(cloud_command) => handle_connect_old(cloud_command),
+                Command::Disconnect => handle_disconnect_old(),
+                Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),
+            },
+        }
+    }
+}
+
+fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand) -> Result<(), CommandError> {
+    match cloud_subcommand {
+        CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
+        CloudSubcommand::Disconnect => handle_disconnect(),
+        CloudSubcommand::Show => handle_show_server(),
+    }
+}

@@ -1,0 +1,36 @@
+name: Build Windows zip
+
+on:
+  release:
+    types: published
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deploy:
+    runs-on: blacksmith-4vcpu-windows-2025
+
+    steps:
+      - uses: actions/checkout@main
+      - name: Set up a Rust toolchain
+        uses: hecrj/setup-rust-action@v2.0.1
+
+      - name: Build
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="\"${TAG#*-v}\""
+          cargo build --verbose --release --config package.version="$VERSION" --bin todo
+
+      - name: Zip up
+        run: 7z a windows-x64.zip .\target\release\todo.exe
+
+      - name: Add to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: windows-x64.zip
