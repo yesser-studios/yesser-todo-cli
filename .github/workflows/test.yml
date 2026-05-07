@@ -31,7 +31,7 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
-      - uses: actions/checkout
+      - uses: actions/checkout@main
       - name: Build
         run: cargo build
       - name: Run tests
