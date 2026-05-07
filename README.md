@@ -33,10 +33,10 @@ brew install yesser-todo-cli
 
 ## Linux
 
-On Fedora 41-43 or Rawhide, you can use the yesser-studios COPR:
+On Fedora 42+ or Rawhide, you can use the yesser-todo COPR:
 
 ```bash
-sudo dnf copr enable yesseruser/yesser-studios
+sudo dnf copr enable yesseruser/yesser-todo
 sudo dnf install yesser-todo-cli
 ```
 
