@@ -1,6 +1,8 @@
 use yansi::{Color::Green, Style};
 use yesser_todo_db::SaveData;
 
+use crate::args::TodoArgs;
+
 pub(crate) const DONE_STYLE: Style = Green.strike();
 
 /// Return the saved cloud server host and port when available.
@@ -20,11 +22,17 @@ pub(crate) const DONE_STYLE: Style = Green.strike();
 ///     panic!("expected cloud config");
 /// }
 /// ```
-pub(crate) fn process_cloud_config() -> Option<(String, String)> {
-    SaveData::get_cloud_config().unwrap_or_else(|err| {
-        eprintln!("Warning: Failed to read cloud config: {err}. Proceeding with local mode.");
+pub(crate) fn process_cloud_config(args: Option<&TodoArgs>) -> Option<(String, String)> {
+    if let Some(args) = args
+        && args.local
+    {
         None
-    })
+    } else {
+        SaveData::get_cloud_config().unwrap_or_else(|err| {
+            eprintln!("Warning: Failed to read cloud config: {err}. Proceeding with local mode.");
+            None
+        })
+    }
 }
 
 #[cfg(test)]

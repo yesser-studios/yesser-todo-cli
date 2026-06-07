@@ -36,9 +36,7 @@ fn main() {
         }
     }
 
-    let mut client: Option<Client> = if !args.local
-        && let Some((hostname, port)) = process_cloud_config()
-    {
+    let mut client: Option<Client> = if let Some((hostname, port)) = process_cloud_config(Some(&args)) {
         Some(Client::new(hostname, Some(port)))
     } else {
         None
