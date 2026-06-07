@@ -9,7 +9,7 @@ pub(crate) const DONE_STYLE: Style = Green.strike();
 ///
 /// # Arguments
 ///
-/// * `args` - An optional `TodoArgs` object. Will be used to determine wheter local mode is on.
+/// * `args` - An optional `TodoArgs` object. Will be used to determine whether local mode is on.
 ///
 /// # Returns
 ///
