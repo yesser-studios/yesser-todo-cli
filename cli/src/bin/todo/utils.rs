@@ -50,16 +50,80 @@ mod tests {
 
     #[test]
     fn test_process_cloud_config_returns_option() {
-        let result = process_cloud_config();
+        let result = process_cloud_config(None);
         assert!(result.is_some() || result.is_none());
     }
 
     #[test]
     fn test_process_cloud_config_tuple_structure() {
-        if let Some((host, port)) = process_cloud_config() {
+        if let Some((host, port)) = process_cloud_config(None) {
             assert!(!host.is_empty() || host.is_empty());
             assert!(!port.is_empty() || port.is_empty());
         }
+    }
+
+    #[test]
+    fn test_process_cloud_config_args_is_some_local_false() {
+        const HOST: &str = "http://127.0.0.1";
+        const PORT: &str = yesser_todo_api::DEFAULT_PORT;
+
+        let previous_cloud_config = SaveData::get_cloud_config().unwrap();
+
+        SaveData::save_cloud_config(HOST, PORT).unwrap();
+        let result = process_cloud_config(Some(&TodoArgs {
+            command: crate::args::Command::Add(crate::args::TasksCommand { tasks: vec!["".to_string()] }),
+            local: false,
+        }));
+
+        match previous_cloud_config {
+            Some((host, port)) => SaveData::save_cloud_config(&host, &port).unwrap(),
+            None => SaveData::remove_cloud_config().unwrap(),
+        };
+
+        let (host, port) = result.unwrap();
+        assert_eq!(host, HOST);
+        assert_eq!(port, PORT);
+    }
+
+    #[test]
+    fn test_process_cloud_config_args_is_some_local_true() {
+        const HOST: &str = "http://127.0.0.1";
+        const PORT: &str = yesser_todo_api::DEFAULT_PORT;
+
+        let previous_cloud_config = SaveData::get_cloud_config().unwrap();
+
+        SaveData::save_cloud_config(HOST, PORT).unwrap();
+        let result = process_cloud_config(Some(&TodoArgs {
+            command: crate::args::Command::Add(crate::args::TasksCommand { tasks: vec!["".to_string()] }),
+            local: true,
+        }));
+
+        match previous_cloud_config {
+            Some((host, port)) => SaveData::save_cloud_config(&host, &port).unwrap(),
+            None => SaveData::remove_cloud_config().unwrap(),
+        };
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_process_cloud_config_args_is_none() {
+        const HOST: &str = "http://127.0.0.1";
+        const PORT: &str = yesser_todo_api::DEFAULT_PORT;
+
+        let previous_cloud_config = SaveData::get_cloud_config().unwrap();
+
+        SaveData::save_cloud_config(HOST, PORT).unwrap();
+        let result = process_cloud_config(None);
+
+        match previous_cloud_config {
+            Some((host, port)) => SaveData::save_cloud_config(&host, &port).unwrap(),
+            None => SaveData::remove_cloud_config().unwrap(),
+        };
+
+        let (host, port) = result.unwrap();
+        assert_eq!(host, HOST);
+        assert_eq!(port, PORT);
     }
 
     #[test]
