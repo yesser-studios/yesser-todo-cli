@@ -12,6 +12,10 @@ pub(crate) struct TodoArgs {
     /// The operation to do in the task list.
     #[clap(subcommand)]
     pub(crate) command: Command,
+
+    /// Ignore the cloud config and work with local tasks.
+    #[arg(short, long)]
+    pub(crate) local: bool,
 }
 
 #[derive(Debug, Subcommand)]
