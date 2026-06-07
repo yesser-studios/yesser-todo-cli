@@ -72,6 +72,14 @@ mod tests {
         }
     }
 
+    #[cfg(test)]
+    fn construct_todo_args(local: bool) -> TodoArgs {
+        TodoArgs {
+            command: crate::args::Command::Add(crate::args::TasksCommand { tasks: vec!["".to_string()] }),
+            local,
+        }
+    }
+
     #[test]
     fn test_process_cloud_config_args_is_some_local_false() {
         const HOST: &str = "http://127.0.0.1";
@@ -80,10 +88,7 @@ mod tests {
         let previous_cloud_config = SaveData::get_cloud_config().unwrap();
 
         SaveData::save_cloud_config(HOST, PORT).unwrap();
-        let result = process_cloud_config(Some(&TodoArgs {
-            command: crate::args::Command::Add(crate::args::TasksCommand { tasks: vec!["".to_string()] }),
-            local: false,
-        }));
+        let result = process_cloud_config(Some(&construct_todo_args(false)));
 
         match previous_cloud_config {
             Some((host, port)) => SaveData::save_cloud_config(&host, &port).unwrap(),
@@ -103,10 +108,7 @@ mod tests {
         let previous_cloud_config = SaveData::get_cloud_config().unwrap();
 
         SaveData::save_cloud_config(HOST, PORT).unwrap();
-        let result = process_cloud_config(Some(&TodoArgs {
-            command: crate::args::Command::Add(crate::args::TasksCommand { tasks: vec!["".to_string()] }),
-            local: true,
-        }));
+        let result = process_cloud_config(Some(&construct_todo_args(true)));
 
         match previous_cloud_config {
             Some((host, port)) => SaveData::save_cloud_config(&host, &port).unwrap(),
