@@ -5,17 +5,27 @@ use crate::args::TodoArgs;
 
 pub(crate) const DONE_STYLE: Style = Green.strike();
 
-/// Return the saved cloud server host and port when available.
+/// Return the saved cloud server host and port if available.
+///
+/// # Arguments
+///
+/// * `args` - An optional `TodoArgs` object. Will be used to determine wheter local mode is on.
 ///
 /// # Returns
 ///
-/// `Some((host, port))` if a readable cloud configuration exists, `None` otherwise.
+/// If `args` is `Some`, and `args.local` is `true`, returns `None`.  
+/// If `args` is None, local mode will be assumed false.
+///
+/// Returns an optional `(String, String)` in the format `(host URL, port)` based on whether the
+/// cloud config is saved.  
+/// If an error occurs while reading the cloud config, an error message will
+/// be printed and None will be returned (local mode will be assumed).
 ///
 /// # Examples
 ///
 /// ```
 /// // Suppose SaveData::get_cloud_config() returns Ok(Some(("example.com".into(), "6982".into())))
-/// if let Some((host, port)) = process_cloud_config() {
+/// if let Some((host, port)) = process_cloud_config(None) {
 ///     assert_eq!(host, "example.com");
 ///     assert_eq!(port, "6982");
 /// } else {
