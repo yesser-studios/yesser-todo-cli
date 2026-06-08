@@ -96,8 +96,8 @@ impl SaveData {
     ///
     /// ```
     /// use yesser_todo_db::SaveData;
-    /// let mut sd = SaveData::new();
-    /// assert!(sd.get_tasks().is_empty());
+    /// let mut data = SaveData::new().unwrap();
+    /// assert!(data.get_tasks().is_empty());
     /// ```
     pub fn new() -> Result<SaveData, DatabaseError> {
         Ok(SaveData {
@@ -155,7 +155,8 @@ impl SaveData {
     /// use yesser_todo_db::SaveData;
     ///
     /// // This example assumes no cloud config is present or a valid one exists.
-    /// let res = SaveData::get_cloud_config();
+    /// let data = SaveData::new().unwrap();
+    /// let res = data.get_cloud_config();
     ///
     /// match res {
     ///     Ok(None) => println!("No cloud config saved"),
@@ -198,7 +199,8 @@ impl SaveData {
     /// ```no_run
     /// use yesser_todo_db::SaveData;
     ///
-    /// SaveData::save_cloud_config("example.com", "1234").unwrap();
+    /// let data = SaveData::new().unwrap();
+    /// data.save_cloud_config("example.com", "1234").unwrap();
     /// ```
     pub fn save_cloud_config(&self, host: &str, port: &str) -> Result<(), DatabaseError> {
         let config_paths = SaveData::get_cloud_config_paths(self)?;
@@ -223,8 +225,9 @@ impl SaveData {
     /// ```no_run
     /// use yesser_todo_db::SaveData;
     ///
+    /// let data = SaveData::new().unwrap();
     /// // Attempt to remove the cloud configuration file.
-    /// let _ = SaveData::remove_cloud_config();
+    /// let _ = data.remove_cloud_config();
     /// ```
     pub fn remove_cloud_config(&self) -> Result<(), DatabaseError> {
         let config_paths = SaveData::get_cloud_config_paths(self)?;
@@ -248,10 +251,10 @@ impl SaveData {
     ///
     /// ```no_run
     /// # use yesser_todo_db::SaveData;
-    /// let mut sd = SaveData::new();
+    /// let mut data = SaveData::new().unwrap();
     /// // If no data file is present this will succeed and leave tasks empty.
-    /// sd.load_tasks().unwrap();
-    /// assert!(sd.get_tasks().is_empty());
+    /// data.load_tasks().unwrap();
+    /// assert!(data.get_tasks().is_empty());
     /// ```
     pub fn load_tasks(&mut self) -> Result<(), DatabaseError> {
         let data_paths = SaveData::get_data_paths(self)?;
@@ -279,7 +282,7 @@ impl SaveData {
     /// ```no_run
     /// use yesser_todo_db::SaveData;
     ///
-    /// let data = SaveData::new();
+    /// let data = SaveData::new().unwrap();
     /// data.save_tasks().unwrap();
     /// ```
     pub fn save_tasks(&self) -> Result<(), DatabaseError> {
@@ -302,7 +305,7 @@ impl SaveData {
     ///
     /// ```
     /// use yesser_todo_db::{SaveData, Task};
-    /// let mut data = SaveData::new();
+    /// let mut data = SaveData::new().unwrap();
     /// data.get_tasks().push(Task { name: "buy milk".to_string(), done: false });
     /// assert_eq!(data.get_tasks().len(), 1);
     /// data.get_tasks()[0].done = true;
@@ -318,9 +321,9 @@ impl SaveData {
     ///
     /// ```
     /// use yesser_todo_db::{SaveData, Task};
-    /// let mut sd = SaveData::new();
-    /// sd.add_task(Task { name: "Write tests".into(), done: false });
-    /// assert_eq!(sd.get_tasks().len(), 1);
+    /// let mut data = SaveData::new().unwrap();
+    /// data.add_task(Task { name: "Write tests".into(), done: false });
+    /// assert_eq!(data.get_tasks().len(), 1);
     /// ```
     pub fn add_task(&mut self, task: Task) {
         self.tasks.push(task)
@@ -348,7 +351,7 @@ impl SaveData {
     ///
     /// ```
     /// use yesser_todo_db::{SaveData, Task};
-    /// let mut data = SaveData::new();
+    /// let mut data = SaveData::new().unwrap();
     /// data.add_task(Task { name: "a".into(), done: false });
     /// let prev = data.mark_task_done(0);
     /// assert_eq!(prev, false);
@@ -366,12 +369,12 @@ impl SaveData {
     ///
     /// ```
     /// use yesser_todo_db::{SaveData, Task};
-    /// let mut sd = SaveData::new();
-    /// sd.add_task(Task { name: "task".into(), done: true });
+    /// let mut data = SaveData::new().unwrap();
+    /// data.add_task(Task { name: "task".into(), done: true });
     /// // It was done, so the previous "undone" state is false.
-    /// assert_eq!(sd.mark_task_undone(0), false);
+    /// assert_eq!(data.mark_task_undone(0), false);
     /// // Now it's already not done, so the previous "undone" state is true.
-    /// assert_eq!(sd.mark_task_undone(0), true);
+    /// assert_eq!(data.mark_task_undone(0), true);
     /// ```
     pub fn mark_task_undone(&mut self, task_index: usize) -> bool {
         let was_undone = !self.tasks[task_index].done;
@@ -385,11 +388,11 @@ impl SaveData {
     ///
     /// ```
     /// use yesser_todo_db::{SaveData, Task};
-    /// let mut sd = SaveData::new();
-    /// sd.add_task(Task { name: "a".into(), done: false });
-    /// sd.add_task(Task { name: "b".into(), done: true });
-    /// sd.clear_tasks();
-    /// assert!(sd.get_tasks().is_empty());
+    /// let mut data = SaveData::new().unwrap();
+    /// data.add_task(Task { name: "a".into(), done: false });
+    /// data.add_task(Task { name: "b".into(), done: true });
+    /// data.clear_tasks();
+    /// assert!(data.get_tasks().is_empty());
     /// ```
     pub fn clear_tasks(&mut self) {
         self.tasks.clear();
@@ -403,11 +406,11 @@ impl SaveData {
     ///
     /// ```
     /// use yesser_todo_db::{SaveData, Task};
-    /// let mut store = SaveData::new();
-    /// store.add_task(Task { name: "a".into(), done: false });
-    /// store.add_task(Task { name: "b".into(), done: true });
-    /// store.clear_done_tasks();
-    /// let tasks = store.get_tasks();
+    /// let mut data = SaveData::new().unwrap();
+    /// data.add_task(Task { name: "a".into(), done: false });
+    /// data.add_task(Task { name: "b".into(), done: true });
+    /// data.clear_done_tasks();
+    /// let tasks = data.get_tasks();
     /// assert_eq!(tasks.len(), 1);
     /// assert_eq!(tasks[0].name, "a");
     /// ```
