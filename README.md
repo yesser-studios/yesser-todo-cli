@@ -1,6 +1,7 @@
-[![CodeFactor](https://www.codefactor.io/repository/github/yesser-studios/yesser-todo-cli/badge)](https://www.codefactor.io/repository/github/yesser-studios/yesser-todo-cli)
-
 # yesser-todo-cli
+
+[![CodeFactor](https://www.codefactor.io/repository/github/yesser-studios/yesser-todo-cli/badge)](https://www.codefactor.io/repository/github/yesser-studios/yesser-todo-cli)
+[![Crates.io Version](https://img.shields.io/crates/v/yesser-todo-cli)](https://crates.io/crates/yesser-todo-cli)
 
 a CLI app for managing your tasks
 
