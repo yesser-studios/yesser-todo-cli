@@ -46,6 +46,7 @@ impl CloudConfig {
 
 pub struct SaveData {
     tasks: Vec<Task>,
+    app_dirs: AppDirs,
 }
 
 /// Checks whether a task's name exactly equals a query string.
@@ -98,8 +99,11 @@ impl SaveData {
     /// let mut sd = SaveData::new();
     /// assert!(sd.get_tasks().is_empty());
     /// ```
-    pub fn new() -> SaveData {
-        return SaveData { tasks: Vec::new() };
+    pub fn new() -> Result<SaveData, DatabaseError> {
+        Ok(SaveData {
+            tasks: Vec::new(),
+            app_dirs: AppDirs::new(Some("todo"), true).ok_or_else(|| DatabaseError::UserDirsError)?,
+        })
     }
 
     /// Get the platform-specific `AppDirs` for the application and the full path to `todos.json` in the app data directory.
@@ -115,10 +119,9 @@ impl SaveData {
     /// assert!(data_path.starts_with(app_dirs.data_dir));
     /// assert_eq!(data_path.file_name().unwrap(), "todos.json");
     /// ```
-    pub(crate) fn get_data_paths() -> Result<(AppDirs, PathBuf), DatabaseError> {
-        let app_dirs = AppDirs::new(Some("todo"), true).ok_or_else(|| DatabaseError::UserDirsError)?;
-        let data_file_path = app_dirs.data_dir.join("todos.json");
-        return Ok((app_dirs, data_file_path));
+    pub(crate) fn get_data_paths(&self) -> Result<(&AppDirs, PathBuf), DatabaseError> {
+        let data_file_path = self.app_dirs.data_dir.join("todos.json");
+        return Ok((&self.app_dirs, data_file_path));
     }
 
     /// Constructs the platform-specific application directories and the full path to the cloud config file.
@@ -135,10 +138,9 @@ impl SaveData {
     /// let Ok((_app_dirs, config_path)) = yesser_todo_db::SaveData::get_cloud_config_paths();
     /// assert!(config_path.ends_with("cloud.json"));
     /// ```
-    pub(crate) fn get_cloud_config_paths() -> Result<(AppDirs, PathBuf), DatabaseError> {
-        let app_dirs = AppDirs::new(Some("todo"), true).ok_or_else(|| DatabaseError::UserDirsError)?;
-        let config_file_path = app_dirs.config_dir.join("cloud.json");
-        return Ok((app_dirs, config_file_path));
+    pub(crate) fn get_cloud_config_paths(&self) -> Result<(&AppDirs, PathBuf), DatabaseError> {
+        let config_file_path = self.app_dirs.config_dir.join("cloud.json");
+        return Ok((&self.app_dirs, config_file_path));
     }
 
     /// Retrieves the saved cloud configuration, if present.
@@ -161,8 +163,8 @@ impl SaveData {
     ///     Err(e) => panic!("Failed to read cloud config: {}", e),
     /// }
     /// ```
-    pub fn get_cloud_config() -> Result<Option<(String, String)>, DatabaseError> {
-        let config_paths = SaveData::get_cloud_config_paths()?;
+    pub fn get_cloud_config(&self) -> Result<Option<(String, String)>, DatabaseError> {
+        let config_paths = SaveData::get_cloud_config_paths(self)?;
         let app_dirs = config_paths.0;
         let config_file_path = config_paths.1;
 
@@ -198,8 +200,8 @@ impl SaveData {
     ///
     /// SaveData::save_cloud_config("example.com", "1234").unwrap();
     /// ```
-    pub fn save_cloud_config(host: &str, port: &str) -> Result<(), DatabaseError> {
-        let config_paths = SaveData::get_cloud_config_paths()?;
+    pub fn save_cloud_config(&self, host: &str, port: &str) -> Result<(), DatabaseError> {
+        let config_paths = SaveData::get_cloud_config_paths(self)?;
         let app_dirs = config_paths.0;
         let config_file_path = config_paths.1;
 
@@ -224,8 +226,8 @@ impl SaveData {
     /// // Attempt to remove the cloud configuration file.
     /// let _ = SaveData::remove_cloud_config();
     /// ```
-    pub fn remove_cloud_config() -> Result<(), DatabaseError> {
-        let config_paths = SaveData::get_cloud_config_paths()?;
+    pub fn remove_cloud_config(&self) -> Result<(), DatabaseError> {
+        let config_paths = SaveData::get_cloud_config_paths(self)?;
         let config_file_path = config_paths.1;
 
         fs::remove_file(config_file_path)?;
@@ -252,7 +254,7 @@ impl SaveData {
     /// assert!(sd.get_tasks().is_empty());
     /// ```
     pub fn load_tasks(&mut self) -> Result<(), DatabaseError> {
-        let data_paths = SaveData::get_data_paths()?;
+        let data_paths = SaveData::get_data_paths(self)?;
         let app_dirs = data_paths.0;
         let data_file_path = data_paths.1;
 
@@ -281,7 +283,7 @@ impl SaveData {
     /// data.save_tasks().unwrap();
     /// ```
     pub fn save_tasks(&self) -> Result<(), DatabaseError> {
-        let (app_dirs, data_file_path) = SaveData::get_data_paths()?;
+        let (app_dirs, data_file_path) = SaveData::get_data_paths(self)?;
 
         fs::create_dir_all(&app_dirs.data_dir)?;
 
@@ -539,13 +541,13 @@ mod tests {
 
     #[test]
     fn test_save_data_new() {
-        let save_data = SaveData::new();
+        let save_data = SaveData::new().unwrap();
         assert_eq!(save_data.tasks.len(), 0);
     }
 
     #[test]
     fn test_save_data_add_task() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         let task = Task {
             name: "test task".to_string(),
             done: false,
@@ -557,7 +559,7 @@ mod tests {
 
     #[test]
     fn test_save_data_add_multiple_tasks() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -576,7 +578,7 @@ mod tests {
 
     #[test]
     fn test_save_data_get_tasks() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "test".to_string(),
             done: false,
@@ -588,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_save_data_get_tasks_mutable() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "test".to_string(),
             done: false,
@@ -600,7 +602,7 @@ mod tests {
 
     #[test]
     fn test_save_data_remove_task() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -621,7 +623,7 @@ mod tests {
 
     #[test]
     fn test_save_data_mark_task_done() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task".to_string(),
             done: false,
@@ -633,7 +635,7 @@ mod tests {
 
     #[test]
     fn test_save_data_mark_task_done_already_done() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task".to_string(),
             done: true,
@@ -645,7 +647,7 @@ mod tests {
 
     #[test]
     fn test_save_data_mark_task_undone() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task".to_string(),
             done: true,
@@ -657,7 +659,7 @@ mod tests {
 
     #[test]
     fn test_save_data_mark_task_undone_already_undone() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task".to_string(),
             done: false,
@@ -669,7 +671,7 @@ mod tests {
 
     #[test]
     fn test_save_data_clear_tasks() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -684,7 +686,7 @@ mod tests {
 
     #[test]
     fn test_save_data_clear_done_tasks() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "undone1".to_string(),
             done: false,
@@ -709,7 +711,7 @@ mod tests {
 
     #[test]
     fn test_save_data_clear_done_tasks_no_done() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -724,7 +726,7 @@ mod tests {
 
     #[test]
     fn test_save_data_clear_done_tasks_all_done() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: true,
@@ -775,7 +777,7 @@ mod tests {
 
     #[test]
     fn test_multiple_operations() {
-        let mut save_data = SaveData::new();
+        let mut save_data = SaveData::new().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -796,4 +798,3 @@ mod tests {
         assert_eq!(save_data.tasks[1].name, "task3");
     }
 }
-
