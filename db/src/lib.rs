@@ -64,7 +64,7 @@ pub struct SaveData {
 ///
 /// `true` if the task's name equals `query_string`, `false` otherwise.
 pub fn exactly_matches(task: &Task, query_string: &str) -> bool {
-    return task.name == *query_string;
+    task.name == *query_string
 }
 
 /// Finds the position of the first task whose name exactly matches the given query string.
@@ -81,8 +81,8 @@ pub fn exactly_matches(task: &Task, query_string: &str) -> bool {
 /// assert_eq!(get_index(&tasks, "two"), Some(1));
 /// assert_eq!(get_index(&tasks, "three"), None);
 /// ```
-pub fn get_index(tasks: &Vec<Task>, query_string: &str) -> Option<usize> {
-    return tasks.iter().position(|r| exactly_matches(r, query_string));
+pub fn get_index(tasks: &[Task], query_string: &str) -> Option<usize> {
+    tasks.iter().position(|r| exactly_matches(r, query_string))
 }
 
 impl SaveData {
@@ -102,7 +102,7 @@ impl SaveData {
     pub fn new() -> Result<SaveData, DatabaseError> {
         Ok(SaveData {
             tasks: Vec::new(),
-            app_dirs: AppDirs::new(Some("todo"), true).ok_or_else(|| DatabaseError::UserDirsError)?,
+            app_dirs: AppDirs::new(Some("todo"), true).ok_or(DatabaseError::UserDirsError)?,
         })
     }
 
@@ -121,7 +121,7 @@ impl SaveData {
     /// ```
     pub(crate) fn get_data_paths(&self) -> Result<(&AppDirs, PathBuf), DatabaseError> {
         let data_file_path = self.app_dirs.data_dir.join("todos.json");
-        return Ok((&self.app_dirs, data_file_path));
+        Ok((&self.app_dirs, data_file_path))
     }
 
     /// Constructs the platform-specific application directories and the full path to the cloud config file.
@@ -140,7 +140,7 @@ impl SaveData {
     /// ```
     pub(crate) fn get_cloud_config_paths(&self) -> Result<(&AppDirs, PathBuf), DatabaseError> {
         let config_file_path = self.app_dirs.config_dir.join("cloud.json");
-        return Ok((&self.app_dirs, config_file_path));
+        Ok((&self.app_dirs, config_file_path))
     }
 
     /// Retrieves the saved cloud configuration, if present.
@@ -269,7 +269,7 @@ impl SaveData {
         let result: Vec<Task> = from_reader(file)?;
         self.tasks = result;
 
-        return Ok(());
+        Ok(())
     }
 
     /// Writes the current task list to the platform-specific data file (todos.json), creating the data directory if needed.
@@ -291,7 +291,7 @@ impl SaveData {
 
         to_writer(file, &self.tasks)?;
 
-        return Ok(());
+        Ok(())
     }
 
     /// Access the internal list of tasks for in-place modification.
@@ -309,7 +309,7 @@ impl SaveData {
     /// assert!(data.get_tasks()[0].done);
     /// ```
     pub fn get_tasks(&mut self) -> &mut Vec<Task> {
-        return &mut self.tasks;
+        &mut self.tasks
     }
 
     /// Appends the given task to the internal list of tasks.
@@ -357,7 +357,7 @@ impl SaveData {
     pub fn mark_task_done(&mut self, task_index: usize) -> bool {
         let was_done = self.tasks[task_index].done;
         self.tasks[task_index].done = true;
-        return was_done;
+        was_done
     }
 
     /// Marks the task at the given index as not done and returns whether it was already not done.
@@ -376,7 +376,7 @@ impl SaveData {
     pub fn mark_task_undone(&mut self, task_index: usize) -> bool {
         let was_undone = !self.tasks[task_index].done;
         self.tasks[task_index].done = false;
-        return was_undone;
+        was_undone
     }
 
     /// Removes all tasks from the saved task list.
