@@ -1,3 +1,5 @@
+[![CodeFactor](https://www.codefactor.io/repository/github/yesser-studios/yesser-todo-cli/badge)](https://www.codefactor.io/repository/github/yesser-studios/yesser-todo-cli)
+
 # yesser-todo-cli
 
 a CLI app for managing your tasks
