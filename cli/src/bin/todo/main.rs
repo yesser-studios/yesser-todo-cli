@@ -36,11 +36,11 @@ fn main() {
         }
     }
 
-    let mut client: Option<Client> = None;
-
-    if let Some((hostname, port)) = process_cloud_config() {
-        client = Some(Client::new(hostname, Some(port)));
-    }
+    let mut client: Option<Client> = if let Some((hostname, port)) = process_cloud_config(Some(&args)) {
+        Some(Client::new(hostname, Some(port)))
+    } else {
+        None
+    };
 
     match args.command.execute(data.get_tasks(), &mut client) {
         Ok(()) => match args.command {
