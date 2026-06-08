@@ -72,7 +72,6 @@ mod tests {
         }
     }
 
-    #[cfg(test)]
     fn construct_todo_args(local: bool) -> TodoArgs {
         TodoArgs {
             command: crate::args::Command::Add(crate::args::TasksCommand { tasks: vec!["".to_string()] }),
