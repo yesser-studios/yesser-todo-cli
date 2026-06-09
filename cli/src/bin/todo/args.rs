@@ -1,5 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use yesser_todo_api::Client;
+use yesser_todo_db::SaveData;
 use yesser_todo_db::Task;
 use yesser_todo_errors::command_error::CommandError;
 
@@ -99,19 +100,20 @@ impl Command {
     /// cmd.execute(&mut tasks, &mut client)?;
     /// # Ok(()) }
     /// ```
-    pub(crate) fn execute(&self, data: &mut Vec<Task>, client: &mut Option<Client>) -> Result<(), CommandError> {
+    pub(crate) fn execute(&self, data: &mut SaveData, client: &mut Option<Client>) -> Result<(), CommandError> {
+        let tasks = data.get_tasks();
         match client {
             None => match self {
-                Command::Add(tasks_command) => handle_add(tasks_command, data),
-                Command::Remove(tasks_command) => handle_remove(tasks_command, data),
-                Command::Done(tasks_command) => handle_done_undone(tasks_command, data, true),
-                Command::Undone(tasks_command) => handle_done_undone(tasks_command, data, false),
-                Command::Clear(clear_command) => handle_clear(clear_command, data),
-                Command::ClearDone => handle_clear_done(data),
-                Command::List => handle_list(data),
-                Command::Connect(cloud_command) => handle_connect_old(cloud_command),
-                Command::Disconnect => handle_disconnect_old(),
-                Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),
+                Command::Add(tasks_command) => handle_add(tasks_command, tasks),
+                Command::Remove(tasks_command) => handle_remove(tasks_command, tasks),
+                Command::Done(tasks_command) => handle_done_undone(tasks_command, tasks, true),
+                Command::Undone(tasks_command) => handle_done_undone(tasks_command, tasks, false),
+                Command::Clear(clear_command) => handle_clear(clear_command, tasks),
+                Command::ClearDone => handle_clear_done(tasks),
+                Command::List => handle_list(tasks),
+                Command::Connect(cloud_command) => handle_connect_old(cloud_command, data),
+                Command::Disconnect => handle_disconnect_old(data),
+                Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand, data),
             },
             Some(client) => match self {
                 Command::Add(tasks_command) => handle_add_cloud(tasks_command, client),
@@ -121,18 +123,18 @@ impl Command {
                 Command::Clear(clear_command) => handle_clear_cloud(clear_command, client),
                 Command::ClearDone => handle_clear_done_cloud(client),
                 Command::List => handle_list_cloud(client),
-                Command::Connect(cloud_command) => handle_connect_old(cloud_command),
-                Command::Disconnect => handle_disconnect_old(),
-                Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand),
+                Command::Connect(cloud_command) => handle_connect_old(cloud_command, data),
+                Command::Disconnect => handle_disconnect_old(data),
+                Command::Cloud(cloud_subcommand) => handle_cloud_subcommand(cloud_subcommand, data),
             },
         }
     }
 }
 
-fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand) -> Result<(), CommandError> {
+fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand, data: &mut SaveData) -> Result<(), CommandError> {
     match cloud_subcommand {
-        CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command),
-        CloudSubcommand::Disconnect => handle_disconnect(),
-        CloudSubcommand::Show => handle_show_server(),
+        CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command, data),
+        CloudSubcommand::Disconnect => handle_disconnect(data),
+        CloudSubcommand::Show => handle_show_server(data),
     }
 }

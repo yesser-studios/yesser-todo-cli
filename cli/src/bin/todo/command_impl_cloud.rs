@@ -480,7 +480,7 @@ pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
 /// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
 /// let _ = handle_connect(&cmd).unwrap();
 /// ```
-pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError> {
+pub(crate) fn handle_connect(command: &CloudCommand, data: &SaveData) -> Result<(), CommandError> {
     let url = parse_url(&command.host)?;
 
     let cmd_port = if let Some(cmd_port) = &command.port {
@@ -520,7 +520,7 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
             why: "Unable to parse host!".to_string()
         })?
     );
-    match SaveData::save_cloud_config(&host, port) {
+    match data.save_cloud_config(&host, port) {
         Ok(()) => {
             println!("Successfully linked server.");
             Ok(())
@@ -549,9 +549,9 @@ pub(crate) fn handle_connect(command: &CloudCommand) -> Result<(), CommandError>
 ///
 /// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
 #[deprecated]
-pub(crate) fn handle_connect_old(command: &CloudCommand) -> Result<(), CommandError> {
+pub(crate) fn handle_connect_old(command: &CloudCommand, data: &SaveData) -> Result<(), CommandError> {
     println!("connect is deprecated. Use cloud connect instead.");
-    handle_connect(command)
+    handle_connect(command, data)
 }
 
 /// Removes the saved cloud configuration.
@@ -563,8 +563,8 @@ pub(crate) fn handle_connect_old(command: &CloudCommand) -> Result<(), CommandEr
 /// - `Ok(())` if a configuration was removed.
 /// - `Err(CommandError::UnlinkedError)` if no cloud configuration was found.
 /// - `Err(CommandError::DataError)` for other errors encountered while removing the configuration.
-pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
-    match SaveData::remove_cloud_config() {
+pub(crate) fn handle_disconnect(data: &SaveData) -> Result<(), CommandError> {
+    match data.remove_cloud_config() {
         Ok(_) => {
             println!("Successfully unlinked server.");
             Ok(())
@@ -599,8 +599,8 @@ pub(crate) fn handle_disconnect() -> Result<(), CommandError> {
 ///
 /// let result = handle_show_server();
 /// ```
-pub(crate) fn handle_show_server() -> Result<(), CommandError> {
-    match SaveData::get_cloud_config() {
+pub(crate) fn handle_show_server(data: &SaveData) -> Result<(), CommandError> {
+    match data.get_cloud_config() {
         Ok(data) => match data {
             Some((hostname, port)) => {
                 println!("Hostname: {}, port: {}", hostname, port);
@@ -633,9 +633,9 @@ pub(crate) fn handle_show_server() -> Result<(), CommandError> {
 ///
 /// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
 #[deprecated]
-pub(crate) fn handle_disconnect_old() -> Result<(), CommandError> {
+pub(crate) fn handle_disconnect_old(data: &SaveData) -> Result<(), CommandError> {
     println!("disconnect is deprecated. Use cloud disconnect instead.");
-    handle_disconnect()
+    handle_disconnect(data)
 }
 
 #[cfg(test)]

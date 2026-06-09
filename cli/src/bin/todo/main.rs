@@ -26,7 +26,13 @@ use crate::utils::process_cloud_config;
 /// ```
 fn main() {
     let args = TodoArgs::parse();
-    let mut data = SaveData::new();
+    let mut data = match SaveData::new() {
+        Ok(data) => data,
+        Err(err) => {
+            eprintln!("Error while getting saved data: {err}");
+            return;
+        }
+    };
 
     match data.load_tasks() {
         Ok(_) => {}
@@ -36,13 +42,13 @@ fn main() {
         }
     }
 
-    let mut client: Option<Client> = if let Some((hostname, port)) = process_cloud_config(Some(&args)) {
+    let mut client: Option<Client> = if let Some((hostname, port)) = process_cloud_config(Some(&args), &data) {
         Some(Client::new(hostname, Some(port)))
     } else {
         None
     };
 
-    match args.command.execute(data.get_tasks(), &mut client) {
+    match args.command.execute(&mut data, &mut client) {
         Ok(()) => match args.command {
             Command::List => {}
             Command::Cloud(_) | Command::Connect(_) | Command::Disconnect => {}
@@ -57,7 +63,7 @@ fn main() {
                     }
                 }
 
-                match Command::List.execute(data.get_tasks(), &mut client) {
+                match Command::List.execute(&mut data, &mut client) {
                     Ok(()) => {}
                     Err(err) => err.handle(),
                 }

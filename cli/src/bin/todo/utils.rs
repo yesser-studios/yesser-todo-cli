@@ -32,13 +32,13 @@ pub(crate) const DONE_STYLE: Style = Green.strike();
 ///     panic!("expected cloud config");
 /// }
 /// ```
-pub(crate) fn process_cloud_config(args: Option<&TodoArgs>) -> Option<(String, String)> {
+pub(crate) fn process_cloud_config(args: Option<&TodoArgs>, data: &SaveData) -> Option<(String, String)> {
     if let Some(args) = args
         && args.local
     {
         None
     } else {
-        SaveData::get_cloud_config().unwrap_or_else(|err| {
+        data.get_cloud_config().unwrap_or_else(|err| {
             eprintln!("Warning: Failed to read cloud config: {err}. Proceeding with local mode.");
             None
         })
