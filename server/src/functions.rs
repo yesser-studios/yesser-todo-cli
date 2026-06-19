@@ -13,7 +13,7 @@ use crate::queries::{IndexQuery, NameQuery};
 
 /// Returns the current list of stored tasks as JSON.
 #[debug_handler]
-pub async fn get_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<(StatusCode, Json<Vec<Task>>), ServerError> {
+pub async fn get_tasks(State(save_data): State<Arc<Mutex<Box<dyn SaveData>>>>) -> Result<(StatusCode, Json<Vec<Task>>), ServerError> {
     let tasks = {
         let mut save_data = save_data.lock().await;
         save_data.get_tasks().clone()
@@ -25,7 +25,7 @@ pub async fn get_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<
 ///
 /// The task is created with `done = false`, saved to persistent storage, and returned as `Json<Task>`.
 #[debug_handler]
-pub async fn add_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(name): Json<String>) -> Result<(StatusCode, Json<Task>), ServerError> {
+pub async fn add_task(State(save_data): State<Arc<Mutex<Box<dyn SaveData>>>>, Json(name): Json<String>) -> Result<(StatusCode, Json<Task>), ServerError> {
     println!("Adding task {}", name);
     let mut save_data = save_data.lock().await;
     if save_data.get_tasks().iter().any(|t| t.name == name) {
@@ -47,7 +47,7 @@ pub async fn add_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(name):
 ///
 /// `StatusCode::OK` if the task was removed, `StatusCode::NOT_FOUND` if the index is out of bounds.
 #[debug_handler]
-pub async fn remove_task(State(save_data): State<Arc<Mutex<SaveData>>>, Query(query): Query<IndexQuery>) -> Result<StatusCode, ServerError> {
+pub async fn remove_task(State(save_data): State<Arc<Mutex<Box<dyn SaveData>>>>, Query(query): Query<IndexQuery>) -> Result<StatusCode, ServerError> {
     let index = query.index;
     let mut save_data = save_data.lock().await;
 
@@ -66,7 +66,7 @@ pub async fn remove_task(State(save_data): State<Arc<Mutex<SaveData>>>, Query(qu
 /// returns `StatusCode::NOT_FOUND` and a `Task` with `name` set to `"Could not find specified index"` and
 /// `done` set to `false`.
 #[debug_handler]
-pub async fn done_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
+pub async fn done_task(State(save_data): State<Arc<Mutex<Box<dyn SaveData>>>>, Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
     let mut save_data = save_data.lock().await;
 
     save_data.get_tasks().get(index).ok_or(ServerError::NotFound(index.into()))?;
@@ -83,7 +83,7 @@ pub async fn done_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(index
 /// returns `StatusCode::NOT_FOUND` and a `Task` with `name` set to `"Could not find specified index"`
 /// and `done` set to `false`.
 #[debug_handler]
-pub async fn undone_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
+pub async fn undone_task(State(save_data): State<Arc<Mutex<Box<dyn SaveData>>>>, Json(index): Json<usize>) -> Result<(StatusCode, Json<Task>), ServerError> {
     let mut save_data = save_data.lock().await;
 
     save_data.get_tasks().get(index).ok_or(ServerError::NotFound(index.into()))?;
@@ -98,7 +98,7 @@ pub async fn undone_task(State(save_data): State<Arc<Mutex<SaveData>>>, Json(ind
 ///
 /// This loads the current tasks, removes every task, and saves the resulting empty list.
 #[debug_handler]
-pub async fn clear_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<StatusCode, ServerError> {
+pub async fn clear_tasks(State(save_data): State<Arc<Mutex<Box<dyn SaveData>>>>) -> Result<StatusCode, ServerError> {
     let mut save_data = save_data.lock().await;
 
     println!("Clearing tasks");
@@ -112,7 +112,7 @@ pub async fn clear_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Resul
 /// This loads the current tasks, removes any entries where `done == true`,
 /// and saves the resulting task list back to storage.
 #[debug_handler]
-pub async fn clear_done_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> Result<StatusCode, ServerError> {
+pub async fn clear_done_tasks(State(save_data): State<Arc<Mutex<Box<dyn SaveData>>>>) -> Result<StatusCode, ServerError> {
     let mut save_data = save_data.lock().await;
 
     println!("Clearing done tasks");
@@ -131,7 +131,7 @@ pub async fn clear_done_tasks(State(save_data): State<Arc<Mutex<SaveData>>>) -> 
 /// `(StatusCode::OK, Json(index))` when a task with the given name is found.
 /// `(StatusCode::NOT_FOUND, Json(0))` when no matching task name exists.
 #[debug_handler]
-pub async fn get_index(State(save_data): State<Arc<Mutex<SaveData>>>, Query(params): Query<NameQuery>) -> Result<(StatusCode, Json<usize>), ServerError> {
+pub async fn get_index(State(save_data): State<Arc<Mutex<Box<dyn SaveData>>>>, Query(params): Query<NameQuery>) -> Result<(StatusCode, Json<usize>), ServerError> {
     let name = params.name;
     let mut save_data = save_data.lock().await;
     match yesser_todo_db::get_index(save_data.get_tasks(), &name) {
@@ -142,13 +142,20 @@ pub async fn get_index(State(save_data): State<Arc<Mutex<SaveData>>>, Query(para
 
 #[cfg(test)]
 mod tests {
+    use yesser_todo_db::JsonSaveData;
+
     use super::*;
+
+    fn make_data() -> (Arc<Mutex<Box<dyn SaveData>>>, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let mut data: Box<dyn SaveData> = Box::new(JsonSaveData::with_dir(dir.path().to_owned()));
+        data.load_tasks().unwrap();
+        (Arc::new(Mutex::new(data)), dir)
+    }
 
     #[tokio::test]
     async fn test_get_tasks_empty() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         let (status, Json(tasks)) = get_tasks(State(save_data.clone())).await.unwrap();
@@ -158,9 +165,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_task() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         let task_name = "Test task".to_string();
@@ -173,9 +178,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_multiple_tasks() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -189,9 +192,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_remove_task_success() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -207,9 +208,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_remove_task_not_found() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         let err = remove_task(State(save_data.clone()), Query(0.into())).await.unwrap_err();
@@ -218,9 +217,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_remove_task_out_of_bounds() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -231,9 +228,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_done_task_success() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -246,9 +241,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_done_task_not_found() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         let err = done_task(State(save_data.clone()), Json(0)).await.unwrap_err();
@@ -257,9 +250,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_done_task_out_of_bounds() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -269,9 +260,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_undone_task_success() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -285,9 +274,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_undone_task_not_found() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         let err = undone_task(State(save_data.clone()), Json(0)).await.unwrap_err();
@@ -297,9 +284,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_undone_task_out_of_bounds() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -310,9 +295,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_clear_tasks() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 2".to_string())).await.unwrap();
@@ -325,9 +308,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_clear_done_tasks() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -345,9 +326,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_clear_done_tasks_none_done() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -361,9 +340,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_clear_done_tasks_all_done() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -378,9 +355,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_index_found() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -394,9 +369,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_index_not_found() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Task 1".to_string())).await.unwrap();
@@ -407,9 +380,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_index_empty_list() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         let err = get_index(State(save_data.clone()), Query("Any task".to_string().into())).await.unwrap_err();
@@ -418,9 +389,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_done_undone_cycle() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Cycle task".to_string())).await.unwrap();
@@ -439,9 +408,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_workflow_add_done_clear() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Workflow task 1".to_string())).await.unwrap();
@@ -465,9 +432,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_task_with_special_characters() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         let special_name = "Task with spaces & symbols! @#$%ᕚ( Ŧคภςץ )ᕘ".to_string();
@@ -485,9 +450,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_persistence_across_operations() {
-        let mut save_data = SaveData::new();
-        save_data.load_tasks().unwrap();
-        let save_data = Arc::new(Mutex::new(save_data));
+        let (save_data, _dir) = make_data();
 
         clear_tasks(State(save_data.clone())).await.unwrap();
         _ = add_task(State(save_data.clone()), Json("Persist 1".to_string())).await.unwrap();

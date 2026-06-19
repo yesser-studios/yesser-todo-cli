@@ -12,7 +12,7 @@ use axum::{
     routing::{get, post},
 };
 use tokio::sync::Mutex;
-use yesser_todo_db::SaveData;
+use yesser_todo_db::{JsonSaveData, SaveData};
 
 /// Binary entry point that configures HTTP routes and starts the Axum server.
 ///
@@ -28,7 +28,13 @@ use yesser_todo_db::SaveData;
 /// ```
 #[tokio::main]
 async fn main() {
-    let mut save_data = SaveData::new();
+    let mut save_data: Box<dyn SaveData> = match JsonSaveData::new() {
+        Ok(data) => Box::new(data),
+        Err(err) => {
+            eprintln!("An error occurred while creating save data: {err}");
+            exit(1)
+        }
+    };
     match save_data.load_tasks() {
         Ok(()) => {}
         Err(err) => {
@@ -36,7 +42,7 @@ async fn main() {
             exit(1)
         }
     }
-    let save_data: Arc<Mutex<SaveData>> = Arc::new(Mutex::new(save_data));
+    let save_data: Arc<Mutex<Box<dyn SaveData>>> = Arc::new(Mutex::new(save_data));
 
     let router = Router::new()
         .route("/tasks", get(get_tasks))

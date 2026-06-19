@@ -23,5 +23,8 @@ yesser-todo-errors = { version = "0.2", path = "../errors", features = ["client"
 yansi = {version = "1", features = ["detect-env", "detect-tty"], default-features = false}
 thiserror = "2"
 
+[dev-dependencies]
+tempfile = { workspace = true }
+
 [[bin]]
 name = "todo"

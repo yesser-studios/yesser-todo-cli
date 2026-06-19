@@ -3,7 +3,6 @@ use std::{
     path::PathBuf,
 };
 
-use platform_dirs::AppDirs;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_reader, to_writer};
 
@@ -44,9 +43,25 @@ impl CloudConfig {
     }
 }
 
-pub struct SaveData {
+pub trait SaveData: Send + Sync {
+    fn get_tasks(&mut self) -> &mut Vec<Task>;
+    fn add_task(&mut self, task: Task);
+    fn remove_task(&mut self, task_index: usize);
+    fn mark_task_done(&mut self, task_index: usize) -> bool;
+    fn mark_task_undone(&mut self, task_index: usize) -> bool;
+    fn clear_tasks(&mut self);
+    fn clear_done_tasks(&mut self);
+    fn load_tasks(&mut self) -> Result<(), DatabaseError>;
+    fn save_tasks(&self) -> Result<(), DatabaseError>;
+    fn get_cloud_config(&self) -> Result<Option<(String, String)>, DatabaseError>;
+    fn save_cloud_config(&self, host: &str, port: &str) -> Result<(), DatabaseError>;
+    fn remove_cloud_config(&self) -> Result<(), DatabaseError>;
+}
+
+pub struct JsonSaveData {
     tasks: Vec<Task>,
-    app_dirs: AppDirs,
+    data_dir: PathBuf,
+    config_dir: PathBuf,
 }
 
 /// Checks whether a task's name exactly equals a query string.
@@ -85,48 +100,12 @@ pub fn get_index(tasks: &[Task], query_string: &str) -> Option<usize> {
     tasks.iter().position(|r| exactly_matches(r, query_string))
 }
 
-impl SaveData {
-    /// Constructs an empty SaveData.
+impl JsonSaveData {
+    /// Constructs an empty `JsonSaveData` using platform-specific default directories.
     ///
     /// # Returns
     ///
-    /// A `SaveData` whose internal task list is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yesser_todo_db::SaveData;
-    /// let mut data = SaveData::new().unwrap();
-    /// assert!(data.get_tasks().is_empty());
-    /// ```
-    pub fn new() -> Result<SaveData, DatabaseError> {
-        Ok(SaveData {
-            tasks: Vec::new(),
-            app_dirs: AppDirs::new(Some("todo"), true).ok_or(DatabaseError::UserDirsError)?,
-        })
-    }
-
-    /// Get the platform-specific `AppDirs` for the application and the full path to `todos.json` in the app data directory.
-    ///
-    /// # Errors
-    ///
-    /// Returns `DatabaseError::UserDirsError` if platform-specific application directories cannot be created.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// let (app_dirs, data_path) = yesser_todo_db::SaveData::get_data_paths().unwrap();
-    /// assert!(data_path.starts_with(app_dirs.data_dir));
-    /// assert_eq!(data_path.file_name().unwrap(), "todos.json");
-    /// ```
-    pub(crate) fn get_data_paths(&self) -> Result<(&AppDirs, PathBuf), DatabaseError> {
-        let data_file_path = self.app_dirs.data_dir.join("todos.json");
-        Ok((&self.app_dirs, data_file_path))
-    }
-
-    /// Constructs the platform-specific application directories and the full path to the cloud config file.
-    ///
-    /// The returned PathBuf points to `cloud.json` inside the application's config directory.
+    /// A `JsonSaveData` whose internal task list is empty.
     ///
     /// # Errors
     ///
@@ -134,15 +113,85 @@ impl SaveData {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// let Ok((_app_dirs, config_path)) = yesser_todo_db::SaveData::get_cloud_config_paths();
-    /// assert!(config_path.ends_with("cloud.json"));
     /// ```
-    pub(crate) fn get_cloud_config_paths(&self) -> Result<(&AppDirs, PathBuf), DatabaseError> {
-        let config_file_path = self.app_dirs.config_dir.join("cloud.json");
-        Ok((&self.app_dirs, config_file_path))
+    /// use yesser_todo_db::JsonSaveData;
+    /// let mut data = JsonSaveData::new().unwrap();
+    /// assert!(data.get_tasks().is_empty());
+    /// ```
+    pub fn new() -> Result<JsonSaveData, DatabaseError> {
+        let app_dirs = platform_dirs::AppDirs::new(Some("todo"), true).ok_or(DatabaseError::UserDirsError)?;
+        Ok(JsonSaveData {
+            tasks: Vec::new(),
+            data_dir: app_dirs.data_dir,
+            config_dir: app_dirs.config_dir,
+        })
     }
 
+    /// Constructs a `JsonSaveData` with separate data and config directories.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use yesser_todo_db::JsonSaveData;
+    ///
+    /// let data = JsonSaveData::with_dirs(
+    ///     PathBuf::from("/tmp/my-data"),
+    ///     PathBuf::from("/tmp/my-config"),
+    /// );
+    /// assert!(data.get_tasks().is_empty());
+    /// ```
+    pub fn with_dirs(data_dir: PathBuf, config_dir: PathBuf) -> JsonSaveData {
+        JsonSaveData {
+            tasks: Vec::new(),
+            data_dir,
+            config_dir,
+        }
+    }
+
+    /// Constructs a `JsonSaveData` using a single base directory for both data and config.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use yesser_todo_db::JsonSaveData;
+    ///
+    /// let data = JsonSaveData::with_dir(PathBuf::from("/tmp/my-base"));
+    /// assert!(data.get_tasks().is_empty());
+    /// ```
+    pub fn with_dir(dir: PathBuf) -> JsonSaveData {
+        JsonSaveData {
+            tasks: Vec::new(),
+            data_dir: dir.clone(),
+            config_dir: dir,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new_temp() -> Result<(JsonSaveData, tempfile::TempDir), DatabaseError> {
+        let dir = tempfile::tempdir().map_err(DatabaseError::IOError)?;
+        let path = dir.path().to_owned();
+        Ok((
+            JsonSaveData {
+                tasks: Vec::new(),
+                data_dir: path.clone(),
+                config_dir: path,
+            },
+            dir,
+        ))
+    }
+
+    fn data_file_path(&self) -> PathBuf {
+        self.data_dir.join("todos.json")
+    }
+
+    fn config_file_path(&self) -> PathBuf {
+        self.config_dir.join("cloud.json")
+    }
+}
+
+impl SaveData for JsonSaveData {
     /// Retrieves the saved cloud configuration, if present.
     ///
     /// If a cloud configuration file exists and contains valid JSON matching `CloudConfig`,
@@ -152,10 +201,10 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
-    /// use yesser_todo_db::SaveData;
+    /// use yesser_todo_db::{JsonSaveData, SaveData};
     ///
     /// // This example assumes no cloud config is present or a valid one exists.
-    /// let data = SaveData::new().unwrap();
+    /// let data = JsonSaveData::new().unwrap();
     /// let res = data.get_cloud_config();
     ///
     /// match res {
@@ -164,12 +213,10 @@ impl SaveData {
     ///     Err(e) => panic!("Failed to read cloud config: {}", e),
     /// }
     /// ```
-    pub fn get_cloud_config(&self) -> Result<Option<(String, String)>, DatabaseError> {
-        let config_paths = SaveData::get_cloud_config_paths(self)?;
-        let app_dirs = config_paths.0;
-        let config_file_path = config_paths.1;
+    fn get_cloud_config(&self) -> Result<Option<(String, String)>, DatabaseError> {
+        let config_file_path = self.config_file_path();
 
-        fs::create_dir_all(&app_dirs.config_dir)?;
+        fs::create_dir_all(&self.config_dir)?;
 
         if !config_file_path.exists() {
             return Ok(None);
@@ -197,18 +244,14 @@ impl SaveData {
     /// # Examples
     ///
     /// ```no_run
-    /// use yesser_todo_db::SaveData;
+    /// use yesser_todo_db::{JsonSaveData, SaveData};
     ///
-    /// let data = SaveData::new().unwrap();
+    /// let data = JsonSaveData::new().unwrap();
     /// data.save_cloud_config("example.com", "1234").unwrap();
     /// ```
-    pub fn save_cloud_config(&self, host: &str, port: &str) -> Result<(), DatabaseError> {
-        let config_paths = SaveData::get_cloud_config_paths(self)?;
-        let app_dirs = config_paths.0;
-        let config_file_path = config_paths.1;
-
-        fs::create_dir_all(&app_dirs.config_dir)?;
-        let file = File::create(config_file_path)?;
+    fn save_cloud_config(&self, host: &str, port: &str) -> Result<(), DatabaseError> {
+        fs::create_dir_all(&self.config_dir)?;
+        let file = File::create(self.config_file_path())?;
         to_writer(file, &CloudConfig::new(host, port))?;
 
         Ok(())
@@ -223,21 +266,18 @@ impl SaveData {
     /// # Examples
     ///
     /// ```no_run
-    /// use yesser_todo_db::SaveData;
+    /// use yesser_todo_db::{JsonSaveData, SaveData};
     ///
-    /// let data = SaveData::new().unwrap();
+    /// let data = JsonSaveData::new().unwrap();
     /// // Attempt to remove the cloud configuration file.
     /// let _ = data.remove_cloud_config();
     /// ```
-    pub fn remove_cloud_config(&self) -> Result<(), DatabaseError> {
-        let config_paths = SaveData::get_cloud_config_paths(self)?;
-        let config_file_path = config_paths.1;
-
-        fs::remove_file(config_file_path)?;
+    fn remove_cloud_config(&self) -> Result<(), DatabaseError> {
+        fs::remove_file(self.config_file_path())?;
         Ok(())
     }
 
-    /// Loads tasks from the application's data file into this `SaveData` instance.
+    /// Loads tasks from the application's data file into this `JsonSaveData` instance.
     ///
     /// Ensures the application's data directory exists; if the data file is missing, no changes
     /// are made to the existing tasks. When the data file is present it is deserialized and
@@ -250,18 +290,16 @@ impl SaveData {
     /// # Examples
     ///
     /// ```no_run
-    /// # use yesser_todo_db::SaveData;
-    /// let mut data = SaveData::new().unwrap();
+    /// # use yesser_todo_db::{JsonSaveData, SaveData};
+    /// let mut data = JsonSaveData::new().unwrap();
     /// // If no data file is present this will succeed and leave tasks empty.
     /// data.load_tasks().unwrap();
     /// assert!(data.get_tasks().is_empty());
     /// ```
-    pub fn load_tasks(&mut self) -> Result<(), DatabaseError> {
-        let data_paths = SaveData::get_data_paths(self)?;
-        let app_dirs = data_paths.0;
-        let data_file_path = data_paths.1;
+    fn load_tasks(&mut self) -> Result<(), DatabaseError> {
+        let data_file_path = self.data_file_path();
 
-        fs::create_dir_all(&app_dirs.data_dir)?;
+        fs::create_dir_all(&self.data_dir)?;
 
         if !data_file_path.exists() {
             return Ok(());
@@ -280,17 +318,15 @@ impl SaveData {
     /// # Examples
     ///
     /// ```no_run
-    /// use yesser_todo_db::SaveData;
+    /// use yesser_todo_db::{JsonSaveData, SaveData};
     ///
-    /// let data = SaveData::new().unwrap();
+    /// let data = JsonSaveData::new().unwrap();
     /// data.save_tasks().unwrap();
     /// ```
-    pub fn save_tasks(&self) -> Result<(), DatabaseError> {
-        let (app_dirs, data_file_path) = SaveData::get_data_paths(self)?;
+    fn save_tasks(&self) -> Result<(), DatabaseError> {
+        fs::create_dir_all(&self.data_dir)?;
 
-        fs::create_dir_all(&app_dirs.data_dir)?;
-
-        let file = File::create(data_file_path)?;
+        let file = File::create(self.data_file_path())?;
 
         to_writer(file, &self.tasks)?;
 
@@ -304,14 +340,14 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
-    /// use yesser_todo_db::{SaveData, Task};
-    /// let mut data = SaveData::new().unwrap();
+    /// use yesser_todo_db::{JsonSaveData, SaveData, Task};
+    /// let mut data = JsonSaveData::new().unwrap();
     /// data.get_tasks().push(Task { name: "buy milk".to_string(), done: false });
     /// assert_eq!(data.get_tasks().len(), 1);
     /// data.get_tasks()[0].done = true;
     /// assert!(data.get_tasks()[0].done);
     /// ```
-    pub fn get_tasks(&mut self) -> &mut Vec<Task> {
+    fn get_tasks(&mut self) -> &mut Vec<Task> {
         &mut self.tasks
     }
 
@@ -320,16 +356,16 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
-    /// use yesser_todo_db::{SaveData, Task};
-    /// let mut data = SaveData::new().unwrap();
+    /// use yesser_todo_db::{JsonSaveData, SaveData, Task};
+    /// let mut data = JsonSaveData::new().unwrap();
     /// data.add_task(Task { name: "Write tests".into(), done: false });
     /// assert_eq!(data.get_tasks().len(), 1);
     /// ```
-    pub fn add_task(&mut self, task: Task) {
+    fn add_task(&mut self, task: Task) {
         self.tasks.push(task)
     }
 
-    pub fn remove_task(&mut self, task_index: usize) {
+    fn remove_task(&mut self, task_index: usize) {
         self.tasks.remove(task_index);
     }
 
@@ -350,14 +386,14 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
-    /// use yesser_todo_db::{SaveData, Task};
-    /// let mut data = SaveData::new().unwrap();
+    /// use yesser_todo_db::{JsonSaveData, SaveData, Task};
+    /// let mut data = JsonSaveData::new().unwrap();
     /// data.add_task(Task { name: "a".into(), done: false });
     /// let prev = data.mark_task_done(0);
     /// assert_eq!(prev, false);
     /// assert_eq!(data.get_tasks()[0].done, true);
     /// ```
-    pub fn mark_task_done(&mut self, task_index: usize) -> bool {
+    fn mark_task_done(&mut self, task_index: usize) -> bool {
         let was_done = self.tasks[task_index].done;
         self.tasks[task_index].done = true;
         was_done
@@ -368,15 +404,15 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
-    /// use yesser_todo_db::{SaveData, Task};
-    /// let mut data = SaveData::new().unwrap();
+    /// use yesser_todo_db::{JsonSaveData, SaveData, Task};
+    /// let mut data = JsonSaveData::new().unwrap();
     /// data.add_task(Task { name: "task".into(), done: true });
     /// // It was done, so the previous "undone" state is false.
     /// assert_eq!(data.mark_task_undone(0), false);
     /// // Now it's already not done, so the previous "undone" state is true.
     /// assert_eq!(data.mark_task_undone(0), true);
     /// ```
-    pub fn mark_task_undone(&mut self, task_index: usize) -> bool {
+    fn mark_task_undone(&mut self, task_index: usize) -> bool {
         let was_undone = !self.tasks[task_index].done;
         self.tasks[task_index].done = false;
         was_undone
@@ -387,14 +423,14 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
-    /// use yesser_todo_db::{SaveData, Task};
-    /// let mut data = SaveData::new().unwrap();
+    /// use yesser_todo_db::{JsonSaveData, SaveData, Task};
+    /// let mut data = JsonSaveData::new().unwrap();
     /// data.add_task(Task { name: "a".into(), done: false });
     /// data.add_task(Task { name: "b".into(), done: true });
     /// data.clear_tasks();
     /// assert!(data.get_tasks().is_empty());
     /// ```
-    pub fn clear_tasks(&mut self) {
+    fn clear_tasks(&mut self) {
         self.tasks.clear();
     }
 
@@ -405,8 +441,8 @@ impl SaveData {
     /// # Examples
     ///
     /// ```
-    /// use yesser_todo_db::{SaveData, Task};
-    /// let mut data = SaveData::new().unwrap();
+    /// use yesser_todo_db::{JsonSaveData, SaveData, Task};
+    /// let mut data = JsonSaveData::new().unwrap();
     /// data.add_task(Task { name: "a".into(), done: false });
     /// data.add_task(Task { name: "b".into(), done: true });
     /// data.clear_done_tasks();
@@ -414,7 +450,7 @@ impl SaveData {
     /// assert_eq!(tasks.len(), 1);
     /// assert_eq!(tasks[0].name, "a");
     /// ```
-    pub fn clear_done_tasks(&mut self) {
+    fn clear_done_tasks(&mut self) {
         self.tasks.retain(|t| !t.done);
     }
 }
@@ -543,14 +579,29 @@ mod tests {
     }
 
     #[test]
-    fn test_save_data_new() {
-        let save_data = SaveData::new().unwrap();
+    fn test_json_save_data_new() {
+        let (save_data, _dir) = JsonSaveData::new_temp().unwrap();
+        assert_eq!(save_data.tasks.len(), 0);
+    }
+
+    #[test]
+    fn test_json_save_data_with_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let save_data = JsonSaveData::with_dir(dir.path().to_owned());
+        assert_eq!(save_data.tasks.len(), 0);
+    }
+
+    #[test]
+    fn test_json_save_data_with_dirs() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let config_dir = tempfile::tempdir().unwrap();
+        let save_data = JsonSaveData::with_dirs(data_dir.path().to_owned(), config_dir.path().to_owned());
         assert_eq!(save_data.tasks.len(), 0);
     }
 
     #[test]
     fn test_save_data_add_task() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         let task = Task {
             name: "test task".to_string(),
             done: false,
@@ -562,7 +613,7 @@ mod tests {
 
     #[test]
     fn test_save_data_add_multiple_tasks() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -581,7 +632,7 @@ mod tests {
 
     #[test]
     fn test_save_data_get_tasks() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "test".to_string(),
             done: false,
@@ -593,7 +644,7 @@ mod tests {
 
     #[test]
     fn test_save_data_get_tasks_mutable() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "test".to_string(),
             done: false,
@@ -605,7 +656,7 @@ mod tests {
 
     #[test]
     fn test_save_data_remove_task() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -626,7 +677,7 @@ mod tests {
 
     #[test]
     fn test_save_data_mark_task_done() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task".to_string(),
             done: false,
@@ -638,7 +689,7 @@ mod tests {
 
     #[test]
     fn test_save_data_mark_task_done_already_done() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task".to_string(),
             done: true,
@@ -650,7 +701,7 @@ mod tests {
 
     #[test]
     fn test_save_data_mark_task_undone() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task".to_string(),
             done: true,
@@ -662,7 +713,7 @@ mod tests {
 
     #[test]
     fn test_save_data_mark_task_undone_already_undone() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task".to_string(),
             done: false,
@@ -674,7 +725,7 @@ mod tests {
 
     #[test]
     fn test_save_data_clear_tasks() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -689,7 +740,7 @@ mod tests {
 
     #[test]
     fn test_save_data_clear_done_tasks() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "undone1".to_string(),
             done: false,
@@ -714,7 +765,7 @@ mod tests {
 
     #[test]
     fn test_save_data_clear_done_tasks_no_done() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -729,7 +780,7 @@ mod tests {
 
     #[test]
     fn test_save_data_clear_done_tasks_all_done() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: true,
@@ -780,7 +831,7 @@ mod tests {
 
     #[test]
     fn test_multiple_operations() {
-        let mut save_data = SaveData::new().unwrap();
+        let (mut save_data, _dir) = JsonSaveData::new_temp().unwrap();
         save_data.add_task(Task {
             name: "task1".to_string(),
             done: false,
@@ -799,5 +850,59 @@ mod tests {
         assert!(save_data.tasks[0].done);
         assert_eq!(save_data.tasks[0].name, "task1");
         assert_eq!(save_data.tasks[1].name, "task3");
+    }
+
+    #[test]
+    fn test_load_save_cloud_config() {
+        let (data, _dir) = JsonSaveData::new_temp().unwrap();
+        data.save_cloud_config("example.com", "6982").unwrap();
+        let result = data.get_cloud_config().unwrap();
+        assert_eq!(result, Some(("example.com".to_string(), "6982".to_string())));
+    }
+
+    #[test]
+    fn test_remove_nonexistent_cloud_config() {
+        let (data, _dir) = JsonSaveData::new_temp().unwrap();
+        assert!(data.get_cloud_config().unwrap().is_none());
+        let result = data.remove_cloud_config();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_load_save_tasks_roundtrip() {
+        let (mut data, _dir) = JsonSaveData::new_temp().unwrap();
+        data.add_task(Task {
+            name: "task1".into(),
+            done: false,
+        });
+        data.save_tasks().unwrap();
+
+        let (mut loaded, _dir2) = JsonSaveData::new_temp().unwrap();
+        loaded.load_tasks().unwrap();
+        assert!(loaded.get_tasks().is_empty());
+
+        // load from the same directory
+        loaded.load_tasks().unwrap();
+        // Still empty because new_temp() gave a different dir
+    }
+
+    #[test]
+    fn test_persistence_with_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_owned();
+
+        let mut data = JsonSaveData::with_dir(path.clone());
+        data.add_task(Task {
+            name: "persist".into(),
+            done: true,
+        });
+        data.save_tasks().unwrap();
+        drop(data);
+
+        let mut loaded = JsonSaveData::with_dir(path);
+        loaded.load_tasks().unwrap();
+        assert_eq!(loaded.get_tasks().len(), 1);
+        assert_eq!(loaded.get_tasks()[0].name, "persist");
+        assert!(loaded.get_tasks()[0].done);
     }
 }

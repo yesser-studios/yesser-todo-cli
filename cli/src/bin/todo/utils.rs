@@ -32,7 +32,7 @@ pub(crate) const DONE_STYLE: Style = Green.strike();
 ///     panic!("expected cloud config");
 /// }
 /// ```
-pub(crate) fn process_cloud_config(args: Option<&TodoArgs>, data: &SaveData) -> Option<(String, String)> {
+pub(crate) fn process_cloud_config(args: Option<&TodoArgs>, data: &dyn SaveData) -> Option<(String, String)> {
     if let Some(args) = args
         && args.local
     {
@@ -48,6 +48,7 @@ pub(crate) fn process_cloud_config(args: Option<&TodoArgs>, data: &SaveData) -> 
 #[cfg(test)]
 mod tests {
     use yansi::Paint;
+    use yesser_todo_db::JsonSaveData;
 
     use super::*;
 
@@ -58,24 +59,33 @@ mod tests {
         assert!(styled_str.contains("test"));
     }
 
-    #[test]
-    fn test_process_cloud_config_returns_option() {
-        let result = process_cloud_config(None);
-        assert!(result.is_some() || result.is_none());
-    }
-
-    #[test]
-    fn test_process_cloud_config_tuple_structure() {
-        if let Some((host, port)) = process_cloud_config(None) {
-            assert!(!host.is_empty() || host.is_empty());
-            assert!(!port.is_empty() || port.is_empty());
-        }
-    }
-
     fn construct_todo_args(local: bool) -> TodoArgs {
         TodoArgs {
             command: crate::args::Command::Add(crate::args::TasksCommand { tasks: vec!["".to_string()] }),
             local,
+        }
+    }
+
+    fn make_data_with_cloud_config(host: &str, port: &str) -> (JsonSaveData, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let data = JsonSaveData::with_dir(dir.path().to_owned());
+        data.save_cloud_config(host, port).unwrap();
+        (data, dir)
+    }
+
+    #[test]
+    fn test_process_cloud_config_returns_option_with_data() {
+        let (data, _dir) = make_data_with_cloud_config("http://127.0.0.1", "6982");
+        let result = process_cloud_config(None, &data);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_process_cloud_config_tuple_structure() {
+        let (data, _dir) = make_data_with_cloud_config("http://127.0.0.1", "6982");
+        if let Some((host, port)) = process_cloud_config(None, &data) {
+            assert!(!host.is_empty());
+            assert!(!port.is_empty());
         }
     }
 
@@ -84,15 +94,8 @@ mod tests {
         const HOST: &str = "http://127.0.0.1";
         const PORT: &str = yesser_todo_api::DEFAULT_PORT;
 
-        let previous_cloud_config = SaveData::get_cloud_config().unwrap();
-
-        SaveData::save_cloud_config(HOST, PORT).unwrap();
-        let result = process_cloud_config(Some(&construct_todo_args(false)));
-
-        match previous_cloud_config {
-            Some((host, port)) => SaveData::save_cloud_config(&host, &port).unwrap(),
-            None => SaveData::remove_cloud_config().unwrap(),
-        };
+        let (data, _dir) = make_data_with_cloud_config(HOST, PORT);
+        let result = process_cloud_config(Some(&construct_todo_args(false)), &data);
 
         let (host, port) = result.unwrap();
         assert_eq!(host, HOST);
@@ -104,15 +107,8 @@ mod tests {
         const HOST: &str = "http://127.0.0.1";
         const PORT: &str = yesser_todo_api::DEFAULT_PORT;
 
-        let previous_cloud_config = SaveData::get_cloud_config().unwrap();
-
-        SaveData::save_cloud_config(HOST, PORT).unwrap();
-        let result = process_cloud_config(Some(&construct_todo_args(true)));
-
-        match previous_cloud_config {
-            Some((host, port)) => SaveData::save_cloud_config(&host, &port).unwrap(),
-            None => SaveData::remove_cloud_config().unwrap(),
-        };
+        let (data, _dir) = make_data_with_cloud_config(HOST, PORT);
+        let result = process_cloud_config(Some(&construct_todo_args(true)), &data);
 
         assert!(result.is_none());
     }
@@ -122,19 +118,20 @@ mod tests {
         const HOST: &str = "http://127.0.0.1";
         const PORT: &str = yesser_todo_api::DEFAULT_PORT;
 
-        let previous_cloud_config = SaveData::get_cloud_config().unwrap();
-
-        SaveData::save_cloud_config(HOST, PORT).unwrap();
-        let result = process_cloud_config(None);
-
-        match previous_cloud_config {
-            Some((host, port)) => SaveData::save_cloud_config(&host, &port).unwrap(),
-            None => SaveData::remove_cloud_config().unwrap(),
-        };
+        let (data, _dir) = make_data_with_cloud_config(HOST, PORT);
+        let result = process_cloud_config(None, &data);
 
         let (host, port) = result.unwrap();
         assert_eq!(host, HOST);
         assert_eq!(port, PORT);
+    }
+
+    #[test]
+    fn test_process_cloud_config_no_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = JsonSaveData::with_dir(dir.path().to_owned());
+        let result = process_cloud_config(Some(&construct_todo_args(false)), &data);
+        assert!(result.is_none());
     }
 
     #[test]

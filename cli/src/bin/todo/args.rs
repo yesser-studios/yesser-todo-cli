@@ -100,7 +100,7 @@ impl Command {
     /// cmd.execute(&mut tasks, &mut client)?;
     /// # Ok(()) }
     /// ```
-    pub(crate) fn execute(&self, data: &mut SaveData, client: &mut Option<Client>) -> Result<(), CommandError> {
+    pub(crate) fn execute(&self, data: &mut dyn SaveData, client: &mut Option<Client>) -> Result<(), CommandError> {
         let tasks = data.get_tasks();
         match client {
             None => match self {
@@ -131,7 +131,7 @@ impl Command {
     }
 }
 
-fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand, data: &mut SaveData) -> Result<(), CommandError> {
+fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand, data: &mut dyn SaveData) -> Result<(), CommandError> {
     match cloud_subcommand {
         CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command, data),
         CloudSubcommand::Disconnect => handle_disconnect(data),

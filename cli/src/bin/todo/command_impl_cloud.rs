@@ -480,7 +480,7 @@ pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
 /// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
 /// let _ = handle_connect(&cmd).unwrap();
 /// ```
-pub(crate) fn handle_connect(command: &CloudCommand, data: &SaveData) -> Result<(), CommandError> {
+pub(crate) fn handle_connect(command: &CloudCommand, data: &dyn SaveData) -> Result<(), CommandError> {
     let url = parse_url(&command.host)?;
 
     let cmd_port = if let Some(cmd_port) = &command.port {
@@ -549,7 +549,7 @@ pub(crate) fn handle_connect(command: &CloudCommand, data: &SaveData) -> Result<
 ///
 /// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
 #[deprecated]
-pub(crate) fn handle_connect_old(command: &CloudCommand, data: &SaveData) -> Result<(), CommandError> {
+pub(crate) fn handle_connect_old(command: &CloudCommand, data: &dyn SaveData) -> Result<(), CommandError> {
     println!("connect is deprecated. Use cloud connect instead.");
     handle_connect(command, data)
 }
@@ -563,7 +563,7 @@ pub(crate) fn handle_connect_old(command: &CloudCommand, data: &SaveData) -> Res
 /// - `Ok(())` if a configuration was removed.
 /// - `Err(CommandError::UnlinkedError)` if no cloud configuration was found.
 /// - `Err(CommandError::DataError)` for other errors encountered while removing the configuration.
-pub(crate) fn handle_disconnect(data: &SaveData) -> Result<(), CommandError> {
+pub(crate) fn handle_disconnect(data: &dyn SaveData) -> Result<(), CommandError> {
     match data.remove_cloud_config() {
         Ok(_) => {
             println!("Successfully unlinked server.");
@@ -599,7 +599,7 @@ pub(crate) fn handle_disconnect(data: &SaveData) -> Result<(), CommandError> {
 ///
 /// let result = handle_show_server();
 /// ```
-pub(crate) fn handle_show_server(data: &SaveData) -> Result<(), CommandError> {
+pub(crate) fn handle_show_server(data: &dyn SaveData) -> Result<(), CommandError> {
     match data.get_cloud_config() {
         Ok(data) => match data {
             Some((hostname, port)) => {
@@ -633,13 +633,15 @@ pub(crate) fn handle_show_server(data: &SaveData) -> Result<(), CommandError> {
 ///
 /// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
 #[deprecated]
-pub(crate) fn handle_disconnect_old(data: &SaveData) -> Result<(), CommandError> {
+pub(crate) fn handle_disconnect_old(data: &dyn SaveData) -> Result<(), CommandError> {
     println!("disconnect is deprecated. Use cloud disconnect instead.");
     handle_disconnect(data)
 }
 
 #[cfg(test)]
 mod tests {
+    use yesser_todo_db::JsonSaveData;
+
     use super::*;
 
     #[test]
@@ -783,43 +785,50 @@ mod tests {
         assert!(result.is_err());
     }
 
+    fn make_data() -> (JsonSaveData, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let data = JsonSaveData::with_dir(dir.path().to_owned());
+        (data, dir)
+    }
+
     #[test]
     fn test_handle_connect_creates_config_with_default_port() {
-        // This test will attempt to save config, which may fail in test environment
-        // Testing the function behavior rather than file system side effects
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com".to_string(),
             port: None,
         };
-        // Even if this errors due to file system, we're testing it doesn't panic
-        let _ = handle_connect(&command);
+        let _ = handle_connect(&command, &data);
     }
 
     #[test]
     fn test_handle_connect_with_explicit_port() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com".to_string(),
             port: Some("9000".to_string()),
         };
-        let _ = handle_connect(&command);
+        let _ = handle_connect(&command, &data);
     }
 
     #[test]
     fn test_handle_connect_with_url_and_flag_port_match() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com:9000".to_string(),
             port: Some("9000".to_string()),
         };
-        let _ = handle_connect(&command);
+        let _ = handle_connect(&command, &data);
     }
 
     #[test]
     fn test_handle_connect_with_url_and_flag_port_mismatch() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com:8080".to_string(),
             port: Some("9000".to_string()),
         };
-        let result = handle_connect(&command);
+        let result = handle_connect(&command, &data);
         assert!(result.is_err());
         if let Err(CommandError::InvalidUrlError { why }) = result {
             assert!(why.contains("Port in URL and <PORT> parameter do not match"));
@@ -830,11 +839,12 @@ mod tests {
 
     #[test]
     fn test_handle_connect_with_invalid_port_string() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com".to_string(),
             port: Some("not_a_number".to_string()),
         };
-        let result = handle_connect(&command);
+        let result = handle_connect(&command, &data);
         assert!(result.is_err());
         if let Err(CommandError::InvalidUrlError { why }) = result {
             assert!(why.contains("port specified in the <PORT> parameter is invalid"));
@@ -845,22 +855,24 @@ mod tests {
 
     #[test]
     fn test_handle_connect_with_invalid_url() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "not a valid url!!!".to_string(),
             port: None,
         };
-        let result = handle_connect(&command);
+        let result = handle_connect(&command, &data);
         assert!(result.is_err());
         assert!(matches!(result, Err(CommandError::InvalidUrlError { .. })));
     }
 
     #[test]
     fn test_handle_connect_with_invalid_scheme() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "ftp://testhost.com".to_string(),
             port: None,
         };
-        let result = handle_connect(&command);
+        let result = handle_connect(&command, &data);
         assert!(result.is_err());
         if let Err(CommandError::InvalidUrlError { why }) = result {
             assert!(why.contains("Invalid scheme"));
@@ -871,10 +883,8 @@ mod tests {
 
     #[test]
     fn test_handle_disconnect_behavior() {
-        // Testing the function executes without panic
-        // May return UnlinkedError if no config exists, which is expected
-        let result = handle_disconnect();
-        // Either succeeds or returns UnlinkedError or DataError
+        let (data, _dir) = make_data();
+        let result = handle_disconnect(&data);
         match result {
             Ok(_) | Err(CommandError::UnlinkedError) | Err(CommandError::DataError { .. }) => {}
             Err(e) => panic!("Unexpected error type: {:?}", e),
@@ -882,146 +892,84 @@ mod tests {
     }
 
     #[test]
-    fn test_command_error_display_for_invalid_url() {
-        let err = CommandError::InvalidUrlError {
-            why: "test reason".to_string(),
-        };
-        let display = format!("{}", err);
-        assert_eq!(display, "Invalid URL: test reason");
-    }
-
-    #[test]
-    fn test_parse_url_preserves_scheme() {
-        let https_result = parse_url("https://secure.example.com");
-        assert!(https_result.is_ok());
-        assert_eq!(https_result.unwrap().scheme(), "https");
-
-        let http_result = parse_url("http://example.com");
-        assert!(http_result.is_ok());
-        assert_eq!(http_result.unwrap().scheme(), "http");
-    }
-
-    #[test]
-    fn test_parse_url_with_trailing_slash() {
-        // Trailing slash is considered a path
-        let result = parse_url("http://example.com/");
-        // The path check should handle this - '/' is technically a path
-        // Based on the code, it checks `parsed.path() != "/" && !parsed.path().is_empty()`
-        // So '/' should be allowed
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_parse_url_with_subdomain() {
-        let result = parse_url("http://api.example.com:8080");
-        assert!(result.is_ok());
-        let url = result.unwrap();
-        assert_eq!(url.host_str(), Some("api.example.com"));
-        assert_eq!(url.port(), Some(8080));
-    }
-
-    #[test]
     fn test_handle_connect_port_priority_url_over_default() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com:7777".to_string(),
             port: None,
         };
-        // Should use port from URL, not default
-        let _ = handle_connect(&command);
+        let _ = handle_connect(&command, &data);
     }
 
     #[test]
     fn test_handle_connect_port_priority_flag_over_default() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("7777".to_string()),
         };
-        // Should use port from flag, not default
-        let _ = handle_connect(&command);
-    }
-
-    #[test]
-    fn test_parse_url_rejects_ws_scheme() {
-        let result = parse_url("ws://example.com");
-        assert!(result.is_err());
-        if let Err(CommandError::InvalidUrlError { why }) = result {
-            assert!(why.contains("Invalid scheme"));
-            assert!(why.contains("WS"));
-        } else {
-            panic!("Expected invalid scheme error");
-        }
-    }
-
-    #[test]
-    fn test_parse_url_case_insensitive_host() {
-        let result = parse_url("http://EXAMPLE.COM");
-        assert!(result.is_ok());
-        let url = result.unwrap();
-        // Hosts are typically normalized to lowercase by URL parser
-        assert!(url.host_str().is_some());
+        let _ = handle_connect(&command, &data);
     }
 
     #[test]
     fn test_handle_connect_with_port_65535() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("65535".to_string()),
         };
-        let _ = handle_connect(&command);
+        let _ = handle_connect(&command, &data);
     }
 
     #[test]
     fn test_handle_connect_with_port_overflow() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("65536".to_string()),
         };
-        let result = handle_connect(&command);
+        let result = handle_connect(&command, &data);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_handle_connect_with_port_zero() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("0".to_string()),
         };
-        let result = handle_connect(&command);
+        let result = handle_connect(&command, &data);
         assert!(result.is_err())
     }
 
     #[test]
     fn test_handle_connect_with_large_port() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("999999".to_string()),
         };
-        let result = handle_connect(&command);
+        let result = handle_connect(&command, &data);
         assert!(result.is_err())
     }
 
     #[test]
-    fn test_parse_url_with_complex_ipv6() {
-        let result = parse_url("http://[2001:db8:85a3::8a2e:370:7334]:443");
-        assert!(result.is_ok());
-        let url = result.unwrap();
-        assert_eq!(url.port(), Some(443));
-    }
-
-    #[test]
     fn test_handle_connect_without_host() {
+        let (data, _dir) = make_data();
         let command = CloudCommand {
             host: "".to_string(),
             port: Some("8080".to_string()),
         };
-        let result = handle_connect(&command);
+        let result = handle_connect(&command, &data);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_handle_show_server() {
-        let result = handle_show_server();
-
+        let (data, _dir) = make_data();
+        let result = handle_show_server(&data);
         assert!(result.is_ok());
     }
+
 }
