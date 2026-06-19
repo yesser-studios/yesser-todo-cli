@@ -798,7 +798,9 @@ mod tests {
             host: "http://testhost.com".to_string(),
             port: None,
         };
-        let _ = handle_connect(&command, &data);
+        handle_connect(&command, &data).unwrap();
+        let config = data.get_cloud_config().unwrap().unwrap();
+        assert_eq!(config, ("http://testhost.com".to_string(), DEFAULT_PORT.to_string()));
     }
 
     #[test]
@@ -808,7 +810,9 @@ mod tests {
             host: "http://testhost.com".to_string(),
             port: Some("9000".to_string()),
         };
-        let _ = handle_connect(&command, &data);
+        handle_connect(&command, &data).unwrap();
+        let config = data.get_cloud_config().unwrap().unwrap();
+        assert_eq!(config, ("http://testhost.com".to_string(), "9000".to_string()));
     }
 
     #[test]
@@ -818,7 +822,9 @@ mod tests {
             host: "http://testhost.com:9000".to_string(),
             port: Some("9000".to_string()),
         };
-        let _ = handle_connect(&command, &data);
+        handle_connect(&command, &data).unwrap();
+        let config = data.get_cloud_config().unwrap().unwrap();
+        assert_eq!(config, ("http://testhost.com".to_string(), "9000".to_string()));
     }
 
     #[test]
@@ -884,11 +890,15 @@ mod tests {
     #[test]
     fn test_handle_disconnect_behavior() {
         let (data, _dir) = make_data();
-        let result = handle_disconnect(&data);
-        match result {
-            Ok(_) | Err(CommandError::UnlinkedError) | Err(CommandError::DataError { .. }) => {}
-            Err(e) => panic!("Unexpected error type: {:?}", e),
-        }
+        let command = CloudCommand {
+            host: "http://testhost.com".to_string(),
+            port: None,
+        };
+        handle_connect(&command, &data).unwrap();
+        assert!(data.get_cloud_config().unwrap().is_some());
+
+        handle_disconnect(&data).unwrap();
+        assert!(data.get_cloud_config().unwrap().is_none());
     }
 
     #[test]
@@ -898,7 +908,9 @@ mod tests {
             host: "http://example.com:7777".to_string(),
             port: None,
         };
-        let _ = handle_connect(&command, &data);
+        handle_connect(&command, &data).unwrap();
+        let config = data.get_cloud_config().unwrap().unwrap();
+        assert_eq!(config, ("http://example.com".to_string(), "7777".to_string()));
     }
 
     #[test]
@@ -908,7 +920,9 @@ mod tests {
             host: "http://example.com".to_string(),
             port: Some("7777".to_string()),
         };
-        let _ = handle_connect(&command, &data);
+        handle_connect(&command, &data).unwrap();
+        let config = data.get_cloud_config().unwrap().unwrap();
+        assert_eq!(config, ("http://example.com".to_string(), "7777".to_string()));
     }
 
     #[test]
@@ -918,7 +932,9 @@ mod tests {
             host: "http://example.com".to_string(),
             port: Some("65535".to_string()),
         };
-        let _ = handle_connect(&command, &data);
+        handle_connect(&command, &data).unwrap();
+        let config = data.get_cloud_config().unwrap().unwrap();
+        assert_eq!(config, ("http://example.com".to_string(), "65535".to_string()));
     }
 
     #[test]
@@ -966,10 +982,20 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_show_server() {
+    fn test_handle_show_server_when_connected() {
         let (data, _dir) = make_data();
-        let result = handle_show_server(&data);
-        assert!(result.is_ok());
+        let command = CloudCommand {
+            host: "http://myserver.com".to_string(),
+            port: Some("9999".to_string()),
+        };
+        handle_connect(&command, &data).unwrap();
+        assert!(handle_show_server(&data).is_ok());
+    }
+
+    #[test]
+    fn test_handle_show_server_when_disconnected() {
+        let (data, _dir) = make_data();
+        assert!(handle_show_server(&data).is_ok());
     }
 
 }
