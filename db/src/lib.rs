@@ -114,7 +114,7 @@ impl JsonSaveData {
     /// # Examples
     ///
     /// ```
-    /// use yesser_todo_db::JsonSaveData;
+    /// use yesser_todo_db::{JsonSaveData, SaveData};
     /// let mut data = JsonSaveData::new().unwrap();
     /// assert!(data.get_tasks().is_empty());
     /// ```
@@ -133,9 +133,9 @@ impl JsonSaveData {
     ///
     /// ```
     /// use std::path::PathBuf;
-    /// use yesser_todo_db::JsonSaveData;
+    /// use yesser_todo_db::{JsonSaveData, SaveData};
     ///
-    /// let data = JsonSaveData::with_dirs(
+    /// let mut data = JsonSaveData::with_dirs(
     ///     PathBuf::from("/tmp/my-data"),
     ///     PathBuf::from("/tmp/my-config"),
     /// );
@@ -155,9 +155,9 @@ impl JsonSaveData {
     ///
     /// ```
     /// use std::path::PathBuf;
-    /// use yesser_todo_db::JsonSaveData;
+    /// use yesser_todo_db::{JsonSaveData, SaveData};
     ///
-    /// let data = JsonSaveData::with_dir(PathBuf::from("/tmp/my-base"));
+    /// let mut data = JsonSaveData::with_dir(PathBuf::from("/tmp/my-base"));
     /// assert!(data.get_tasks().is_empty());
     /// ```
     pub fn with_dir(dir: PathBuf) -> JsonSaveData {
@@ -870,20 +870,28 @@ mod tests {
 
     #[test]
     fn test_load_save_tasks_roundtrip() {
-        let (mut data, _dir) = JsonSaveData::new_temp().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_owned();
+
+        let mut data = JsonSaveData::with_dir(path.clone());
         data.add_task(Task {
             name: "task1".into(),
             done: false,
         });
+        data.add_task(Task {
+            name: "task2".into(),
+            done: true,
+        });
         data.save_tasks().unwrap();
+        drop(data);
 
-        let (mut loaded, _dir2) = JsonSaveData::new_temp().unwrap();
+        let mut loaded = JsonSaveData::with_dir(path);
         loaded.load_tasks().unwrap();
-        assert!(loaded.get_tasks().is_empty());
-
-        // load from the same directory
-        loaded.load_tasks().unwrap();
-        // Still empty because new_temp() gave a different dir
+        assert_eq!(loaded.get_tasks().len(), 2);
+        assert_eq!(loaded.get_tasks()[0].name, "task1");
+        assert!(!loaded.get_tasks()[0].done);
+        assert_eq!(loaded.get_tasks()[1].name, "task2");
+        assert!(loaded.get_tasks()[1].done);
     }
 
     #[test]
