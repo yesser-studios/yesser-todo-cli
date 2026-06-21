@@ -23,22 +23,6 @@ use crate::{
 /// Returns `CommandError::HTTPError { name, status_code }` for non-404 HTTP
 /// responses and `CommandError::ConnectionError { name }` for request/connection
 /// failures.
-///
-/// # Examples
-///
-/// ```ignore
-/// // create or obtain a `Client` appropriate for your environment
-/// let client = /* Client::new(...) */ ;
-/// let exists = tokio::runtime::Runtime::new()
-///     .unwrap()
-///     .block_on(check_exists_cloud("my-task", &client))
-///     .unwrap();
-/// if exists {
-///     println!("Task exists");
-/// } else {
-///     println!("Task not found");
-/// }
-/// ```
 pub(crate) fn check_exists_cloud(task: &str, client: &Client) -> Result<bool, CommandError> {
     let result = client.get_index(task);
     match result {
@@ -105,14 +89,13 @@ pub(crate) fn get_tasks_cloud(client: &Client) -> Result<Vec<Task>, CommandError
 ///
 /// # Examples
 ///
-/// ```
-/// // Illustrative example; adapt `command` and `client` to your test setup.
-/// use futures::executor::block_on;
+/// ```ignore
+/// use yesser_todo_api::Client;
+/// use crate::args::TasksCommand;
 ///
-/// // let mut client = /* obtain Client */;
-/// // let command = /* TasksCommand { tasks: vec!["task1".into()] } */;
-///
-/// // block_on(handle_add_cloud(&command, &mut client)).unwrap();
+/// let mut client = Client::new("http://127.0.0.1".into(), None);
+/// let command = TasksCommand { tasks: vec!["task1".into()] };
+/// handle_add_cloud(&command, &mut client).unwrap();
 /// ```
 pub(crate) fn handle_add_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
     if command.tasks.is_empty() {
@@ -164,13 +147,13 @@ pub(crate) fn handle_add_cloud(command: &TasksCommand, client: &mut Client) -> R
 ///
 /// # Examples
 ///
-/// ```
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // Assume `client` implements the cloud API client and `TasksCommand` wraps task names.
-/// // let mut client = Client::new("http://api")?;
-/// // let cmd = TasksCommand { tasks: vec!["buy milk".into()] };
-/// // handle_remove_cloud(&cmd, &mut client)?;
-/// # Ok(()) }
+/// ```ignore
+/// use yesser_todo_api::Client;
+/// use crate::args::TasksCommand;
+///
+/// let mut client = Client::new("http://127.0.0.1".into(), None);
+/// let cmd = TasksCommand { tasks: vec!["buy milk".into()] };
+/// handle_remove_cloud(&cmd, &mut client).unwrap();
 /// ```
 pub(crate) fn handle_remove_cloud(command: &TasksCommand, client: &mut Client) -> Result<(), CommandError> {
     if command.tasks.is_empty() {
@@ -228,10 +211,9 @@ pub(crate) fn handle_remove_cloud(command: &TasksCommand, client: &mut Client) -
 ///
 /// # Examples
 ///
-/// ```
-/// use todo_cli::cloud::Client;
-/// use todo_cli::command_impl_cloud::handle_list_cloud;
-/// let client = Client::example(); // construct a client connected to a test server
+/// ```ignore
+/// use yesser_todo_api::Client;
+/// let client = Client::new("http://127.0.0.1".into(), None);
 /// let _ = handle_list_cloud(&client);
 /// ```
 pub(crate) fn handle_list_cloud(client: &Client) -> Result<(), CommandError> {
@@ -277,8 +259,9 @@ pub(crate) fn handle_list_cloud(client: &Client) -> Result<(), CommandError> {
 ///
 /// # Examples
 ///
-/// ```
-/// use todo_cli::{Client, TasksCommand, CommandError};
+/// ```ignore
+/// use yesser_todo_api::Client;
+/// use crate::args::TasksCommand;
 /// fn _example(mut client: Client) -> Result<(), CommandError> {
 /// let cmd = TasksCommand { tasks: vec!["task1".into(), "task2".into()] };
 /// // mark tasks as done
@@ -346,8 +329,9 @@ pub(crate) fn handle_done_undone_cloud(command: &TasksCommand, client: &mut Clie
 ///
 /// # Examples
 ///
-/// ```no_run
-/// use todo_cli::command_impl_cloud::{handle_clear_cloud, ClearCommand, Client};
+/// ```ignore
+/// use yesser_todo_api::Client;
+/// use crate::args::ClearCommand;
 /// fn run_example(mut client: Client) -> Result<(), Box<dyn std::error::Error>> {
 /// let cmd = ClearCommand { done: true };
 /// handle_clear_cloud(&cmd, &mut client)?;
@@ -473,12 +457,14 @@ pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
+/// use yesser_todo_db::{JsonSaveData, SaveData};
 /// use crate::CloudCommand;
 /// use crate::command_impl_cloud::handle_connect;
 ///
+/// let data = JsonSaveData::with_dir(std::path::PathBuf::from("/tmp/test"));
 /// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
-/// let _ = handle_connect(&cmd).unwrap();
+/// let _ = handle_connect(&cmd, &data);
 /// ```
 pub(crate) fn handle_connect(command: &CloudCommand, data: &dyn SaveData) -> Result<(), CommandError> {
     let url = parse_url(&command.host)?;
@@ -539,12 +525,12 @@ pub(crate) fn handle_connect(command: &CloudCommand, data: &dyn SaveData) -> Res
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use crate::CloudCommand;
 /// use crate::command_impl_cloud::handle_connect_old;
 ///
 /// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
-/// let _ = handle_connect_old(&cmd).unwrap();
+/// let _ = handle_connect_old(&cmd, &data);
 /// ```
 ///
 /// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
@@ -594,10 +580,10 @@ pub(crate) fn handle_disconnect(data: &dyn SaveData) -> Result<(), CommandError>
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use crate::command_impl_cloud::handle_show_server;
 ///
-/// let result = handle_show_server();
+/// let result = handle_show_server(&data);
 /// ```
 pub(crate) fn handle_show_server(data: &dyn SaveData) -> Result<(), CommandError> {
     match data.get_cloud_config() {
@@ -625,10 +611,10 @@ pub(crate) fn handle_show_server(data: &dyn SaveData) -> Result<(), CommandError
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use crate::command_impl_cloud::handle_disconnect_old;
 ///
-/// let _ = handle_disconnect_old().unwrap();
+/// let _ = handle_disconnect_old(&data);
 /// ```
 ///
 /// Returns `Ok(())` on success, or a `CommandError` if an error occurs.

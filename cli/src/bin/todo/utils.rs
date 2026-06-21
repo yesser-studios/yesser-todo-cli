@@ -23,14 +23,9 @@ pub(crate) const DONE_STYLE: Style = Green.strike();
 ///
 /// # Examples
 ///
-/// ```
-/// // Suppose SaveData::get_cloud_config() returns Ok(Some(("example.com".into(), "6982".into())))
-/// if let Some((host, port)) = process_cloud_config(None) {
-///     assert_eq!(host, "example.com");
-///     assert_eq!(port, "6982");
-/// } else {
-///     panic!("expected cloud config");
-/// }
+/// ```text
+/// // Suppose get_cloud_config() returns Ok(Some(("example.com".into(), "6982".into())))
+/// // Then process_cloud_config would return Some(("example.com", "6982")).
 /// ```
 pub(crate) fn process_cloud_config(args: Option<&TodoArgs>, data: &dyn SaveData) -> Option<(String, String)> {
     if let Some(args) = args

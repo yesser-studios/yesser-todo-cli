@@ -20,9 +20,8 @@ use crate::utils::process_cloud_config;
 ///
 /// # Examples
 ///
-/// ```no_run
-/// // Run the CLI binary (example):
-/// // $ todo add "Buy milk"
+/// ```text
+/// $ todo add "Buy milk"
 /// ```
 fn main() {
     let args = TodoArgs::parse();

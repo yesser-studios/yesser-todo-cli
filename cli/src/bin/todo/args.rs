@@ -79,8 +79,8 @@ impl Command {
     ///
     /// When `client` is `None`, the command operates on the provided mutable `data` (local handlers).
     /// When `client` is `Some`, the command is routed to the cloud client (cloud handlers). Connect and
-    /// Connect and Disconnect are handled without requiring an active client; Disconnect delegates to
-    /// `handle_disconnect()` and returns `UnlinkedError` when no saved cloud configuration exists.
+    /// Disconnect are handled without requiring an active client; Disconnect delegates to
+    /// `handle_disconnect` and returns `UnlinkedError` when no saved cloud configuration exists.
     ///
     /// # Returns
     ///
@@ -88,17 +88,13 @@ impl Command {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use yesser_todo_db::Task;
-    /// # use yesser_todo_api::Client;
-    /// # use crate::cli::args::Command;
-    /// # #[tokio::main]
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut tasks: Vec<Task> = Vec::new();
+    /// ```ignore
+    /// use yesser_todo_db::{JsonSaveData, SaveData};
+    /// use crate::command_impl_cloud::CloudCommand;
+    /// let mut data: Box<dyn SaveData> = Box::new(JsonSaveData::with_dir(std::path::PathBuf::from("/tmp/test")));
     /// let mut client: Option<Client> = None;
     /// let cmd = Command::List;
-    /// cmd.execute(&mut tasks, &mut client)?;
-    /// # Ok(()) }
+    /// cmd.execute(&mut *data, &mut client).unwrap();
     /// ```
     pub(crate) fn execute(&self, data: &mut dyn SaveData, client: &mut Option<Client>) -> Result<(), CommandError> {
         let tasks = data.get_tasks();

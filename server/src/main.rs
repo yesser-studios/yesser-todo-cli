@@ -21,10 +21,9 @@ use yesser_todo_db::{JsonSaveData, SaveData};
 ///
 /// # Examples
 ///
-/// ```no_run
-/// // Run the compiled binary and query the index route:
-/// // $ cargo run --bin server
-/// // $ curl http://127.0.0.1:6982/index
+/// ```text
+/// $ cargo run --bin server
+/// $ curl http://127.0.0.1:6982/index
 /// ```
 #[tokio::main]
 async fn main() {
