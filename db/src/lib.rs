@@ -216,8 +216,6 @@ impl SaveData for JsonSaveData {
     fn get_cloud_config(&self) -> Result<Option<(String, String)>, DatabaseError> {
         let config_file_path = self.config_file_path();
 
-        fs::create_dir_all(&self.config_dir)?;
-
         if !config_file_path.exists() {
             return Ok(None);
         }
