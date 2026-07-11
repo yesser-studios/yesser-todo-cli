@@ -20,15 +20,17 @@
         };
 
         devShells.default = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [ pkg-config ];
-
-          buildInputs = with pkgs; [
-            openssl
+          nativeBuildInputs = with pkgs; [
+            pkg-config
             cargo
             rustc
             clippy
             rustfmt
             rust-analyzer
+          ];
+
+          buildInputs = with pkgs; [
+            openssl
           ];
         };
       });
