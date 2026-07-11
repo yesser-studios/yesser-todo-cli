@@ -3,3 +3,6 @@
 .DS_Store
 db/Cargo.lock
 api/Cargo.lock
+
+*/.direnv/
+/.direnv/
