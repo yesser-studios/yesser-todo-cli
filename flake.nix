@@ -12,13 +12,20 @@
       let
         pkgs = import nixpkgs { inherit system; };
         naersk' = pkgs.callPackage naersk { };
-      in {
-        packages.default = naersk'.buildPackage {
-          src = ./.;
-          nativeBuildInputs = with pkgs; [ pkg-config ];
-          buildInputs = with pkgs; [ openssl ];
+        mkPackage = name: bin-name: naersk'.buildPackage {
+            src = ./.;
+            pname = name;
+            cargoBuildOptions = x: x ++ ["-p" name];
+            nativeBuildInputs = with pkgs; [ pkg-config ];
+            buildInputs = with pkgs; [ openssl ];
+            meta.mainProgram = bin-name;
         };
-
+      in {
+        packages = {
+          cli = mkPackage "yesser-todo-cli" "todo";
+          server = mkPackage "yesser-todo-server" "yesser-todo-server";
+          default = self.packages.${system}.cli;
+        };
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
             pkg-config
