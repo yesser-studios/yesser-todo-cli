@@ -1962,7 +1962,7 @@ dependencies = [
 
 [[package]]
 name = "yesser-todo-db"
-version = "3.0.1"
+version = "4.0.0"
 dependencies = [
  "mockall",
  "platform-dirs",

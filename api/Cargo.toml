@@ -13,5 +13,5 @@ repository = "https://github.com/Yesser-Studios/yesser-todo-cli"
 [dependencies]
 ureq = { version = "3", default-features = false, features = ["json", "native-tls"] }
 thiserror = "2.0.18"
-yesser-todo-db = { version = "3", path = "../db" }
+yesser-todo-db = { version = "4", path = "../db" }
 yesser-todo-errors = { version = "0.2", path = "../errors", features = ["client"] }
