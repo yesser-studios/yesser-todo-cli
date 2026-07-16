@@ -6,9 +6,10 @@ use yesser_todo_db::{DatabaseError, SaveData, Task};
 use yesser_todo_errors::command_error::CommandError;
 
 use crate::{
-    args::{ClearCommand, CloudCommand, TasksCommand},
+    args::{ClearCommand, CloudCommand, CloudMigrateCommand, TasksCommand},
+    command_impl::{handle_clear, handle_remove},
     db_error_wrap::DatabaseErrorWrapper,
-    utils::DONE_STYLE,
+    utils::{DONE_STYLE, get_client},
 };
 
 /// Checks whether a task with the given name exists on the cloud server.
@@ -624,6 +625,45 @@ pub(crate) fn handle_disconnect_old(data: &dyn SaveData) -> Result<(), CommandEr
     handle_disconnect(data)
 }
 
+pub(crate) fn handle_migrate(command: &CloudMigrateCommand, data: &mut dyn SaveData) -> Result<(), CommandError> {
+    let cloud_command = CloudCommand {
+        host: command.host.clone(),
+        port: command.port.clone(),
+    };
+    handle_connect(&cloud_command, data)?;
+
+    let mut client = match get_client(None, data) {
+        Some(client) => client,
+        None => return Err(CommandError::ConnectionError { name: "".into() }),
+    };
+
+    let tasks = data.get_tasks().clone();
+    for task in tasks {
+        let tasks_command = TasksCommand { tasks: vec![task.name] };
+
+        if let Err(err) = handle_add_cloud(&tasks_command, &mut client)
+            && !matches!(err, CommandError::TaskExists { name: _ })
+        {
+            Err(err)?;
+        }
+
+        if task.done {
+            handle_done_undone_cloud(&tasks_command, &mut client, true)?;
+        }
+    }
+    if !command.keep {
+        let clear_command = ClearCommand { done: false };
+        handle_clear(&clear_command, data.get_tasks())?;
+        if let Err(err) = data.save_tasks() {
+            return Err(CommandError::DataError {
+                what: "cleared moved tasks".into(),
+                err,
+            });
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use yesser_todo_db::JsonSaveData;
@@ -983,5 +1023,4 @@ mod tests {
         let (data, _dir) = make_data();
         assert!(handle_show_server(&data).is_ok());
     }
-
 }

@@ -64,6 +64,15 @@ pub(crate) struct CloudCommand {
     pub port: Option<String>,
 }
 
+#[derive(Debug, Args)]
+pub(crate) struct CloudMigrateCommand {
+    pub host: String,
+    pub port: Option<String>,
+    /// Keep local tasks and copy them to server instead of deleting them locally
+    #[arg(short, long)]
+    pub keep: bool,
+}
+
 #[derive(Debug, Subcommand)]
 pub(crate) enum CloudSubcommand {
     /// Connect to a cloud server.
