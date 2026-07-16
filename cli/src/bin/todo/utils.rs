@@ -1,4 +1,5 @@
 use yansi::{Color::Green, Style};
+use yesser_todo_api::Client;
 use yesser_todo_db::SaveData;
 
 use crate::args::TodoArgs;
@@ -38,6 +39,10 @@ pub(crate) fn process_cloud_config(args: Option<&TodoArgs>, data: &dyn SaveData)
             None
         })
     }
+}
+
+pub(crate) fn get_client(args: Option<&TodoArgs>, data: &dyn SaveData) -> Option<Client> {
+    process_cloud_config(args, data).map(|(hostname, port)| Client::new(hostname, Some(port)))
 }
 
 #[cfg(test)]

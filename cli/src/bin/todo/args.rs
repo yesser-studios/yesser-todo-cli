@@ -64,6 +64,15 @@ pub(crate) struct CloudCommand {
     pub port: Option<String>,
 }
 
+#[derive(Debug, Args)]
+pub(crate) struct CloudMigrateCommand {
+    pub host: String,
+    pub port: Option<String>,
+    /// Keep local tasks and copy them to server instead of deleting them locally
+    #[arg(short, long)]
+    pub keep: bool,
+}
+
 #[derive(Debug, Subcommand)]
 pub(crate) enum CloudSubcommand {
     /// Connect to a cloud server.
@@ -72,6 +81,8 @@ pub(crate) enum CloudSubcommand {
     Disconnect,
     /// View server configuration.
     Show,
+    /// Migrate local tasks to a cloud server.
+    Migrate(CloudMigrateCommand),
 }
 
 impl Command {
@@ -132,5 +143,6 @@ fn handle_cloud_subcommand(cloud_subcommand: &CloudSubcommand, data: &mut dyn Sa
         CloudSubcommand::Connect(cloud_command) => handle_connect(cloud_command, data),
         CloudSubcommand::Disconnect => handle_disconnect(data),
         CloudSubcommand::Show => handle_show_server(data),
+        CloudSubcommand::Migrate(cloud_command) => handle_migrate(cloud_command, data),
     }
 }
