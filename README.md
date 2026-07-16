@@ -93,5 +93,5 @@ cargo-wix uses WiX v3, which is not available anymore. We will not be publishing
 
 ## Fedora COPR build
 
-1. On a Fedora machine with rpm build tools and rust2rpm installed, run the update.sh script located at https://github.com/yesser-studios/rpms/tree/main/yesser-todo-cli.
-2. Commit and push the changes. COPR should build the new commit automatically.
+1. Update the version number in the spec file at https://github.com/yesser-studios/yesser-todo-rpm.
+2. Commit and push the changes, create and push a tag called `<package>-<version>`. COPR should build the new commit automatically.
