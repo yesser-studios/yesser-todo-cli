@@ -9,7 +9,7 @@ use clap::Parser;
 use yesser_todo_api::Client;
 use yesser_todo_db::{JsonSaveData, SaveData};
 
-use crate::utils::process_cloud_config;
+use crate::utils::get_client;
 
 /// Application entry point for the Todo CLI.
 ///
@@ -41,11 +41,7 @@ fn main() {
         }
     }
 
-    let mut client: Option<Client> = if let Some((hostname, port)) = process_cloud_config(Some(&args), &*data) {
-        Some(Client::new(hostname, Some(port)))
-    } else {
-        None
-    };
+    let mut client: Option<Client> = get_client(Some(&args), &*data);
 
     match args.command.execute(&mut *data, &mut client) {
         Ok(()) => match args.command {
