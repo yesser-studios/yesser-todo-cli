@@ -115,7 +115,7 @@ impl SaveData for JsonSaveData {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use yesser_todo_db::{save_data::JsonSaveData, SaveData};
     ///
     /// // This example assumes no cloud config is present or a valid one exists.

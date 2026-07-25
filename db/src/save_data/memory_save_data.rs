@@ -83,7 +83,7 @@ impl SaveData for MemorySaveData {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use yesser_todo_db::{save_data::MemorySaveData, SaveData};
     ///
     /// let mut data = MemorySaveData::new();
@@ -105,7 +105,7 @@ impl SaveData for MemorySaveData {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use yesser_todo_db::{save_data::MemorySaveData, SaveData};
     ///
     /// let mut data = MemorySaveData::new();
@@ -125,7 +125,7 @@ impl SaveData for MemorySaveData {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # use yesser_todo_db::{save_data::MemorySaveData, SaveData};
     /// let mut data = MemorySaveData::new();
     /// // If no data file is present this will succeed and leave tasks empty.
@@ -140,7 +140,7 @@ impl SaveData for MemorySaveData {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use yesser_todo_db::{save_data::MemorySaveData, SaveData};
     ///
     /// let data = MemorySaveData::new();
