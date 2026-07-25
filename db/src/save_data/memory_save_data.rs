@@ -1,7 +1,6 @@
 use yesser_todo_errors::db_error::DatabaseError;
 
 use crate::{CloudConfig, SaveData};
-use std::{cell::RefCell, ops::Deref};
 
 use crate::Task;
 
@@ -31,6 +30,19 @@ impl MemorySaveData {
         }
     }
 
+    /// Constructs a `MemorySaveData` with a pre-filled cloud config.
+    ///
+    /// # Returns
+    ///
+    /// A `MemorySaveData` whose internal task list is empty, and has the given cloud config.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yesser_todo_db::{save_data::MemorySaveData, SaveData, CloudConfig};
+    /// let mut data = MemorySaveData::new_with_cloud_config(CloudConfig::new("example.com", "1234"));
+    /// assert!(data.get_tasks().is_empty());
+    /// ```
     pub fn new_with_cloud_config(cloud_config: CloudConfig) -> MemorySaveData {
         MemorySaveData {
             tasks: Vec::new(),
@@ -79,15 +91,18 @@ impl SaveData for MemorySaveData {
     ///
     /// # Returns
     ///
-    /// `Ok(())` on success.
+    /// `Ok(())`.
     ///
     /// # Examples
     ///
     /// ```
     /// use yesser_todo_db::{save_data::MemorySaveData, SaveData};
+    /// use yesser_todo_errors::db_error::DatabaseError;
     ///
     /// let mut data = MemorySaveData::new();
-    /// data.save_cloud_config("example.com", "1234");
+    /// data.save_cloud_config("example.com", "1234").unwrap();
+    /// assert_eq!(data.get_cloud_config().unwrap().unwrap(), ("example.com".to_string(),
+    ///     "1234".to_string()));
     /// ```
     fn save_cloud_config(&mut self, host: &str, port: &str) -> Result<(), DatabaseError> {
         self.cloud_config = Some(CloudConfig {
@@ -97,24 +112,38 @@ impl SaveData for MemorySaveData {
         Ok(())
     }
 
-    /// Remove the cloud configuration file from the application's config directory.
+    /// Clears the cloud configuration.
     ///
-    /// # Errors
+    /// # Returns
     ///
-    /// Returns a `DatabaseError` if the file cannot be removed.
+    /// `Ok(())` if cloud config was set before, `Err(DatabaseError::IOError(io::ErrorKind::NotFound.into()))` if not.
     ///
     /// # Examples
     ///
     /// ```
     /// use yesser_todo_db::{save_data::MemorySaveData, SaveData};
+    /// use yesser_todo_errors::db_error::DatabaseError;
+    /// use std::io::ErrorKind;
     ///
     /// let mut data = MemorySaveData::new();
-    /// // Attempt to remove the cloud configuration file.
-    /// let _ = data.remove_cloud_config();
+    /// data.save_cloud_config("example.com", "1234");
+    /// data.remove_cloud_config().unwrap();
+    /// assert!(matches!(data.get_cloud_config(), Ok(None))); // Config is None after clearing
+    /// // Clearing again when config is cleared will return the NotFound IOError.
+    /// assert!(matches!(data.remove_cloud_config().unwrap_err(), DatabaseError::IOError(_)));
+    /// assert!(matches!(match data.remove_cloud_config().unwrap_err() {
+    ///     DatabaseError::IOError(io_error) => Some(io_error),
+    ///     _ => None,
+    /// }.unwrap().kind(), ErrorKind::NotFound));
     /// ```
     fn remove_cloud_config(&mut self) -> Result<(), DatabaseError> {
-        self.cloud_config = None;
-        Ok(())
+        match self.cloud_config {
+            Some(_) => {
+                self.cloud_config = None;
+                Ok(())
+            }
+            None => Err(DatabaseError::IOError(std::io::ErrorKind::NotFound.into())), // To raise the NotFound error CLI uses to catch already cleared cloud config
+        }
     }
 
     /// Does nothing, as all tasks are stored in memory.
@@ -261,7 +290,7 @@ impl SaveData for MemorySaveData {
         was_undone
     }
 
-    /// Removes all tasks from the saved task list.
+    /// Removes all tasks from the task list.
     ///
     /// # Examples
     ///
@@ -277,9 +306,9 @@ impl SaveData for MemorySaveData {
         self.tasks.clear();
     }
 
-    /// Removes all tasks marked as completed from the internal task list.
+    /// Removes all tasks marked as completed from the task list.
     ///
-    /// This keeps only tasks whose `done` field is `false`.
+    /// This keeps only tasks that are not done.
     ///
     /// # Examples
     ///
@@ -529,7 +558,7 @@ mod tests {
     #[test]
     fn test_load_save_cloud_config() {
         let mut data = MemorySaveData::new();
-        data.save_cloud_config("example.com", "6982");
+        data.save_cloud_config("example.com", "6982").unwrap();
         let result = data.get_cloud_config().unwrap();
         assert_eq!(result, Some(("example.com".to_string(), "6982".to_string())));
     }
