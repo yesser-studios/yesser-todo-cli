@@ -294,7 +294,7 @@ impl SaveData for JsonSaveData {
     ///
     /// # Returns
     ///
-    /// `true` if the task was already marked done, `false` otherwise.
+    /// `true` if the task was *already done* before marking as done, `false` if it was done.
     ///
     /// # Examples
     ///
@@ -302,10 +302,14 @@ impl SaveData for JsonSaveData {
     /// use yesser_todo_db::{save_data::JsonSaveData, SaveData, Task};
     /// let mut data = JsonSaveData::new().unwrap();
     /// data.add_task(Task { name: "a".into(), done: false });
-    /// let prev = data.mark_task_done(0);
-    /// assert_eq!(prev, false);
+    /// // It wasn't done, so returns false.
+    /// assert_eq!(data.mark_task_done(0), false);
+    /// assert_eq!(data.get_tasks()[0].done, true);
+    /// // Now it's done, so returns true
+    /// assert_eq!(data.mark_task_done(0), true);
     /// assert_eq!(data.get_tasks()[0].done, true);
     /// ```
+    /// Notice how the task is still done after the second call. Use `mark_task_undone` to undo this.
     fn mark_task_done(&mut self, task_index: usize) -> bool {
         let was_done = self.tasks[task_index].done;
         self.tasks[task_index].done = true;
@@ -314,17 +318,28 @@ impl SaveData for JsonSaveData {
 
     /// Marks the task at the given index as not done and returns whether it was already not done.
     ///
+    /// # Panics
+    ///
+    /// Panics if `task_index` is out of bounds for the tasks list.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the task was *already not done* before marking as undone, `false` if it was done.
+    ///
     /// # Examples
     ///
     /// ```
     /// use yesser_todo_db::{save_data::JsonSaveData, SaveData, Task};
     /// let mut data = JsonSaveData::new().unwrap();
     /// data.add_task(Task { name: "task".into(), done: true });
-    /// // It was done, so the previous "undone" state is false.
+    /// // It was done, returns false.
     /// assert_eq!(data.mark_task_undone(0), false);
-    /// // Now it's already not done, so the previous "undone" state is true.
+    /// assert_eq!(data.get_tasks()[0].done, false);
+    /// // Now it's not done, so returns true.
     /// assert_eq!(data.mark_task_undone(0), true);
+    /// assert_eq!(data.get_tasks()[0].done, false);
     /// ```
+    /// Notice how the task is still undone after the second call. Use `mark_task_done` to undo this.
     fn mark_task_undone(&mut self, task_index: usize) -> bool {
         let was_undone = !self.tasks[task_index].done;
         self.tasks[task_index].done = false;
