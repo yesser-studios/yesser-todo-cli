@@ -159,10 +159,10 @@ impl SaveData for JsonSaveData {
     /// ```no_run
     /// use yesser_todo_db::{save_data::JsonSaveData, SaveData};
     ///
-    /// let data = JsonSaveData::new().unwrap();
+    /// let mut data = JsonSaveData::new().unwrap();
     /// data.save_cloud_config("example.com", "1234").unwrap();
     /// ```
-    fn save_cloud_config(&self, host: &str, port: &str) -> Result<(), DatabaseError> {
+    fn save_cloud_config(&mut self, host: &str, port: &str) -> Result<(), DatabaseError> {
         fs::create_dir_all(&self.config_dir)?;
         let file = File::create(self.config_file_path())?;
         to_writer(file, &CloudConfig::new(host, port))?;
@@ -181,11 +181,11 @@ impl SaveData for JsonSaveData {
     /// ```no_run
     /// use yesser_todo_db::{save_data::JsonSaveData, SaveData};
     ///
-    /// let data = JsonSaveData::new().unwrap();
+    /// let mut data = JsonSaveData::new().unwrap();
     /// // Attempt to remove the cloud configuration file.
     /// let _ = data.remove_cloud_config();
     /// ```
-    fn remove_cloud_config(&self) -> Result<(), DatabaseError> {
+    fn remove_cloud_config(&mut self) -> Result<(), DatabaseError> {
         fs::remove_file(self.config_file_path())?;
         Ok(())
     }
@@ -612,7 +612,7 @@ mod tests {
 
     #[test]
     fn test_load_save_cloud_config() {
-        let (data, _dir) = JsonSaveData::new_temp().unwrap();
+        let (mut data, _dir) = JsonSaveData::new_temp().unwrap();
         data.save_cloud_config("example.com", "6982").unwrap();
         let result = data.get_cloud_config().unwrap();
         assert_eq!(result, Some(("example.com".to_string(), "6982".to_string())));
@@ -620,7 +620,7 @@ mod tests {
 
     #[test]
     fn test_remove_nonexistent_cloud_config() {
-        let (data, _dir) = JsonSaveData::new_temp().unwrap();
+        let (mut data, _dir) = JsonSaveData::new_temp().unwrap();
         assert!(data.get_cloud_config().unwrap().is_none());
         let result = data.remove_cloud_config();
         assert!(result.is_err());

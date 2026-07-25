@@ -7,7 +7,7 @@ use yesser_todo_errors::command_error::CommandError;
 
 use crate::{
     args::{ClearCommand, CloudCommand, CloudMigrateCommand, TasksCommand},
-    command_impl::{handle_clear, handle_remove},
+    command_impl::handle_clear,
     db_error_wrap::DatabaseErrorWrapper,
     utils::{DONE_STYLE, get_client},
 };
@@ -467,7 +467,7 @@ pub(crate) fn parse_url(url: &str) -> Result<Url, CommandError> {
 /// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
 /// let _ = handle_connect(&cmd, &data);
 /// ```
-pub(crate) fn handle_connect(command: &CloudCommand, data: &dyn SaveData) -> Result<(), CommandError> {
+pub(crate) fn handle_connect(command: &CloudCommand, data: &mut dyn SaveData) -> Result<(), CommandError> {
     let url = parse_url(&command.host)?;
 
     let cmd_port = if let Some(cmd_port) = &command.port {
@@ -519,28 +519,6 @@ pub(crate) fn handle_connect(command: &CloudCommand, data: &dyn SaveData) -> Res
     }
 }
 
-/// Links the local client to a cloud server and emits a deprecation notice.
-///
-/// This command is deprecated; it prints a short notice advising `cloud connect` before
-/// linking to a cloud server.
-///
-/// # Examples
-///
-/// ```ignore
-/// use crate::CloudCommand;
-/// use crate::command_impl_cloud::handle_connect_old;
-///
-/// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
-/// let _ = handle_connect_old(&cmd, &data);
-/// ```
-///
-/// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
-#[deprecated]
-pub(crate) fn handle_connect_old(command: &CloudCommand, data: &dyn SaveData) -> Result<(), CommandError> {
-    println!("connect is deprecated. Use cloud connect instead.");
-    handle_connect(command, data)
-}
-
 /// Removes the saved cloud configuration.
 ///
 /// Prints a confirmation message on success.
@@ -550,7 +528,7 @@ pub(crate) fn handle_connect_old(command: &CloudCommand, data: &dyn SaveData) ->
 /// - `Ok(())` if a configuration was removed.
 /// - `Err(CommandError::UnlinkedError)` if no cloud configuration was found.
 /// - `Err(CommandError::DataError)` for other errors encountered while removing the configuration.
-pub(crate) fn handle_disconnect(data: &dyn SaveData) -> Result<(), CommandError> {
+pub(crate) fn handle_disconnect(data: &mut dyn SaveData) -> Result<(), CommandError> {
     match data.remove_cloud_config() {
         Ok(_) => {
             println!("Successfully unlinked server.");
@@ -605,6 +583,28 @@ pub(crate) fn handle_show_server(data: &dyn SaveData) -> Result<(), CommandError
     }
 }
 
+/// Links the local client to a cloud server and emits a deprecation notice.
+///
+/// This command is deprecated; it prints a short notice advising `cloud connect` before
+/// linking to a cloud server.
+///
+/// # Examples
+///
+/// ```ignore
+/// use crate::CloudCommand;
+/// use crate::command_impl_cloud::handle_connect_old;
+///
+/// let cmd = CloudCommand { host: "http://example.com".to_string(), port: None };
+/// let _ = handle_connect_old(&cmd, &data);
+/// ```
+///
+/// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
+#[deprecated]
+pub(crate) fn handle_connect_old(command: &CloudCommand, data: &mut dyn SaveData) -> Result<(), CommandError> {
+    println!("connect is deprecated. Use cloud connect instead.");
+    handle_connect(command, data)
+}
+
 /// Removes the saved cloud configuration and emits a deprecation notice.
 ///
 /// This command is deprecated; it prints a short notice advising `cloud disconnect` before
@@ -620,7 +620,7 @@ pub(crate) fn handle_show_server(data: &dyn SaveData) -> Result<(), CommandError
 ///
 /// Returns `Ok(())` on success, or a `CommandError` if an error occurs.
 #[deprecated]
-pub(crate) fn handle_disconnect_old(data: &dyn SaveData) -> Result<(), CommandError> {
+pub(crate) fn handle_disconnect_old(data: &mut dyn SaveData) -> Result<(), CommandError> {
     println!("disconnect is deprecated. Use cloud disconnect instead.");
     handle_disconnect(data)
 }
@@ -819,48 +819,48 @@ mod tests {
 
     #[test]
     fn test_handle_connect_creates_config_with_default_port() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com".to_string(),
             port: None,
         };
-        handle_connect(&command, &data).unwrap();
+        handle_connect(&command, &mut data).unwrap();
         let config = data.get_cloud_config().unwrap().unwrap();
         assert_eq!(config, ("http://testhost.com".to_string(), DEFAULT_PORT.to_string()));
     }
 
     #[test]
     fn test_handle_connect_with_explicit_port() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com".to_string(),
             port: Some("9000".to_string()),
         };
-        handle_connect(&command, &data).unwrap();
+        handle_connect(&command, &mut data).unwrap();
         let config = data.get_cloud_config().unwrap().unwrap();
         assert_eq!(config, ("http://testhost.com".to_string(), "9000".to_string()));
     }
 
     #[test]
     fn test_handle_connect_with_url_and_flag_port_match() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com:9000".to_string(),
             port: Some("9000".to_string()),
         };
-        handle_connect(&command, &data).unwrap();
+        handle_connect(&command, &mut data).unwrap();
         let config = data.get_cloud_config().unwrap().unwrap();
         assert_eq!(config, ("http://testhost.com".to_string(), "9000".to_string()));
     }
 
     #[test]
     fn test_handle_connect_with_url_and_flag_port_mismatch() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com:8080".to_string(),
             port: Some("9000".to_string()),
         };
-        let result = handle_connect(&command, &data);
+        let result = handle_connect(&command, &mut data);
         assert!(result.is_err());
         if let Err(CommandError::InvalidUrlError { why }) = result {
             assert!(why.contains("Port in URL and <PORT> parameter do not match"));
@@ -871,12 +871,12 @@ mod tests {
 
     #[test]
     fn test_handle_connect_with_invalid_port_string() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com".to_string(),
             port: Some("not_a_number".to_string()),
         };
-        let result = handle_connect(&command, &data);
+        let result = handle_connect(&command, &mut data);
         assert!(result.is_err());
         if let Err(CommandError::InvalidUrlError { why }) = result {
             assert!(why.contains("port specified in the <PORT> parameter is invalid"));
@@ -887,24 +887,24 @@ mod tests {
 
     #[test]
     fn test_handle_connect_with_invalid_url() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "not a valid url!!!".to_string(),
             port: None,
         };
-        let result = handle_connect(&command, &data);
+        let result = handle_connect(&command, &mut data);
         assert!(result.is_err());
         assert!(matches!(result, Err(CommandError::InvalidUrlError { .. })));
     }
 
     #[test]
     fn test_handle_connect_with_invalid_scheme() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "ftp://testhost.com".to_string(),
             port: None,
         };
-        let result = handle_connect(&command, &data);
+        let result = handle_connect(&command, &mut data);
         assert!(result.is_err());
         if let Err(CommandError::InvalidUrlError { why }) = result {
             assert!(why.contains("Invalid scheme"));
@@ -915,106 +915,106 @@ mod tests {
 
     #[test]
     fn test_handle_disconnect_behavior() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://testhost.com".to_string(),
             port: None,
         };
-        handle_connect(&command, &data).unwrap();
+        handle_connect(&command, &mut data).unwrap();
         assert!(data.get_cloud_config().unwrap().is_some());
 
-        handle_disconnect(&data).unwrap();
+        handle_disconnect(&mut data).unwrap();
         assert!(data.get_cloud_config().unwrap().is_none());
     }
 
     #[test]
     fn test_handle_connect_port_priority_url_over_default() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com:7777".to_string(),
             port: None,
         };
-        handle_connect(&command, &data).unwrap();
+        handle_connect(&command, &mut data).unwrap();
         let config = data.get_cloud_config().unwrap().unwrap();
         assert_eq!(config, ("http://example.com".to_string(), "7777".to_string()));
     }
 
     #[test]
     fn test_handle_connect_port_priority_flag_over_default() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("7777".to_string()),
         };
-        handle_connect(&command, &data).unwrap();
+        handle_connect(&command, &mut data).unwrap();
         let config = data.get_cloud_config().unwrap().unwrap();
         assert_eq!(config, ("http://example.com".to_string(), "7777".to_string()));
     }
 
     #[test]
     fn test_handle_connect_with_port_65535() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("65535".to_string()),
         };
-        handle_connect(&command, &data).unwrap();
+        handle_connect(&command, &mut data).unwrap();
         let config = data.get_cloud_config().unwrap().unwrap();
         assert_eq!(config, ("http://example.com".to_string(), "65535".to_string()));
     }
 
     #[test]
     fn test_handle_connect_with_port_overflow() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("65536".to_string()),
         };
-        let result = handle_connect(&command, &data);
+        let result = handle_connect(&command, &mut data);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_handle_connect_with_port_zero() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("0".to_string()),
         };
-        let result = handle_connect(&command, &data);
+        let result = handle_connect(&command, &mut data);
         assert!(result.is_err())
     }
 
     #[test]
     fn test_handle_connect_with_large_port() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://example.com".to_string(),
             port: Some("999999".to_string()),
         };
-        let result = handle_connect(&command, &data);
+        let result = handle_connect(&command, &mut data);
         assert!(result.is_err())
     }
 
     #[test]
     fn test_handle_connect_without_host() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "".to_string(),
             port: Some("8080".to_string()),
         };
-        let result = handle_connect(&command, &data);
+        let result = handle_connect(&command, &mut data);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_handle_show_server_when_connected() {
-        let (data, _dir) = make_data();
+        let (mut data, _dir) = make_data();
         let command = CloudCommand {
             host: "http://myserver.com".to_string(),
             port: Some("9999".to_string()),
         };
-        handle_connect(&command, &data).unwrap();
+        handle_connect(&command, &mut data).unwrap();
         assert!(handle_show_server(&data).is_ok());
     }
 

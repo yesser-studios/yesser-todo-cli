@@ -87,8 +87,8 @@ pub trait SaveData: Send + Sync {
     fn load_tasks(&mut self) -> Result<(), DatabaseError>;
     fn save_tasks(&self) -> Result<(), DatabaseError>;
     fn get_cloud_config(&self) -> Result<Option<(String, String)>, DatabaseError>;
-    fn save_cloud_config(&self, host: &str, port: &str) -> Result<(), DatabaseError>;
-    fn remove_cloud_config(&self) -> Result<(), DatabaseError>;
+    fn save_cloud_config(&mut self, host: &str, port: &str) -> Result<(), DatabaseError>;
+    fn remove_cloud_config(&mut self) -> Result<(), DatabaseError>;
 }
 
 #[cfg(test)]
