@@ -68,7 +68,7 @@ mod tests {
 
     fn make_data_with_cloud_config(host: &str, port: &str) -> (JsonSaveData, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();
-        let data = JsonSaveData::with_dir(dir.path().to_owned());
+        let mut data = JsonSaveData::with_dir(dir.path().to_owned());
         data.save_cloud_config(host, port).unwrap();
         (data, dir)
     }
