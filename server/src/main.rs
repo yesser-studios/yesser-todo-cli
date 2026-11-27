@@ -67,7 +67,10 @@ async fn main() {
     match tokio::net::TcpListener::bind("0.0.0.0:6982").await {
         Ok(listener) => {
             println!("Server listening on port 6982");
-            axum::serve(listener, router).with_graceful_shutdown(shutdown_signal()).await.unwrap();
+            axum::serve(listener, router)
+                .with_graceful_shutdown(shutdown_signal())
+                .await
+                .expect("Failed to run server");
         }
         Err(e) => {
             eprintln!("Failed to bind port 6982: {e}");
