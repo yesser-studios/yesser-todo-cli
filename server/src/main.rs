@@ -6,20 +6,41 @@ use std::process::exit;
 use std::sync::Arc;
 
 use crate::functions::{add_task, clear_done_tasks, clear_tasks, done_task, get_index, get_tasks, remove_task, undone_task};
+
 use axum::routing::delete;
 use axum::{
     Router,
     routing::{get, post},
 };
+
 use tokio::signal::ctrl_c;
+#[cfg(unix)]
+use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::Mutex;
+
 use yesser_todo_db::{JsonSaveData, SaveData};
 
+async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let mut term = signal(SignalKind::terminate()).expect("Failed to bind SIGTERM");
+        let mut int = signal(SignalKind::interrupt()).expect("Failed to bind SIGINT");
+        tokio::select! {
+            r = ctrl_c() => { r.expect("Failed to listen for Ctrl-C event") }
+            _ = term.recv() => {}
+            _ = int.recv() => {}
+        };
+    }
+    #[cfg(not(unix))]
+    ctrl_c().await.expect("Failed to listen for Ctrl-C event")
+}
+
 async fn shutdown_signal() {
-    ctrl_c().await.expect("Failed to listen for Ctrl-C event");
+    wait_for_shutdown_signal().await;
+
     println!("Attempting graceful shutdown...");
     tokio::spawn(async {
-        ctrl_c().await.expect("Failed to listen for Ctrl-C event");
+        wait_for_shutdown_signal().await;
         exit(2);
     });
 }
