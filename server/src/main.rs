@@ -11,8 +11,19 @@ use axum::{
     Router,
     routing::{get, post},
 };
+use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::Mutex;
 use yesser_todo_db::{JsonSaveData, SaveData};
+
+async fn shutdown_signal() {
+    let mut term = signal(SignalKind::terminate()).expect("Failed to bind SIGTERM");
+    let mut int = signal(SignalKind::interrupt()).expect("Failed to bind SIGINT");
+
+    tokio::select! {
+        _ = term.recv() => {}
+        _ = int.recv() => {}
+    }
+}
 
 /// Binary entry point that configures HTTP routes and starts the Axum server.
 ///
@@ -57,7 +68,7 @@ async fn main() {
     match tokio::net::TcpListener::bind("0.0.0.0:6982").await {
         Ok(listener) => {
             println!("Server listening on port 6982");
-            axum::serve(listener, router).await.unwrap();
+            axum::serve(listener, router).with_graceful_shutdown(shutdown_signal()).await.unwrap();
         }
         Err(e) => {
             eprintln!("Failed to bind port 6982: {e}");
