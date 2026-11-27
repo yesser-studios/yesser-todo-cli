@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf, str::FromStr};
+use std::{env, path::PathBuf};
 
 use platform_dirs::AppDirs;
 use yesser_todo_errors::db_error::DatabaseError;
@@ -8,20 +8,16 @@ pub(crate) fn get_app_dirs() -> Result<AppDirs, DatabaseError> {
 }
 
 pub(crate) fn get_data_dir(dirs: &AppDirs) -> PathBuf {
-    if let Ok(data_dir) = env::var("TODO_DATA_DIR")
-        && let Ok(path) = PathBuf::from_str(data_dir.as_str())
-    {
-        path
+    if let Some(data_dir) = env::var_os("TODO_DATA_DIR") {
+        PathBuf::from(data_dir)
     } else {
         dirs.data_dir.clone()
     }
 }
 
 pub(crate) fn get_config_dir(dirs: &AppDirs) -> PathBuf {
-    if let Ok(config_dir) = env::var("TODO_CONFIG_DIR")
-        && let Ok(path) = PathBuf::from_str(config_dir.as_str())
-    {
-        path
+    if let Some(config_dir) = env::var_os("TODO_CONFIG_DIR") {
+        PathBuf::from(config_dir)
     } else {
         dirs.config_dir.clone()
     }
