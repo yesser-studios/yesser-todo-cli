@@ -54,6 +54,13 @@ async fn main() {
         .route("/index", get(get_index))
         .with_state(save_data);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:6982").await.unwrap();
-    axum::serve(listener, router).await.unwrap();
+    match tokio::net::TcpListener::bind("0.0.0.0:6982").await {
+        Ok(listener) => {
+            println!("Server listening on port 6982");
+            axum::serve(listener, router).await.unwrap();
+        }
+        Err(e) => {
+            eprintln!("Failed to bind port 6982: {e}");
+        }
+    }
 }
