@@ -15,32 +15,41 @@ use axum::{
 
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
-use tokio::signal::unix::{SignalKind, signal};
+use tokio::signal::unix::{Signal, SignalKind, signal};
 use tokio::sync::Mutex;
 
 use yesser_todo_db::{JsonSaveData, SaveData};
 
+#[cfg(unix)]
+async fn wait_for_shutdown_signal(term: &mut Signal, int: &mut Signal) {
+    tokio::select! {
+        r = ctrl_c() => { r.expect("Failed to listen for Ctrl-C event") }
+        _ = term.recv() => {}
+        _ = int.recv() => {}
+    };
+}
+
+#[cfg(not(unix))]
 async fn wait_for_shutdown_signal() {
-    #[cfg(unix)]
-    {
-        let mut term = signal(SignalKind::terminate()).expect("Failed to bind SIGTERM");
-        let mut int = signal(SignalKind::interrupt()).expect("Failed to bind SIGINT");
-        tokio::select! {
-            r = ctrl_c() => { r.expect("Failed to listen for Ctrl-C event") }
-            _ = term.recv() => {}
-            _ = int.recv() => {}
-        };
-    }
-    #[cfg(not(unix))]
-    ctrl_c().await.expect("Failed to listen for Ctrl-C event")
+    ctrl_c().await.expect("Failed to listen for Ctrl-C event");
 }
 
 async fn shutdown_signal() {
-    wait_for_shutdown_signal().await;
+    #[cfg(unix)]
+    let mut term = signal(SignalKind::terminate()).expect("Failed to bind SIGTERM");
+    #[cfg(unix)]
+    let mut int = signal(SignalKind::interrupt()).expect("Failed to bind SIGINT");
+    #[cfg(unix)]
+    wait_for_shutdown_signal(&mut term, &mut int).await;
+    #[cfg(not(unix))]
+    wait_for_shutdown_signal();
 
     println!("Attempting graceful shutdown...");
-    tokio::spawn(async {
-        wait_for_shutdown_signal().await;
+    tokio::spawn(async move {
+        #[cfg(unix)]
+        wait_for_shutdown_signal(&mut term, &mut int).await;
+        #[cfg(not(unix))]
+        wait_for_shutdown_signal();
         exit(2);
     });
 }
