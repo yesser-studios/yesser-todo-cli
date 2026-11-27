@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export TODO_DATA_DIR=/tmp/yesser-todo-test/data
+export TODO_CONFIG_DIR=/tmp/yesser-todo-test/config
+
 cargo build --bin yesser-todo-server
 
 cargo run --bin yesser-todo-server &
@@ -22,5 +25,6 @@ if [ "$ready" != "true" ]; then
   exit 1
 fi
 
-
 cargo test --verbose --all-features
+
+rm -rf /tmp/yesser-todo-test
