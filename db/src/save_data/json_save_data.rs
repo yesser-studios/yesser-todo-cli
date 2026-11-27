@@ -1,7 +1,10 @@
 use serde_json::{from_reader, to_writer};
 use yesser_todo_errors::db_error::DatabaseError;
 
-use crate::{CloudConfig, SaveData};
+use crate::{
+    CloudConfig, SaveData,
+    env::{get_app_dirs, get_config_dir, get_data_dir},
+};
 use std::{
     fs::{self, File},
     path::PathBuf,
@@ -34,11 +37,11 @@ impl JsonSaveData {
     /// assert!(data.get_tasks().is_empty());
     /// ```
     pub fn new() -> Result<JsonSaveData, DatabaseError> {
-        let app_dirs = platform_dirs::AppDirs::new(Some("todo"), true).ok_or(DatabaseError::UserDirsError)?;
+        let app_dirs = get_app_dirs()?;
         Ok(JsonSaveData {
             tasks: Vec::new(),
-            data_dir: app_dirs.data_dir,
-            config_dir: app_dirs.config_dir,
+            data_dir: get_data_dir(&app_dirs),
+            config_dir: get_config_dir(&app_dirs),
         })
     }
 
