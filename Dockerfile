@@ -7,10 +7,11 @@ RUN rustup target add x86_64-unknown-linux-musl && \
 COPY . .
 RUN cargo build --package yesser-todo-server --target x86_64-unknown-linux-musl --release
 
-FROM alpine:3.24.4
+FROM scratch
 
+WORKDIR /
 COPY --from=build ./target/x86_64-unknown-linux-musl/release/yesser-todo-server /app/yesser-todo-server
-WORKDIR /app
+ENV PATH="/app:${PATH}"
 
 EXPOSE 6982
 ENTRYPOINT ["yesser-todo-server"]
