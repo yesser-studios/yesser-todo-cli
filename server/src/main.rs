@@ -11,18 +11,17 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use tokio::signal::unix::{SignalKind, signal};
+use tokio::signal::ctrl_c;
 use tokio::sync::Mutex;
 use yesser_todo_db::{JsonSaveData, SaveData};
 
 async fn shutdown_signal() {
-    let mut term = signal(SignalKind::terminate()).expect("Failed to bind SIGTERM");
-    let mut int = signal(SignalKind::interrupt()).expect("Failed to bind SIGINT");
-
-    tokio::select! {
-        _ = term.recv() => {}
-        _ = int.recv() => {}
-    }
+    ctrl_c().await.expect("Failed to listen for Ctrl-C event");
+    println!("Attempting graceful shutdown...");
+    tokio::spawn(async {
+        ctrl_c().await.expect("Failed to listen for Ctrl-C event");
+        exit(2);
+    });
 }
 
 /// Binary entry point that configures HTTP routes and starts the Axum server.
