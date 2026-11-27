@@ -168,7 +168,8 @@ impl SaveData for JsonSaveData {
     fn save_cloud_config(&mut self, host: &str, port: &str) -> Result<(), DatabaseError> {
         fs::create_dir_all(&self.config_dir)?;
         let file = File::create(self.config_file_path())?;
-        to_writer(file, &CloudConfig::new(host, port))?;
+        to_writer(&file, &CloudConfig::new(host, port))?;
+        file.sync_all()?;
 
         Ok(())
     }
@@ -244,7 +245,8 @@ impl SaveData for JsonSaveData {
 
         let file = File::create(self.data_file_path())?;
 
-        to_writer(file, &self.tasks)?;
+        to_writer(&file, &self.tasks)?;
+        file.sync_all()?;
 
         Ok(())
     }
