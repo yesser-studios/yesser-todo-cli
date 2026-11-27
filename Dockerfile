@@ -8,10 +8,14 @@ COPY . .
 RUN cargo build --package yesser-todo-server --target x86_64-unknown-linux-musl --release
 
 FROM scratch
+COPY --from=build ./target/x86_64-unknown-linux-musl/release/yesser-todo-server /app/yesser-todo-server
+
+ENV PATH="/app:${PATH}"
+ENV TODO_DATA_DIR="/data"
+ENV TODO_CONFIG_DIR="/config"
+VOLUME /data
+VOLUME /config
 
 WORKDIR /
-COPY --from=build ./target/x86_64-unknown-linux-musl/release/yesser-todo-server /app/yesser-todo-server
-ENV PATH="/app:${PATH}"
-
 EXPOSE 6982
 ENTRYPOINT ["yesser-todo-server"]
