@@ -72,6 +72,7 @@ async fn main() {
         }
         Err(e) => {
             eprintln!("Failed to bind port 6982: {e}");
+            exit(1);
         }
     }
 }
