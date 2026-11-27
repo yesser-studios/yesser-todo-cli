@@ -76,6 +76,25 @@ _Note: Make sure you're logged in with `cargo login`_
 Run `cargo install cargo-release` to install the cargo-publish tool,
 then run `cargo release <BUMP>` to bump the version and publish. This will automatically create a git commit and tag.
 
+## Windows build
+
+cargo-wix uses WiX v3, which is not available anymore. We will not be publishing .msi packages until cargo-wix updates or we find a different CI-compatible .msi packager.
+.zip bundles are built automatically by CI on releases.
+
+## Fedora COPR build
+
+1. Update the version number in the spec file at https://github.com/yesser-studios/yesser-todo-rpm.
+2. Commit and push the changes, create and push a tag called `<package>-<version>`. COPR should build the new commit automatically.
+
+## Docker build
+
+New server releases must be currently built locally with `podman build -t yesser-todo-server .` and pushed with:
+```fish
+for tag in latest X.Y.Z X.Y X
+    podman push docker.io/yesseruser/yesser-todo-server:$tag
+end
+```
+
 ## Homebrew
 
 First, create a GitHub release to make a tag for Homebrew to download.
@@ -86,12 +105,3 @@ On both machines, run `brew bottle yesser-todo-cli` and upload the file to GitHu
 Generate a sha256 hash for the file and replace the corresponding field in the formula.
 Make sure to change the `root_url` as well. Also, change the version in the test's assertion.
 
-## Windows build
-
-cargo-wix uses WiX v3, which is not available anymore. We will not be publishing .msi packages until cargo-wix updates or we find a different CI-compatible .msi packager.
-.zip bundles are built automatically by CI on releases.
-
-## Fedora COPR build
-
-1. Update the version number in the spec file at https://github.com/yesser-studios/yesser-todo-rpm.
-2. Commit and push the changes, create and push a tag called `<package>-<version>`. COPR should build the new commit automatically.
