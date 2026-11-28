@@ -13,6 +13,7 @@ use axum::{
     routing::{get, post},
 };
 
+#[cfg(not(unix))]
 use tokio::signal::ctrl_c;
 #[cfg(unix)]
 use tokio::signal::unix::{Signal, SignalKind, signal};
@@ -23,7 +24,6 @@ use yesser_todo_db::{JsonSaveData, SaveData};
 #[cfg(unix)]
 async fn wait_for_shutdown_signal(term: &mut Signal, int: &mut Signal) {
     tokio::select! {
-        r = ctrl_c() => { r.expect("Failed to listen for Ctrl-C event") }
         _ = term.recv() => {}
         _ = int.recv() => {}
     };
@@ -50,7 +50,7 @@ async fn shutdown_signal() {
         wait_for_shutdown_signal(&mut term, &mut int).await;
         #[cfg(not(unix))]
         wait_for_shutdown_signal().await;
-        exit(2);
+        exit(130);
     });
 }
 
