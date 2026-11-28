@@ -42,14 +42,14 @@ async fn shutdown_signal() {
     #[cfg(unix)]
     wait_for_shutdown_signal(&mut term, &mut int).await;
     #[cfg(not(unix))]
-    wait_for_shutdown_signal();
+    wait_for_shutdown_signal().await;
 
     println!("Attempting graceful shutdown...");
     tokio::spawn(async move {
         #[cfg(unix)]
         wait_for_shutdown_signal(&mut term, &mut int).await;
         #[cfg(not(unix))]
-        wait_for_shutdown_signal();
+        wait_for_shutdown_signal().await;
         exit(2);
     });
 }
