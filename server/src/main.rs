@@ -6,13 +6,53 @@ use std::process::exit;
 use std::sync::Arc;
 
 use crate::functions::{add_task, clear_done_tasks, clear_tasks, done_task, get_index, get_tasks, remove_task, undone_task};
+
 use axum::routing::delete;
 use axum::{
     Router,
     routing::{get, post},
 };
+
+#[cfg(not(unix))]
+use tokio::signal::ctrl_c;
+#[cfg(unix)]
+use tokio::signal::unix::{Signal, SignalKind, signal};
 use tokio::sync::Mutex;
+
 use yesser_todo_db::{JsonSaveData, SaveData};
+
+#[cfg(unix)]
+async fn wait_for_shutdown_signal(term: &mut Signal, int: &mut Signal) {
+    tokio::select! {
+        _ = term.recv() => {}
+        _ = int.recv() => {}
+    };
+}
+
+#[cfg(not(unix))]
+async fn wait_for_shutdown_signal() {
+    ctrl_c().await.expect("Failed to listen for Ctrl-C event");
+}
+
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    let mut term = signal(SignalKind::terminate()).expect("Failed to bind SIGTERM");
+    #[cfg(unix)]
+    let mut int = signal(SignalKind::interrupt()).expect("Failed to bind SIGINT");
+    #[cfg(unix)]
+    wait_for_shutdown_signal(&mut term, &mut int).await;
+    #[cfg(not(unix))]
+    wait_for_shutdown_signal().await;
+
+    println!("Attempting graceful shutdown...");
+    tokio::spawn(async move {
+        #[cfg(unix)]
+        wait_for_shutdown_signal(&mut term, &mut int).await;
+        #[cfg(not(unix))]
+        wait_for_shutdown_signal().await;
+        exit(130);
+    });
+}
 
 /// Binary entry point that configures HTTP routes and starts the Axum server.
 ///
@@ -54,6 +94,17 @@ async fn main() {
         .route("/index", get(get_index))
         .with_state(save_data);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:6982").await.unwrap();
-    axum::serve(listener, router).await.unwrap();
+    match tokio::net::TcpListener::bind("0.0.0.0:6982").await {
+        Ok(listener) => {
+            println!("Server listening on port 6982");
+            axum::serve(listener, router)
+                .with_graceful_shutdown(shutdown_signal())
+                .await
+                .expect("Failed to run server");
+        }
+        Err(e) => {
+            eprintln!("Failed to bind port 6982: {e}");
+            exit(1);
+        }
+    }
 }
